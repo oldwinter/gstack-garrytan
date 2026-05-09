@@ -152,6 +152,12 @@ describeE2E('plan-ceo-review plan-mode smoke (gate)', () => {
       }
     }
     expect(['asked', 'plan_ready', 'exited']).toContain(obs.outcome);
-    assertReportAtBottomIfPlanWritten(obs);
+    // NOTE: assertReportAtBottomIfPlanWritten is intentionally NOT called
+    // here. This test runs --disallowedTools AskUserQuestion and only
+    // checks "did the question surface" — the model can't run the full
+    // multi-section review without AUQ tools, so no review report exists
+    // to enforce the at-bottom contract against. The contract is
+    // exercised by the periodic finding-count tests, which DO run the
+    // full review.
   }, 360_000);
 });

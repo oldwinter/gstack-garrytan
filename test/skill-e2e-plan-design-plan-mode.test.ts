@@ -85,6 +85,9 @@ describeE2E('plan-design-review plan-mode smoke (gate)', () => {
       );
     }
     expect(['asked', 'plan_ready', 'exited']).toContain(obs.outcome);
-    assertReportAtBottomIfPlanWritten(obs);
+    // NOTE: assertReportAtBottomIfPlanWritten intentionally not called —
+    // see skill-e2e-plan-ceo-plan-mode test 2 for the full rationale. Under
+    // --disallowedTools the model can't run a full review, so the
+    // report-at-bottom contract doesn't apply.
   }, 360_000);
 });
