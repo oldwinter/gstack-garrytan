@@ -393,7 +393,19 @@ async function resolveImagePaths(input: string): Promise<string[]> {
   return input.split(",").map(p => p.trim());
 }
 
-main().catch(err => {
-  console.error(err.message || err);
-  process.exit(1);
-});
+// Self-execution shortcut: when invoked with --daemon-mode, this same
+// binary runs as the persistent design daemon instead of the CLI. Keeps
+// the production install to a single executable; daemon-client.ts spawns
+// `<this binary> --daemon-mode` (or `bun run cli.ts --daemon-mode` in dev)
+// rather than relying on a separate daemon.ts file at a known path.
+if (process.argv.includes("--daemon-mode")) {
+  const { start } = await import("./daemon");
+  start();
+  // start() binds Bun.serve and registers signal handlers; this branch
+  // never falls through to main(). Process stays alive on the bound port.
+} else {
+  main().catch((err) => {
+    console.error(err.message || err);
+    process.exit(1);
+  });
+}

@@ -55,6 +55,37 @@ export function resolveStartupLogPath(): string {
   return path.join(os.homedir(), ".gstack", "design-daemon-startup.log");
 }
 
+/**
+ * Read the gstack version both client and daemon should agree on. Looks
+ * (in order): DESIGN_DAEMON_VERSION env, design/dist/.version baked at
+ * build time, VERSION at the source-tree root (dev), then "unknown".
+ *
+ * Compiled binaries lose the source-tree relative path at runtime, so we
+ * try the dist/.version sidecar (which build.sh writes) before falling
+ * back. This keeps client.expectedVersion and daemon.VERSION coherent.
+ */
+export function readVersionString(): string {
+  const env = process.env.DESIGN_DAEMON_VERSION;
+  if (env) return env;
+  const candidates = [
+    // Compiled binary: design/dist/design lives alongside design/dist/.version
+    path.join(path.dirname(process.execPath), ".version"),
+    // Dev: design/src/* → repo root is two levels up
+    path.join(import.meta.dir, "..", "..", "VERSION"),
+    // Defensive: design/dist sibling of source tree
+    path.join(import.meta.dir, "..", "dist", ".version"),
+  ];
+  for (const p of candidates) {
+    try {
+      const v = fs.readFileSync(p, "utf-8").trim();
+      if (v) return v;
+    } catch {
+      // try next
+    }
+  }
+  return "unknown";
+}
+
 export function readStateFile(stateFile: string = resolveStateFilePath()): DaemonState | null {
   try {
     return JSON.parse(fs.readFileSync(stateFile, "utf-8")) as DaemonState;

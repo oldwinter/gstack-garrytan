@@ -33,6 +33,7 @@ import path from "path";
 import {
   CMDLINE_MARKER,
   DaemonState,
+  readVersionString,
   removeStateFile,
   resolveDaemonLogPath,
   writeStateFile,
@@ -56,18 +57,7 @@ const IDLE_CHECK_INTERVAL_MS = parseInt(
 );
 const MAX_BOARDS = parseInt(process.env.DESIGN_DAEMON_MAX_BOARDS || "50", 10);
 
-const VERSION = process.env.DESIGN_DAEMON_VERSION || readVersion();
-
-function readVersion(): string {
-  try {
-    // VERSION file lives at the repo root; design/ is one level down.
-    return fs
-      .readFileSync(path.join(import.meta.dir, "..", "..", "VERSION"), "utf-8")
-      .trim() || "unknown";
-  } catch {
-    return "unknown";
-  }
-}
+const VERSION = readVersionString();
 
 // ─── Per-board state ─────────────────────────────────────────────
 

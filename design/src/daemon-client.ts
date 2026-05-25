@@ -37,6 +37,7 @@ import {
   healthCheck,
   isProcessAlive,
   readStateFile,
+  readVersionString,
   resolveLockFilePath,
   resolveStartupLogPath,
   resolveStateFilePath,
@@ -216,20 +217,46 @@ export async function publishBoard(opts: PublishBoardOptions): Promise<PublishBo
 // ─── Internals ───────────────────────────────────────────────────
 
 function readPackageVersion(): string {
-  // Same lookup the daemon uses, kept independent so client + daemon agree
-  // even when the daemon's resolution path differs (different CWD).
-  try {
-    return fs
-      .readFileSync(path.join(import.meta.dir, "..", "..", "VERSION"), "utf-8")
-      .trim() || "unknown";
-  } catch {
-    return "unknown";
-  }
+  return readVersionString();
 }
 
 function defaultDaemonScript(): string {
-  // design/src/daemon-client.ts → daemon.ts is a sibling
+  // design/src/daemon-client.ts → daemon.ts is a sibling. Only used in dev
+  // when this process is `bun run cli.ts`; the compiled-binary path
+  // self-execs instead (see resolveSpawnCommand).
   return path.join(import.meta.dir, "daemon.ts");
+}
+
+/**
+ * Compute the argv to spawn the daemon. Two modes:
+ *
+ *   Compiled binary (`design/dist/design`): re-exec ourselves with
+ *   --daemon-mode. process.execPath IS the compiled design binary;
+ *   spawning it again with the flag runs the daemon (see the
+ *   --daemon-mode branch at the bottom of cli.ts).
+ *
+ *   Dev (`bun run design/src/cli.ts`): process.execPath is bun, so we
+ *   invoke `bun run <daemon.ts> --marker ...` directly.
+ *
+ * Tests can override the dev script via opts.script.
+ */
+function resolveSpawnCommand(scriptOverride: string | undefined): {
+  command: string;
+  args: string[];
+} {
+  const execBase = path.basename(process.execPath).toLowerCase();
+  const isCompiledHost = execBase !== "bun" && execBase !== "bun.exe" && execBase !== "node";
+  if (isCompiledHost && !scriptOverride) {
+    return {
+      command: process.execPath,
+      args: ["--daemon-mode", "--marker", CMDLINE_MARKER],
+    };
+  }
+  const script = scriptOverride ?? defaultDaemonScript();
+  return {
+    command: "bun",
+    args: ["run", script, "--marker", CMDLINE_MARKER],
+  };
 }
 
 interface SpawnDaemonOpts {
@@ -240,7 +267,6 @@ interface SpawnDaemonOpts {
 }
 
 async function spawnDaemon(opts: SpawnDaemonOpts): Promise<number> {
-  const script = opts.script ?? defaultDaemonScript();
   const logPath = resolveStartupLogPath();
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
   // Truncate the startup log on each spawn so a later read finds only THIS
@@ -248,11 +274,9 @@ async function spawnDaemon(opts: SpawnDaemonOpts): Promise<number> {
   fs.writeFileSync(logPath, "");
   const logFd = fs.openSync(logPath, "a");
 
-  // CMDLINE_MARKER goes into argv so verifyIdentity can later match it.
-  // Without this, a future SIGTERM would have no way to confirm pid is ours.
-  const args = ["run", script, "--marker", CMDLINE_MARKER];
+  const { command, args } = resolveSpawnCommand(opts.script);
 
-  const child = nodeSpawn("bun", args, {
+  const child = nodeSpawn(command, args, {
     detached: true,
     stdio: ["ignore", logFd, logFd],
     env: {
