@@ -65,11 +65,9 @@ describe('Serve HTTP endpoints', () => {
         const url = new URL(req.url);
 
         if (req.method === 'GET' && url.pathname === '/') {
-          const injected = htmlContent.replace(
-            '</head>',
-            `<script>window.__GSTACK_SERVER_URL = '${url.origin}';</script>\n</head>`
-          );
-          return new Response(injected, {
+          // Board JS uses relative URLs (./api/feedback, ./api/progress)
+          // and a location.protocol feature-detect; no injection needed.
+          return new Response(htmlContent, {
             headers: { 'Content-Type': 'text/html; charset=utf-8' },
           });
         }
@@ -118,12 +116,17 @@ describe('Serve HTTP endpoints', () => {
     server.stop();
   });
 
-  test('GET / serves HTML with injected __GSTACK_SERVER_URL', async () => {
+  test('GET / serves HTML with relative-path board JS (no injection)', async () => {
     const res = await fetch(baseUrl);
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain('__GSTACK_SERVER_URL');
-    expect(html).toContain(baseUrl);
+    // No more per-origin URL injection; board JS uses relative paths.
+    expect(html).not.toContain('__GSTACK_SERVER_URL');
+    expect(html).not.toContain(baseUrl);
+    // Board JS calls relative endpoints so the same HTML works at / and at
+    // /boards/<id>/ (daemon mode).
+    expect(html).toContain("fetch('./api/feedback'");
+    expect(html).toContain("fetch('./api/progress')");
     expect(html).toContain('Design Exploration');
   });
 
