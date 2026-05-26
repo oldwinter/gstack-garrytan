@@ -24,6 +24,7 @@ import {
   shutdownDaemon,
 } from "../src/daemon-client";
 import {
+  acquireLock,
   CMDLINE_MARKER,
   isProcessAlive,
   readStateFile,
@@ -360,5 +361,220 @@ describe("shutdownDaemon + daemonStatus", () => {
     await publishBoard({ port: d.port, html: makeBoardHtml(workDir) });
     const r = await shutdownDaemon({ force: true });
     expect(r.stopped).toBe(true);
+  });
+});
+
+// ─── Real idle-shutdown behavior (spawned daemon, fast clock) ───
+//
+// The lastMeaningfulActivity timestamp is not observable from outside the
+// daemon process, so the only way to prove "bare GETs do not reset the
+// idle timer" is to spawn a real daemon with a short idle window, hit
+// progress polls in a loop, and watch the process exit anyway.
+//
+// These tests aim for ~3-5s real time per test by setting IDLE_MS=2000
+// and CHECK_MS=200. The idle-with-active-boards extension path needs a
+// board in `serving` state to exercise.
+
+describe("daemon idle-shutdown behavior (real process)", () => {
+  // Wait for a child process to exit, with a deadline. Resolves true on
+  // observed exit, false on timeout. Doesn't kill on timeout — caller does.
+  async function waitForExit(pid: number, timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (!isProcessAlive(pid)) return true;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return false;
+  }
+
+  test("idle daemon (no boards) shuts itself down after IDLE_MS + CHECK_MS", async () => {
+    const d = await spawnDaemonForTest({
+      stateFile,
+      idleMs: 2_000,
+      checkMs: 200,
+    });
+    // Don't push to activeDaemons; the daemon should self-exit and the
+    // afterEach SIGTERM would race with that. Track manually.
+    try {
+      // No boards published. lastMeaningfulActivity is the startup time.
+      // Wait IDLE_MS + a couple CHECK_MS intervals for the timer to fire.
+      const exited = await waitForExit(d.proc.pid!, 5_000);
+      expect(exited).toBe(true);
+      // State file removed by gracefulShutdown
+      expect(readStateFile(stateFile)).toBeNull();
+    } finally {
+      if (isProcessAlive(d.proc.pid!)) {
+        try { d.proc.kill("SIGKILL"); } catch {}
+      }
+    }
+  }, 10_000);
+
+  test("bare GET polling does NOT prevent idle shutdown (progress polls don't reset idle)", async () => {
+    const d = await spawnDaemonForTest({
+      stateFile,
+      idleMs: 2_000,
+      checkMs: 200,
+    });
+    let polling = true;
+    let pollCount = 0;
+    const boardDir = makeTmpDir("idle-poll");
+    try {
+      const board = await publishBoard({
+        port: d.port,
+        html: makeBoardHtml(boardDir),
+      });
+      // Submit so the board becomes `done` — non-done would trigger the
+      // 1h extension path and keep the daemon alive past IDLE_MS.
+      await fetch(`${board.url}api/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regenerated: false, preferred: "A" }),
+      });
+      // Hammer /api/progress every 200ms in the background. If bare GETs
+      // reset meaningful activity, the daemon would never idle out.
+      const pollLoop = (async () => {
+        while (polling) {
+          try {
+            await fetch(`${board.url}api/progress`);
+            pollCount += 1;
+          } catch {
+            // daemon went away
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      })();
+
+      const exited = await waitForExit(d.proc.pid!, 6_000);
+      polling = false;
+      await pollLoop;
+
+      expect(exited).toBe(true);
+      // We polled at least a few times before the daemon idled out
+      expect(pollCount).toBeGreaterThan(3);
+      expect(readStateFile(stateFile)).toBeNull();
+    } finally {
+      polling = false;
+      if (isProcessAlive(d.proc.pid!)) {
+        try { d.proc.kill("SIGKILL"); } catch {}
+      }
+      try { fs.rmSync(boardDir, { recursive: true, force: true }); } catch {}
+    }
+  }, 15_000);
+
+  test("idle with active (non-done) boards triggers extension instead of shutdown", async () => {
+    // With non-done boards, the daemon should NOT shut down on the first
+    // idle check after IDLE_MS — it extends. Verify it's still alive past
+    // the would-be-shutdown deadline. The MAX_EXTENSIONS=4 hard ceiling
+    // would take 4 * 1h = 4h to exercise with default extension window,
+    // so we shrink both IDLE and EXTENSION via env to test it in seconds.
+    const d = await spawnDaemonForTest({
+      stateFile,
+      idleMs: 1_500,
+      checkMs: 200,
+      env: {
+        DESIGN_DAEMON_EXTENSION_MS: "1500",
+        DESIGN_DAEMON_MAX_EXTENSIONS: "2",
+      },
+    });
+    const boardDir = makeTmpDir("idle-active");
+    try {
+      await publishBoard({ port: d.port, html: makeBoardHtml(boardDir) });
+      // Daemon has 1 non-done board. After IDLE_MS, idleCheckTick should
+      // extend rather than shut down. So at IDLE_MS + small margin, it's
+      // still alive.
+      await new Promise((r) => setTimeout(r, 2_500));
+      expect(isProcessAlive(d.proc.pid!)).toBe(true);
+      expect(readStateFile(stateFile)).not.toBeNull();
+
+      // After MAX_EXTENSIONS extension windows (2 * 1500ms = 3000ms more),
+      // the hard ceiling kicks in and force-shutdown fires. Total wait:
+      // IDLE_MS(1500) + EXT*MAX(3000) + slack(1000) = ~5500ms. We've already
+      // waited 2500ms, so 4000ms more.
+      const exited = await waitForExit(d.proc.pid!, 5_500);
+      expect(exited).toBe(true);
+      expect(readStateFile(stateFile)).toBeNull();
+    } finally {
+      if (isProcessAlive(d.proc.pid!)) {
+        try { d.proc.kill("SIGKILL"); } catch {}
+      }
+      try { fs.rmSync(boardDir, { recursive: true, force: true }); } catch {}
+    }
+  }, 15_000);
+});
+
+// ─── Concurrent ensureDaemon race (one wins the lock) ───────────
+
+describe("concurrent ensureDaemon race", () => {
+  test("two parallel ensureDaemon() calls converge on one daemon (one spawned, one attached)", async () => {
+    // Fire two ensureDaemon calls in parallel against the same empty
+    // stateFile. The fs.openSync('wx') lock should make exactly one win
+    // the spawn race; the loser waits for the first to write the state
+    // file, then attaches.
+    const [a, b] = await Promise.all([
+      ensureDaemon({ version: "test-version", stateFile, verbose: false }),
+      ensureDaemon({ version: "test-version", stateFile, verbose: false }),
+    ]);
+
+    // Both got the same port (same daemon)
+    expect(a.port).toBe(b.port);
+
+    // Exactly one spawned, one attached
+    const spawnedCount = [a.spawned, b.spawned].filter(Boolean).length;
+    expect(spawnedCount).toBe(1);
+
+    // Exactly one daemon process is alive at that port
+    const state = readStateFile(stateFile);
+    expect(state).not.toBeNull();
+    expect(isProcessAlive(state!.pid)).toBe(true);
+
+    // Lock file cleaned up (the winner released it on exit from the try block)
+    expect(fs.existsSync(resolveLockFilePath(stateFile))).toBe(false);
+
+    // Track for cleanup
+    activeDaemons.push({
+      proc: { pid: state!.pid } as any,
+      port: state!.port,
+      stateFile,
+      stop: async () => {
+        try { process.kill(state!.pid, "SIGTERM"); } catch {}
+      },
+    });
+  }, 15_000);
+});
+
+// ─── Stale-lock reclaim ──────────────────────────────────────────
+
+describe("acquireLock stale-lock reclaim", () => {
+  test("reclaims a lockfile owned by a dead PID and writes our PID", () => {
+    const lockPath = resolveLockFilePath(stateFile);
+    // Plant a lockfile owned by a definitely-dead PID
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    fs.writeFileSync(lockPath, "999999998\n");
+
+    const release = acquireLock(lockPath);
+    expect(release).not.toBeNull();
+    // Lock file now contains our PID
+    expect(fs.readFileSync(lockPath, "utf-8").trim()).toBe(String(process.pid));
+
+    release!();
+    // Released = lock file gone
+    expect(fs.existsSync(lockPath)).toBe(false);
+  });
+
+  test("refuses to reclaim a lockfile owned by an alive (unrelated) PID", () => {
+    const lockPath = resolveLockFilePath(stateFile);
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    // Use this test process's own PID — it's alive AND unrelated to a daemon.
+    // acquireLock should refuse and return null without unlinking the lock.
+    fs.writeFileSync(lockPath, `${process.pid}\n`);
+
+    const release = acquireLock(lockPath);
+    expect(release).toBeNull();
+    // Lock file is untouched
+    expect(fs.readFileSync(lockPath, "utf-8").trim()).toBe(String(process.pid));
+
+    // Cleanup
+    try { fs.unlinkSync(lockPath); } catch {}
   });
 });

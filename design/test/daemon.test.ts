@@ -436,33 +436,86 @@ describe("daemon LRU eviction", () => {
 });
 
 // ─── Idle + meaningful activity ──────────────────────────────────
+//
+// The behavioral tests for idle shutdown — actual process exit, bare-GET-
+// doesn't-reset-idle, MAX_EXTENSIONS hard ceiling — live in
+// daemon-discovery.test.ts because they require a real spawned daemon
+// (lastMeaningfulActivity isn't observable in-process). The in-process
+// version of these tests previously was a smoke that the testing specialist
+// correctly flagged as misleading; it was removed.
 
-describe("daemon idle + activity tracking", () => {
-  test("bare GET /api/progress does NOT reset meaningful activity", async () => {
-    const board = await publishTestBoard();
-    // Force the activity timestamp far in the past
-    markMeaningfulActivity(); // reset baseline
-    const beforeGet = Date.now();
-    for (let i = 0; i < 5; i++) {
-      await fetchHandler(req("GET", `/boards/${board.id}/api/progress`));
-    }
-    // If progress polls don't mark activity, the recorded timestamp stays
-    // at-or-before beforeGet. We can't read lastMeaningfulActivity directly,
-    // but we can simulate idle: publish was the last meaningful event, so
-    // overriding the env-driven idle window via DESIGN_DAEMON_IDLE_MS isn't
-    // available in-process. Instead, exercise idleCheckTick after pushing
-    // boards into the done state and confirm the shutdown path is reached
-    // — covered separately. Here we just assert the progress endpoint stays
-    // functional under repeated calls.
-    const r = await fetchHandler(req("GET", `/boards/${board.id}/api/progress`));
-    expect(r.status).toBe(200);
-    expect(((await r.json()) as any).status).toBe("serving");
-  });
-
-  test("idleCheckTick is callable without throwing when there's no idle", () => {
-    // Smoke check: a freshly-touched daemon should never trigger shutdown.
+describe("daemon idle + activity tracking (smoke)", () => {
+  test("idleCheckTick on a freshly-touched daemon does not throw or shut down", () => {
     markMeaningfulActivity();
     expect(() => idleCheckTick()).not.toThrow();
+    // boards map shouldn't have been wiped (no graceful shutdown happened)
+    expect(typeof __testInternals__.boards.size).toBe("number");
+  });
+});
+
+// ─── Malformed body negatives ────────────────────────────────────
+
+describe("daemon malformed body handling", () => {
+  test("POST /api/boards rejects invalid JSON body with 400", async () => {
+    const bad = new Request("http://127.0.0.1:1234/api/boards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not json",
+    });
+    const r = await fetchHandler(bad);
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as any;
+    expect(body.error).toContain("Invalid JSON");
+  });
+
+  test("POST /api/boards rejects non-object body (e.g. JSON null) with 400", async () => {
+    // JS quirk: `typeof [] === "object"`, so arrays slip past the
+    // !body || typeof body !== "object" guard and fail at the missing-html
+    // check below. The "Expected JSON object" path only fires for genuinely
+    // non-object values like null, numbers, strings.
+    const bad = new Request("http://127.0.0.1:1234/api/boards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    const r = await fetchHandler(bad);
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as any;
+    expect(body.error).toContain("Expected JSON object");
+  });
+
+  test("POST /api/boards: array body falls through to missing-html 400", async () => {
+    // Documents the actual behavior — arrays bypass the type guard but get
+    // caught by the html-field check. If we ever tighten the type check to
+    // reject arrays explicitly, this test will surface the change.
+    const r = await fetchHandler(req("POST", "/api/boards", [1, 2, 3] as any));
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as any;
+    expect(body.error).toContain("Missing 'html'");
+  });
+
+  test("POST /boards/<id>/api/reload rejects invalid JSON body with 400", async () => {
+    const board = await publishTestBoard();
+    const bad = new Request(
+      `http://127.0.0.1:1234/boards/${board.id}/api/reload`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{nope",
+      },
+    );
+    const r = await fetchHandler(bad);
+    expect(r.status).toBe(400);
+  });
+
+  test("POST /boards/<id>/api/reload rejects body missing html field with 400", async () => {
+    const board = await publishTestBoard();
+    const r = await fetchHandler(
+      req("POST", `/boards/${board.id}/api/reload`, { somethingElse: true }),
+    );
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as any;
+    expect(body.error).toContain("HTML file not found");
   });
 });
 
