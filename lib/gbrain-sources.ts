@@ -11,6 +11,7 @@
 
 import { execFileSync, spawnSync } from "child_process";
 import { withErrorContext } from "./gstack-memory-helpers";
+import { NEEDS_SHELL_ON_WINDOWS } from "./gbrain-exec";
 
 export interface SourceState {
   /** "absent" — id not registered. "match" — id at expected path. "drift" — id at different path. */
@@ -87,6 +88,7 @@ export function probeSource(id: string, env?: NodeJS.ProcessEnv): SourceState {
       timeout: 30_000,
       stdio: ["ignore", "pipe", "pipe"],
       env,
+      shell: NEEDS_SHELL_ON_WINDOWS, // #1731: gbrain is a .cmd shim on Windows
     });
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: Buffer };
@@ -160,6 +162,7 @@ export async function ensureSourceRegistered(
         encoding: "utf-8",
         timeout: 30_000,
         env,
+        shell: NEEDS_SHELL_ON_WINDOWS, // #1731: gbrain is a .cmd shim on Windows
       });
       if (rm.status !== 0) {
         throw new Error(`gbrain sources remove ${id} failed: ${rm.stderr || rm.stdout || `exit ${rm.status}`}`);
@@ -173,6 +176,7 @@ export async function ensureSourceRegistered(
       encoding: "utf-8",
       timeout: 30_000,
       env,
+      shell: NEEDS_SHELL_ON_WINDOWS, // #1731: gbrain is a .cmd shim on Windows
     });
     if (add.status !== 0) {
       throw new Error(`gbrain sources add ${id} failed: ${add.stderr || add.stdout || `exit ${add.status}`}`);
@@ -198,6 +202,7 @@ export function sourcePageCount(id: string, env?: NodeJS.ProcessEnv): number | n
       timeout: 30_000,
       stdio: ["ignore", "pipe", "pipe"],
       env,
+      shell: NEEDS_SHELL_ON_WINDOWS, // #1731: gbrain is a .cmd shim on Windows
     });
   } catch {
     return null;
