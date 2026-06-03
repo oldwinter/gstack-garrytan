@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.56.0.0] - 2026-05-31
+## [1.59.0.0] - 2026-05-31
 
 ## **`/land` is a standalone skill now, and on a merge queue it's fire-and-forget: enqueue a stack of green PRs, walk away, and the queue lands them all on the base branch.**
 
