@@ -1,12 +1,12 @@
 
 
 export function generateLakeIntro(): string {
-  return `If \`LAKE_INTRO\` is \`no\`: say "gstack follows the **Boil the Lake** principle — do the complete thing when AI makes marginal cost near-zero. Read more: https://garryslist.org/posts/boil-the-ocean" Offer to open:
+  return `如果 \`LAKE_INTRO\` 是 \`no\`：说 "gstack 遵循 **Boil the Lake** principle：当 AI 让边际成本接近 0 时，就把完整的事做完。Read more: https://garryslist.org/posts/boil-the-ocean"。询问是否打开：
 
 \`\`\`bash
 open https://garryslist.org/posts/boil-the-ocean
 touch ~/.gstack/.completeness-intro-seen
 \`\`\`
 
-Only run \`open\` if yes. Always run \`touch\`.`;
+只有用户同意时才运行 \`open\`。始终运行 \`touch\`。`;
 }

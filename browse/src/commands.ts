@@ -106,8 +106,8 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'media':   { category: 'Reading', description: 'All media elements (images, videos, audio) with URLs, dimensions, types', usage: 'media [--images|--videos|--audio] [selector]' },
   'data':    { category: 'Reading', description: 'Structured data: JSON-LD, Open Graph, Twitter Cards, meta tags', usage: 'data [--jsonld|--og|--meta|--twitter]' },
   // Inspection
-  'js':      { category: 'Inspection', description: 'Run inline JavaScript expression in the page context and return result as string. Same JS sandbox as eval; the only difference is js takes an inline expr while eval reads from a file.', usage: 'js <expr>' },
-  'eval':    { category: 'Inspection', description: 'Run JavaScript from a file in the page context and return result as string. Path must resolve under /tmp or cwd (no traversal). Use eval for multi-line scripts; use js for one-liners.', usage: 'eval <file>' },
+  'js':      { category: 'Inspection', description: '在 page context 中运行 inline JavaScript expression，并以 string 返回结果。与 eval 使用相同 JS sandbox；区别只是 js 接收 inline expr，而 eval 从 file 读取。', usage: 'js <expr>' },
+  'eval':    { category: 'Inspection', description: '在 page context 中从 file 运行 JavaScript，并以 string 返回结果。Path 必须 resolve 到 /tmp 或 cwd 下（禁止 traversal）。multi-line scripts 用 eval；one-liners 用 js。', usage: 'eval <file>' },
   'css':     { category: 'Inspection', description: 'Computed CSS value', usage: 'css <sel> <prop>' },
   'attrs':   { category: 'Inspection', description: 'Element attributes as JSON', usage: 'attrs <sel|@ref>' },
   'is':      { category: 'Inspection', description: 'State check on element. Valid <prop> values: visible, hidden, enabled, disabled, checked, editable, focused (case-sensitive). <sel> accepts a CSS selector OR an @ref token from a prior snapshot (e.g. @e3, @c1) — refs are interchangeable with selectors anywhere a selector is expected.', usage: 'is <prop> <sel|@ref>' },
@@ -124,7 +124,7 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'hover':   { category: 'Interaction', description: 'Hover element', usage: 'hover <sel>' },
   'type':    { category: 'Interaction', description: 'Type into focused element', usage: 'type <text>' },
   'press':   { category: 'Interaction', description: 'Press a Playwright keyboard key against the focused element. Names are case-sensitive: Enter, Tab, Escape, ArrowUp/Down/Left/Right, Backspace, Delete, Home, End, PageUp, PageDown. Modifiers combine with +: Shift+Enter, Control+A, Meta+K. Single printable chars (a, A, 1) work too. Full key list: https://playwright.dev/docs/api/class-keyboard#keyboard-press', usage: 'press <key>' },
-  'scroll':  { category: 'Interaction', description: 'With a selector, smooth-scrolls the element into view. Without a selector, jumps to page bottom. No --by/--to amount option; for pixel-precise scrolling use `js window.scrollTo(0, N)`.', usage: 'scroll [sel|@ref]' },
+  'scroll':  { category: 'Interaction', description: '带 selector 时，将元素平滑滚入视图；不带 selector 时跳到页面底部。没有 --by/--to amount option；需要像素级精确滚动时使用 `js window.scrollTo(0, N)`。', usage: 'scroll [sel|@ref]' },
   'wait':    { category: 'Interaction', description: 'Wait for element, network idle, or page load (timeout: 15s)', usage: 'wait <sel|--networkidle|--load>' },
   'upload':  { category: 'Interaction', description: 'Upload file(s)', usage: 'upload <sel> <file> [file2...]' },
   'viewport':{ category: 'Interaction', description: 'Set viewport size and optional deviceScaleFactor (1-3, for retina screenshots). --scale requires a context rebuild.', usage: 'viewport [<WxH>] [--scale <n>]' },
@@ -133,10 +133,10 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'cookie-import-browser': { category: 'Interaction', description: 'Import cookies from installed Chromium browsers (opens picker, or use --domain for direct import)', usage: 'cookie-import-browser [browser] [--domain d]' },
   'header':  { category: 'Interaction', description: 'Set custom request header (colon-separated, sensitive values auto-redacted)', usage: 'header <name>:<value>' },
   'useragent': { category: 'Interaction', description: 'Set user agent', usage: 'useragent <string>' },
-  'dialog-accept': { category: 'Interaction', description: 'Auto-accept next alert/confirm/prompt. Optional text is sent as the prompt response', usage: 'dialog-accept [text]' },
+  'dialog-accept': { category: 'Interaction', description: '自动接受下一次 alert/confirm/prompt；可选 text 会作为 prompt response 发送', usage: 'dialog-accept [text]' },
   'dialog-dismiss': { category: 'Interaction', description: 'Auto-dismiss next dialog' },
   // Data extraction
-  'download': { category: 'Extraction', description: 'Download URL or media element to disk using browser cookies. Use --navigate for URLs that trigger browser downloads (CDN redirects, Content-Disposition, anti-bot protected sites)', usage: 'download <url|@ref> [path] [--base64] [--navigate]' },
+  'download': { category: 'Extraction', description: '使用 browser cookies 将 URL 或 media element 下载到 disk。对会触发 browser downloads 的 URLs 使用 --navigate（CDN redirects、Content-Disposition、anti-bot protected sites）', usage: 'download <url|@ref> [path] [--base64] [--navigate]' },
   'scrape':   { category: 'Extraction', description: 'Bulk download all media from page. Writes manifest.json', usage: 'scrape <images|videos|media> [--selector sel] [--dir path] [--limit N]' },
   'archive':  { category: 'Extraction', description: 'Save complete page as MHTML via CDP', usage: 'archive [path]' },
   // Visual
@@ -155,8 +155,8 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'stop':    { category: 'Server', description: 'Shutdown server' },
   'restart': { category: 'Server', description: 'Restart server' },
   // Meta
-  'snapshot':{ category: 'Snapshot', description: 'Accessibility tree with @e refs for element selection. Flags: -i interactive only, -c compact, -d N depth limit, -s sel scope, -D diff vs previous, -a annotated screenshot, -o path output, -C cursor-interactive @c refs', usage: 'snapshot [flags]' },
-  'chain':   { category: 'Meta', description: 'Run a sequence of commands from JSON on stdin. One JSON array of arrays, each inner array is [cmd, ...args]. Output is one JSON result per command. Pipe a JSON array (e.g. `[["goto","https://example.com"],["text","h1"]]`) to `$B chain` and it runs the goto then the text command in order. Stops at the first error.', usage: 'chain  (JSON via stdin)' },
+  'snapshot':{ category: 'Snapshot', description: 'Accessibility tree，带 @e refs 用于 element selection。Flags: -i interactive only, -c compact, -d N depth limit, -s sel scope, -D diff vs previous, -a annotated screenshot, -o path output, -C cursor-interactive @c refs', usage: 'snapshot [flags]' },
+  'chain':   { category: 'Meta', description: '从 stdin 的 JSON 运行一串 commands。输入是一个 JSON array of arrays，每个 inner array 为 [cmd, ...args]。每个 command 输出一个 JSON result。将 JSON array（例如 `[["goto","https://example.com"],["text","h1"]]`）pipe 给 `$B chain`，它会依次运行 goto 和 text command。遇到第一个 error 即停止。', usage: 'chain  (JSON via stdin)' },
   // Handoff
   'handoff': { category: 'Server', description: 'Open visible Chrome at current page for user takeover', usage: 'handoff [message]' },
   'resume':  { category: 'Server', description: 'Re-snapshot after user takeover, return control to AI', usage: 'resume' },
@@ -176,15 +176,15 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'inspect': { category: 'Inspection', description: 'Deep CSS inspection via CDP — full rule cascade, box model, computed styles', usage: 'inspect [selector] [--all] [--history]' },
   'style':   { category: 'Interaction', description: 'Modify CSS property on element (with undo support)', usage: 'style <sel> <prop> <value> | style --undo [N]' },
   'cleanup': { category: 'Interaction', description: 'Remove page clutter (ads, cookie banners, sticky elements, social widgets)', usage: 'cleanup [--ads] [--cookies] [--sticky] [--social] [--all]' },
-  'prettyscreenshot': { category: 'Visual', description: 'Clean screenshot with optional cleanup, scroll positioning, and element hiding', usage: 'prettyscreenshot [--scroll-to sel|text] [--cleanup] [--hide sel...] [--width px] [path]' },
+  'prettyscreenshot': { category: 'Visual', description: '生成 clean screenshot，可选 cleanup、scroll positioning 和 element hiding', usage: 'prettyscreenshot [--scroll-to sel|text] [--cleanup] [--hide sel...] [--width px] [path]' },
   // UX Audit
-  'ux-audit': { category: 'Inspection', description: 'Extract page structure for UX behavioral analysis — site ID, nav, headings, text blocks, interactive elements. Returns JSON for agent interpretation.', usage: 'ux-audit' },
+  'ux-audit': { category: 'Inspection', description: '抽取 page structure 供 UX behavioral analysis 使用 — site ID、nav、headings、text blocks、interactive elements。返回 JSON 供 agent interpretation。', usage: 'ux-audit' },
   // Domain skills (per-site notes the agent writes for itself)
-  'domain-skill': { category: 'Meta', description: 'Per-site notes the agent writes for itself. Host is derived from the active tab. Lifecycle: `save` adds a quarantined note → after N=3 successful uses without the prompt-injection classifier flagging it, the note auto-promotes to "active" → `promote-to-global` lifts it to the global tier (machine-wide, all projects). The classifier flag is set automatically by the L4 prompt-injection scan; agents do not set it manually. Use `list` / `show` to inspect, `edit` to revise, `rollback` to demote, `rm` to tombstone.', usage: 'domain-skill save|list|show|edit|promote-to-global|rollback|rm <host?>' },
+  'domain-skill': { category: 'Meta', description: 'agent 写给自己的 per-site notes。Host 从 active tab 推导。Lifecycle：`save` 添加 quarantined note → N=3 次 successful uses 且未被 prompt-injection classifier 标记后，note 自动 promote 为 "active" → `promote-to-global` 提升到 global tier（machine-wide，all projects）。classifier flag 由 L4 prompt-injection scan 自动设置；agents 不手动设置。用 `list` / `show` inspect，`edit` revise，`rollback` demote，`rm` tombstone。', usage: 'domain-skill save|list|show|edit|promote-to-global|rollback|rm <host?>' },
   // Browser-skills (hand-written or generated Playwright scripts the runtime spawns)
-  'skill':        { category: 'Meta', description: 'Run a browser-skill: deterministic Playwright script that drives the daemon over loopback HTTP. 3-tier lookup (project > global > bundled). Spawned scripts get a per-spawn scoped token (read+write only) — never the daemon root token.', usage: 'skill list|show|run|test|rm <name?> [--arg k=v]... [--timeout=Ns]' },
+  'skill':        { category: 'Meta', description: '运行 browser-skill：deterministic Playwright script，通过 loopback HTTP 驱动 daemon。3-tier lookup（project > global > bundled）。Spawned scripts 获得 per-spawn scoped token（仅 read+write），绝不会拿到 daemon root token。', usage: 'skill list|show|run|test|rm <name?> [--arg k=v]... [--timeout=Ns]' },
   // CDP escape hatch (deny-default; see browse/src/cdp-allowlist.ts)
-  'cdp':          { category: 'Inspection', description: 'Raw Chrome DevTools Protocol method dispatch. Deny-default: only methods enumerated in `browse/src/cdp-allowlist.ts` (CDP_ALLOWLIST const) are reachable; any other method 403s. Each allowlist entry declares scope (tab vs browser) and output (trusted vs untrusted) — untrusted methods (data-exfil-shaped, e.g. Network.getResponseBody) get UNTRUSTED-envelope wrapped output. To discover allowed methods: read `browse/src/cdp-allowlist.ts`. Example: `$B cdp Page.getLayoutMetrics`.', usage: 'cdp <Domain.method> [json-params]' },
+  'cdp':          { category: 'Inspection', description: 'Raw Chrome DevTools Protocol method dispatch。Deny-default：只有 `browse/src/cdp-allowlist.ts`（CDP_ALLOWLIST const）列出的 methods 可访问；其他 method 都返回 403。每个 allowlist entry 声明 scope（tab vs browser）和 output（trusted vs untrusted）— untrusted methods（data-exfil-shaped，例如 Network.getResponseBody）会用 UNTRUSTED-envelope 包裹输出。要发现 allowed methods，请阅读 `browse/src/cdp-allowlist.ts`。Example: `$B cdp Page.getLayoutMetrics`。', usage: 'cdp <Domain.method> [json-params]' },
 };
 
 // Load-time validation: descriptions must cover exactly the command sets

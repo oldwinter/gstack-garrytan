@@ -3,15 +3,14 @@ name: ios-qa
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Live-device iOS QA for SwiftUI apps. Connects to a real iPhone via USB
-  CoreDevice IPv6 tunnel, reads Swift source to understand every screen, then
-  runs a vision-driven agent loop: screenshot → analyze → decide → act →
-  verify → repeat. All interaction happens via HTTP to an embedded
-  StateServer in the app under test. Optionally exposes the device over
-  Tailscale so remote agents (OpenClaw, Codex, any HTTP-capable agent) can
-  run iOS QA from anywhere without touching the hardware.
-  Use when asked to "ios qa", "test my iPhone app", "find bugs on the device",
-  or "qa the iOS app". (gstack)
+  面向 SwiftUI app 的真机 iOS QA。通过 USB CoreDevice IPv6 tunnel 连接
+  真实 iPhone，读取 Swift source 以理解每个 screen，然后运行 vision-driven
+  agent loop：screenshot → analyze → decide → act → verify → repeat。
+  所有交互都通过 HTTP 发送到被测 app 内嵌的 StateServer。可选通过
+  Tailscale 暴露设备，让 remote agents（OpenClaw、Codex、任何支持 HTTP
+  的 agent）无需接触硬件，也能从任意位置运行 iOS QA。
+  当用户要求 "ios qa"、"test my iPhone app"、"find bugs on the device" 或
+  "qa the iOS app" 时使用。 (gstack)
 voice-triggers:
   - "iOS quality check"
   - "test the iPhone app"
@@ -34,13 +33,13 @@ triggers:
 
 {{PREAMBLE}}
 
-# Live-device iOS QA
+# 真机 iOS QA
 
-This skill drives a real iPhone via USB. The agent reads your Swift source,
-generates typed state accessors, deploys a debug bridge, and runs a closed
-find→fix→verify loop. No simulator, no XCTest, no WebDriverAgent.
+这个 skill 通过 USB 驱动真实 iPhone。agent 会读取你的 Swift source，
+生成 typed state accessors，部署 debug bridge，并运行闭环
+find→fix→verify loop。不使用 simulator，不使用 XCTest，也不使用 WebDriverAgent。
 
-## Architecture
+## 架构
 
 ```
        ┌──────────────────────┐   USB CoreDevice (IPv6)   ┌──────────────────┐
@@ -60,28 +59,28 @@ find→fix→verify loop. No simulator, no XCTest, no WebDriverAgent.
        └──────────────────────┘
 ```
 
-The iOS app's `StateServer` binds loopback only (`::1` + `127.0.0.1`). Tailnet
-ingress is exclusively the Mac daemon's job. The daemon validates Tailscale
-identities via the local `tailscaled` socket and mints short-lived session
-tokens (default 1h) for remote agents.
+这个 iOS app 的 `StateServer` 只绑定 loopback（`::1` + `127.0.0.1`）。
+Tailnet ingress 完全由 Mac daemon 负责。daemon 通过本地 `tailscaled`
+socket 验证 Tailscale identities，并为 remote agents 签发短期 session
+tokens（默认 1 小时）。
 
-## Prerequisites
+## 前置条件
 
-- macOS (the daemon uses `devicectl` from Xcode).
-- iPhone connected via USB, paired and trusted.
-- Xcode + Swift toolchain installed (`swift --version` reports >= 5.9).
-- App source available on disk, with at least one `@Observable` class.
-- For remote-control mode: Tailscale installed and the user logged in.
+- macOS（daemon 使用 Xcode 的 `devicectl`）。
+- iPhone 已通过 USB 连接、已配对且受信任。
+- 已安装 Xcode + Swift toolchain（`swift --version` 显示 >= 5.9）。
+- app source 位于磁盘上，且至少包含一个 `@Observable` class。
+- remote-control mode 需要：已安装 Tailscale，且用户已登录。
 
-## Phase 0: Session warm-start (optional)
+## Phase 0: Session warm-start（可选）
 
-If `~/.gstack/ios-qa-session.json` exists and the device is still connected,
-skip Phase 1-2 and jump to Phase 3. The session cache holds the rotated token,
-UDID, tunnel address, and accessor hash. Invalidate the cache when:
+如果 `~/.gstack/ios-qa-session.json` 存在且设备仍已连接，跳过 Phase 1-2，
+直接进入 Phase 3。session cache 保存 rotated token、UDID、tunnel address
+和 accessor hash。出现以下情况时让 cache 失效：
 
-- The user passes `--cold` to force a full bootstrap.
-- The accessor hash mismatch is detected on first state query.
-- The daemon reports the cached UDID is no longer connected.
+- 用户传入 `--cold`，强制完整 bootstrap。
+- 第一次 state query 检测到 accessor hash mismatch。
+- daemon 报告 cached UDID 已不再连接。
 
 ```bash
 SESSION="$HOME/.gstack/ios-qa-session.json"
@@ -94,30 +93,29 @@ if [ -f "$SESSION" ] && [ "$COLD" != "1" ]; then
 fi
 ```
 
-## Phase 1: Read source, plan codegen
+## Phase 1: 读取 source，规划 codegen
 
-1. Walk the app source (passed as `--source <dir>`) and identify all `@Observable`
-   classes. Note any property marked with the `@Snapshotable` wrapper — those
-   are the snapshot-eligible fields.
+1. 遍历 app source（通过 `--source <dir>` 传入），识别所有 `@Observable`
+   classes。记录所有带 `@Snapshotable` wrapper 的 property，这些是可纳入
+   snapshot 的 fields。
 2. Run `swift run --package-path $GSTACK_HOME/ios-qa/scripts/gen-accessors-tool gen-accessors --input <source-dir>`.
-   First invocation builds the swift-syntax dependency tree (cold: 2-5 min).
-   Subsequent runs are content-hash-cached and finish in ~50ms.
-3. Show the user the accessor list and ask whether to install the DebugBridge
-   SPM dependency into their `Package.swift` (one AskUserQuestion).
+   首次调用会构建 swift-syntax dependency tree（cold: 2-5 分钟）。后续运行有
+   content-hash cache，约 50ms 完成。
+3. 向用户展示 accessor list，并询问是否要把 DebugBridge SPM dependency
+   安装到他们的 `Package.swift`（一次 AskUserQuestion）。
 
-## Phase 2: Bootstrap the device bridge
+## Phase 2：Bootstrap device bridge（启动 device bridge）
 
-1. Add the `DebugBridge` SPM dependency to the app's `Package.swift`. The package
-   ships three Debug-config-only library products:
-   - `DebugBridgeCore` (Swift, cross-platform) — StateServer + bridge protocols.
-   - `DebugBridgeTouch` (Objective-C, iOS-only) — KIF-derived in-process touch
-     synthesis with iOS 18+ `_UIHitTestContext` SwiftUI hit-testing.
-   - `DebugBridgeUI` (Swift, iOS-only) — Screenshot / Elements / Mutation
-     bridge implementations.
-   The app target depends on `DebugBridgeUI` with `.when(configuration: .debug)`
-   (transitively pulls in Core + Touch). Release builds refuse to link these
-   targets.
-2. Wire the bridges from the `@main` App init, gated on `#if DEBUG`:
+1. 将 `DebugBridge` SPM dependency 添加到 app 的 `Package.swift`。这个 package
+   提供三个仅限 Debug config 的 library products：
+   - `DebugBridgeCore`（Swift，cross-platform）— StateServer + bridge protocols。
+   - `DebugBridgeTouch`（Objective-C，仅 iOS）— 基于 KIF 的 in-process touch
+     synthesis，并支持 iOS 18+ `_UIHitTestContext` SwiftUI hit-testing。
+   - `DebugBridgeUI`（Swift，仅 iOS）— Screenshot / Elements / Mutation bridge
+     implementations。
+   app target 以 `.when(configuration: .debug)` 依赖 `DebugBridgeUI`（传递引入
+   Core + Touch）。Release builds 会拒绝链接这些 targets。
+2. 从 `@main` App init 接入 bridge，并用 `#if DEBUG` gate：
    ```swift
    #if DEBUG
    import DebugBridgeCore
@@ -128,50 +126,48 @@ fi
    #endif
    #endif
    ```
-3. Build + deploy to the device with `xcodebuild -scheme <SchemeName>
+3. 使用 `xcodebuild -scheme <SchemeName>
    -destination 'platform=iOS,id=<UDID>' build install`.
-4. Launch via `devicectl device process launch --device <UDID> --console <bundle-id>`.
-   Capture the boot token printed to `os_log` on first run.
-5. Spawn the Mac-side daemon (on-demand) — `gstack-ios-qa-daemon`. Daemon
-   acquires an exclusive flock on `~/.gstack/ios-qa-daemon.pid`. If another
-   daemon is alive, the second invocation discovers its port and connects.
-6. Daemon immediately calls `POST /auth/rotate` on the iOS StateServer with a
-   fresh in-memory-only token. The boot token becomes useless ~5s later.
-   Anything scraping `os_log` past this point sees a dead credential.
+   build + deploy 到设备。
+4. 通过 `devicectl device process launch --device <UDID> --console <bundle-id>`
+   launch。捕获首次运行时打印到 `os_log` 的 boot token。
+5. 按需启动 Mac 侧 daemon：`gstack-ios-qa-daemon`。daemon 会对
+   `~/.gstack/ios-qa-daemon.pid` 获取独占 flock。如果另一个 daemon 已存活，
+   第二次调用会发现它的 port 并连接。
+6. daemon 立即使用新的 in-memory-only token 调用 iOS StateServer 上的
+   `POST /auth/rotate`。约 5 秒后 boot token 失效。此后任何抓取 `os_log`
+   的东西只能看到已失效 credential。
 
-## Phase 3: Vision-driven agent loop
+## Phase 3：Vision-driven agent loop（视觉驱动 agent 循环）
 
-Each iteration:
+每次 iteration：
 
-1. `GET /screenshot` (via daemon) → save PNG.
-2. `GET /elements` → accessibility tree.
-3. `GET /state/snapshot` (only `@Snapshotable` fields) → current state.
-4. Decide next action based on what's on the screen vs the test goal.
-5. `POST /session/acquire` to grab the device lock.
-6. Execute `POST /tap`, `/swipe`, `/type`, or `POST /state/<key>` write.
-7. Re-screenshot; compare; record finding if buggy.
-8. `POST /session/release` once the iteration is done.
+1. `GET /screenshot`（通过 daemon）→ 保存 PNG。
+2. `GET /elements` → accessibility tree。
+3. `GET /state/snapshot`（仅 `@Snapshotable` fields）→ current state。
+4. 基于屏幕内容和 test goal 决定下一步动作。
+5. `POST /session/acquire` 获取 device lock。
+6. 执行 `POST /tap`、`/swipe`、`/type` 或 `POST /state/<key>` write。
+7. 重新 screenshot；compare；如果有 bug 则记录 finding。
+8. iteration 完成后 `POST /session/release`。
 
-Each authenticated mutating request through the tailnet listener (if remote
-mode is active) writes an audit row to
-`~/.gstack/security/ios-qa-audit.jsonl`.
+通过 tailnet listener 的每个 authenticated mutating request（如果 remote mode
+已启用）都会向 `~/.gstack/security/ios-qa-audit.jsonl` 写入一条 audit row。
 
-## Modes
+## Modes（模式）
 
-**Local-USB mode (default).** Daemon binds loopback only; no Tailscale
-required. The spawning skill gets full-surface access. Best for solo
-development.
+**Local-USB mode（默认）。** daemon 只绑定 loopback；不需要 Tailscale。
+启动该 daemon 的 skill 获得 full-surface access。最适合 solo development。
 
-**Tailnet mode (`--tailnet`).** Daemon additionally binds the Tailscale
-interface (never `0.0.0.0`). Requires `tailscaled` to be running locally and
-the daemon to be able to read `/var/run/tailscale.sock`. Fails closed if the
-socket is missing, permission-denied, or returns an unparseable WhoIs
-response. Remote agents hit `POST /auth/mint` over tailnet, daemon
-canonicalizes identity via WhoIs, checks the allowlist file, mints a
-session token. See `ios-qa/docs/tailscale-acl-example.md`.
+**Tailnet mode（`--tailnet`）。** daemon 额外绑定 Tailscale interface（绝不绑定
+`0.0.0.0`）。要求本地运行 `tailscaled`，且 daemon 能读取
+`/var/run/tailscale.sock`。如果 socket 缺失、permission denied，或返回无法解析
+的 WhoIs response，则 fail closed。remote agents 通过 tailnet 调用
+`POST /auth/mint`；daemon 通过 WhoIs canonicalize identity，检查 allowlist
+file，并签发 session token。见 `ios-qa/docs/tailscale-acl-example.md`。
 
-**Capability tiers (tailnet mode).** Minted tokens default to `interact`
-(taps, swipes, types). Higher tiers require explicit owner mint:
+**Capability tiers（tailnet mode）。** 签发的 tokens 默认是 `interact`
+（taps、swipes、types）。更高 tiers 需要 owner 显式 mint：
 
 - **observe:** `/screenshot`, `/elements`, `GET /state/*`, `/healthz`,
   `/session/heartbeat`.
@@ -179,43 +175,39 @@ session token. See `ios-qa/docs/tailscale-acl-example.md`.
 - **mutate:** interact + `POST /state/<key>`.
 - **restore:** mutate + `POST /state/restore`.
 
-Owner mints via `gstack-ios-qa-mint --remote <identity> --capability <tier>`
-on the Mac. Self-service mint over tailnet only succeeds for already-allowlisted
-identities.
+owner 在 Mac 上通过 `gstack-ios-qa-mint --remote <identity> --capability <tier>`
+mint。tailnet 上的 self-service mint 只会对已在 allowlist 中的 identities 成功。
 
-**Recording mode (`--recording`).** DebugOverlay renders a small diagonal
-"AGENT DEMO" watermark in a corner so screencasts are unambiguous about the
-device being agent-driven.
+**Recording mode（`--recording`）。** DebugOverlay 会在角落渲染一个小的斜向
+"AGENT DEMO" watermark，让 screencast 清楚表明设备由 agent 驱动。
 
-## Demo mode
+## Demo mode（演示模式）
 
-If the user says "demo", "demo mode", "show me", or "I want to see it
-working", run in **DEMO MODE**. This changes how the agent interacts with
-the app:
+如果用户说 "demo"、"demo mode"、"show me" 或 "I want to see it working"，
+使用 **DEMO MODE** 运行。这会改变 agent 与 app 交互的方式：
 
-**DEMO MODE OVERRIDES ALL OTHER RULES.** When demo mode is active, the
-agent MUST drive every action through visible UI (`/tap`, `/swipe`, `/type`)
-and NEVER use `POST /state/*` writes to skip steps. Viewers see the agent
-type every key, tap every button. The on-device DebugOverlay attribution
-chip shows "Driven by Claude Code (demo)" or the remote agent identity.
+**DEMO MODE OVERRIDES ALL OTHER RULES.** demo mode 启用时，agent MUST 通过可见
+UI（`/tap`、`/swipe`、`/type`）驱动每个动作，NEVER 使用 `POST /state/*`
+writes 跳过步骤。观众会看到 agent 输入每个 key、点击每个 button。设备上的
+DebugOverlay attribution chip 会显示 "Driven by Claude Code (demo)" 或
+remote agent identity。
 
-In demo mode, the screencap rate is bumped to 4fps so the recording feels
-live.
+在 demo mode 中，screencap rate 会提升到 4fps，让录制看起来更 live。
 
-## Failure modes + recovery
+## Failure modes + recovery（失败模式与恢复）
 
 | Symptom | Likely cause | Action |
 |---|---|---|
-| `curl: connection refused` to daemon | daemon crashed | Re-run `/ios-qa`; spawn-race lock will fail closed |
-| `403 identity_not_allowed` from `/auth/mint` | identity missing from allowlist | Run `gstack-ios-qa-mint --remote <identity>` on the Mac |
-| `409 schema_mismatch` on `/state/restore` | snapshot from older app build | Discard the snapshot; re-capture |
-| `503 device_disconnected` from proxy | USB tunnel dropped | Reconnect device; daemon auto-reconnects within 30s |
-| `429 rate_limited` from `/auth/mint` | >10 mints/min from one identity | Wait 60s; check audit log for anomalies |
-| `413 body_too_large` on `/state/restore` | snapshot >1MB | Increase `--max-body` or trim snapshot |
+| `curl: connection refused` to daemon | daemon crashed | 重新运行 `/ios-qa`；spawn-race lock 会 fail closed |
+| `403 identity_not_allowed` from `/auth/mint` | identity missing from allowlist | 在 Mac 上运行 `gstack-ios-qa-mint --remote <identity>` |
+| `409 schema_mismatch` on `/state/restore` | snapshot from older app build | 丢弃 snapshot；重新 capture |
+| `503 device_disconnected` from proxy | USB tunnel dropped | 重新连接设备；daemon 会在 30 秒内 auto-reconnect |
+| `429 rate_limited` from `/auth/mint` | >10 mints/min from one identity | 等待 60 秒；检查 audit log 是否异常 |
+| `413 body_too_large` on `/state/restore` | snapshot >1MB | 增加 `--max-body` 或裁剪 snapshot |
 
-## Cleanup
+## Cleanup（清理）
 
-Use `/ios-clean` to remove the DebugBridge SPM dependency and all `#if DEBUG`
-wiring before a Release build. This is a convenience flow; the structural
-Release-build guard (Package.swift `.when(configuration: .debug)` + CI
-`swift build -c release` check) is the safety-critical path.
+在 Release build 前，使用 `/ios-clean` 移除 DebugBridge SPM dependency 和所有
+`#if DEBUG` wiring。这是一个 convenience flow；结构性的 Release-build guard
+（Package.swift `.when(configuration: .debug)` + CI `swift build -c release`
+check）才是 safety-critical path。

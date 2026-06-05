@@ -1,33 +1,33 @@
 
 
 export function generateTestFailureTriage(): string {
-  return `## Test Failure Ownership Triage
+  return `## Test Failure Ownership Triage（测试失败归属分流）
 
-When tests fail, do NOT immediately stop. First, determine ownership:
+Tests fail 时，不要立即停止。先判断 failure ownership：
 
-### Step T1: Classify each failure
+### Step T1: Classify each failure（分类每个 failure）
 
-For each failing test:
+对每个 failing test：
 
-1. **Get the files changed on this branch:**
+1. **获取此 branch 上改过的 files：**
    \`\`\`bash
    git diff origin/<base>...HEAD --name-only
    \`\`\`
 
-2. **Classify the failure:**
-   - **In-branch** if: the failing test file itself was modified on this branch, OR the test output references code that was changed on this branch, OR you can trace the failure to a change in the branch diff.
-   - **Likely pre-existing** if: neither the test file nor the code it tests was modified on this branch, AND the failure is unrelated to any branch change you can identify.
-   - **When ambiguous, default to in-branch.** It is safer to stop the developer than to let a broken test ship. Only classify as pre-existing when you are confident.
+2. **Classify the failure（分类 failure）：**
+   - **In-branch**：failing test file 本身在此 branch 修改过，或 test output 引用了此 branch 修改过的 code，或你能把 failure 追溯到 branch diff 中的改动。
+   - **Likely pre-existing**：test file 和它测试的 code 都没有在此 branch 修改，且 failure 与你能识别的任何 branch change 无关。
+   - **When ambiguous, default to in-branch.** 阻止 developer 比放行 broken test 更安全。只有在有把握时才 classify 为 pre-existing。
 
-   This classification is heuristic — use your judgment reading the diff and the test output. You do not have a programmatic dependency graph.
+   这是 heuristic classification：阅读 diff 和 test output 后用 judgment 判断。你没有 programmatic dependency graph。
 
-### Step T2: Handle in-branch failures
+### Step T2: Handle in-branch failures（处理 branch 内 failures）
 
-**STOP.** These are your failures. Show them and do not proceed. The developer must fix their own broken tests before shipping.
+**STOP.** 这些是当前 branch 的 failures。展示它们，不要继续。Developer 必须先修复自己的 broken tests 才能 ship。
 
-### Step T3: Handle pre-existing failures
+### Step T3: Handle pre-existing failures（处理既有 failures）
 
-Check \`REPO_MODE\` from the preamble output.
+检查 preamble output 中的 \`REPO_MODE\`。
 
 **If REPO_MODE is \`solo\`:**
 
@@ -39,7 +39,7 @@ Use AskUserQuestion:
 >
 > Since this is a solo repo, you're the only one who will fix these.
 >
-> RECOMMENDATION: Choose A — fix now while the context is fresh. Completeness: 9/10.
+> RECOMMENDATION：选择 A — context 还新鲜时立刻修复。Completeness: 9/10.
 > A) Investigate and fix now (human: ~2-4h / CC: ~15min) — Completeness: 10/10
 > B) Add as P0 TODO — fix after this branch lands — Completeness: 7/10
 > C) Skip — I know about this, ship anyway — Completeness: 3/10
@@ -54,36 +54,36 @@ Use AskUserQuestion:
 >
 > This is a collaborative repo — these may be someone else's responsibility.
 >
-> RECOMMENDATION: Choose B — assign it to whoever broke it so the right person fixes it. Completeness: 9/10.
+> RECOMMENDATION：选择 B — 分配给真正破坏它的人，这样正确的人来修。Completeness: 9/10.
 > A) Investigate and fix now anyway — Completeness: 10/10
 > B) Blame + assign GitHub issue to the author — Completeness: 9/10
 > C) Add as P0 TODO — Completeness: 7/10
 > D) Skip — ship anyway — Completeness: 3/10
 
-### Step T4: Execute the chosen action
+### Step T4: Execute the chosen action（执行所选动作）
 
 **If "Investigate and fix now":**
-- Switch to /investigate mindset: root cause first, then minimal fix.
-- Fix the pre-existing failure.
-- Commit the fix separately from the branch's changes: \`git commit -m "fix: pre-existing test failure in <test-file>"\`
-- Continue with the workflow.
+- 切换到 /investigate mindset：先 root cause，再 minimal fix。
+- 修复 pre-existing failure。
+- 与此 branch changes 分开提交该 fix：\`git commit -m "fix: pre-existing test failure in <test-file>"\`
+- 继续 workflow。
 
 **If "Add as P0 TODO":**
-- If \`TODOS.md\` exists, add the entry following the format in \`review/TODOS-format.md\` (or \`.claude/skills/review/TODOS-format.md\`).
-- If \`TODOS.md\` does not exist, create it with the standard header and add the entry.
-- Entry should include: title, the error output, which branch it was noticed on, and priority P0.
-- Continue with the workflow — treat the pre-existing failure as non-blocking.
+- 如果 \`TODOS.md\` 存在，按 \`review/TODOS-format.md\`（或 \`.claude/skills/review/TODOS-format.md\`）格式添加 entry。
+- 如果 \`TODOS.md\` 不存在，创建带 standard header 的文件并添加 entry。
+- Entry 应包含：title、error output、在哪个 branch 上发现、priority P0。
+- 继续 workflow，把 pre-existing failure 视为 non-blocking。
 
 **If "Blame + assign GitHub issue" (collaborative only):**
-- Find who likely broke it. Check BOTH the test file AND the production code it tests:
+- 找出可能是谁 broke it。必须同时检查 test file 和它测试的 production code：
   \`\`\`bash
   # Who last touched the failing test?
   git log --format="%an (%ae)" -1 -- <failing-test-file>
   # Who last touched the production code the test covers? (often the actual breaker)
   git log --format="%an (%ae)" -1 -- <source-file-under-test>
   \`\`\`
-  If these are different people, prefer the production code author — they likely introduced the regression.
-- Create an issue assigned to that person (use the platform detected in Step 0):
+  如果两者是不同的人，优先 production code author：他们更可能引入 regression。
+- 创建 assigned 给该人的 issue（使用 Step 0 检测到的平台）：
   - **If GitHub:**
     \`\`\`bash
     gh issue create \\
@@ -98,11 +98,10 @@ Use AskUserQuestion:
       -d "Found failing on branch <current-branch>. Failure is pre-existing.\\n\\n**Error:**\\n\`\`\`\\n<first 10 lines>\\n\`\`\`\\n\\n**Last modified by:** <author>\\n**Noticed by:** gstack /ship on <date>" \\
       -a "<gitlab-username>"
     \`\`\`
-- If neither CLI is available or \`--assignee\`/\`-a\` fails (user not in org, etc.), create the issue without assignee and note who should look at it in the body.
-- Continue with the workflow.
+- 如果两个 CLI 都不可用，或 \`--assignee\`/\`-a\` 失败（user 不在 org 等），就创建无 assignee 的 issue，并在 body 中说明谁应该查看。
+- 继续 workflow。
 
 **If "Skip":**
-- Continue with the workflow.
-- Note in output: "Pre-existing test failure skipped: <test-name>"`;
+- 继续 workflow。
+- 在 output 中注明：\`Pre-existing test failure skipped: <test-name>\``;
 }
-

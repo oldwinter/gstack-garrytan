@@ -15,22 +15,22 @@ import type { TemplateContext } from '../types';
  */
 export function generateWritingStyle(ctx: TemplateContext): string {
   if (ctx.explainLevel === 'terse') {
-    return `## Writing Style\n\nTerse mode (build-time): skip jargon glossing, outcome-framing layer, and decision-impact closers. Lead with the answer.\n`;
+    return `## Writing Style（写作风格）\n\nTerse mode（build-time）：跳过 jargon glossing、outcome-framing layer 和 decision-impact closers。直接先给答案。\n`;
   }
 
   const jargonPath = `${ctx.paths.skillRoot}/scripts/jargon-list.json`;
 
-  return `## Writing Style (skip entirely if \`EXPLAIN_LEVEL: terse\` appears in the preamble echo OR the user's current message explicitly requests terse / no-explanations output)
+  return `## Writing Style（写作风格；如果 preamble echo 中出现 \`EXPLAIN_LEVEL: terse\`，或用户当前 message 明确要求 terse / no-explanations output，则整段跳过）
 
-Applies to AskUserQuestion, user replies, and findings. AskUserQuestion Format is structure; this is prose quality.
+适用于 AskUserQuestion、user replies 和 findings。AskUserQuestion Format 是 structure；这里是 prose quality。
 
-- Gloss curated jargon on first use per skill invocation, even if the user pasted the term.
-- Frame questions in outcome terms: what pain is avoided, what capability unlocks, what user experience changes.
-- Use short sentences, concrete nouns, active voice.
-- Close decisions with user impact: what the user sees, waits for, loses, or gains.
-- User-turn override wins: if the current message asks for terse / no explanations / just the answer, skip this section.
-- Terse mode (EXPLAIN_LEVEL: terse): no glosses, no outcome-framing layer, shorter responses.
+- 每次 skill invocation 中首次使用 curated jargon 时解释一次，即使该 term 是用户粘贴的。
+- 用 outcome terms 表述问题：避免什么 pain、解锁什么 capability、user experience 有什么变化。
+- 使用短句、具体名词和 active voice。
+- 用 user impact 收束 decisions：用户会看到什么、等待什么、失去什么或获得什么。
+- User-turn override 优先：如果当前 message 要求 terse / no explanations / just the answer，跳过本 section。
+- Terse mode（EXPLAIN_LEVEL: terse）：no glosses、no outcome-framing layer，更短 responses。
 
-Curated jargon list lives at \`${jargonPath}\` (80+ terms). On the first jargon term you encounter this session, Read that file once; treat the \`terms\` array as the canonical list. The list is repo-owned and may grow between releases.
+Curated jargon list 位于 \`${jargonPath}\`（80+ terms）。本 session 中首次遇到 jargon term 时，Read 该 file 一次；把 \`terms\` array 当作 canonical list。该 list 由 repo 拥有，可能在 releases 间增长。
 `;
 }

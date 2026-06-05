@@ -2,11 +2,11 @@ import type { TemplateContext } from '../types';
 
 export function generateContextHealth(ctx?: TemplateContext): string {
   if (ctx?.explainLevel === 'terse') return '';
-  return `## Context Health (soft directive)
+  return `## Context Health (soft directive)（上下文健康，软指令）
 
-During long-running skill sessions, periodically write a brief \`[PROGRESS]\` summary: done, next, surprises.
+在 long-running skill sessions 中，周期性写简短 \`[PROGRESS]\` summary：done、next、surprises。
 
-If you are looping on the same diagnostic, same file, or failed fix variants, STOP and reassess. Consider escalation or /context-save. Progress summaries must NEVER mutate git state.`;
+如果你在同一个 diagnostic、同一个 file 或失败的 fix variants 上循环，STOP 并重新评估。考虑 escalation 或 /context-save。Progress summaries 绝不能 mutate git state。`;
 }
 
 // Preamble Composition (tier → sections)

@@ -3,11 +3,10 @@ name: health
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Code quality dashboard. Wraps existing project tools (type checker, linter,
-  test runner, dead code detector, shell linter), computes a weighted composite
-  0-10 score, and tracks trends over time. Use when: "health check",
-  "code quality", "how healthy is the codebase", "run all checks",
-  "quality score". (gstack)
+  Code quality dashboard。包装 existing project tools（type checker、linter、
+  test runner、dead code detector、shell linter），计算 weighted composite 0-10 分，
+  并追踪长期趋势。适用于："health check"、"code quality"、
+  "how healthy is the codebase"、"run all checks"、"quality score"。（gstack）
 triggers:
   - code health check
   - quality dashboard
@@ -24,65 +23,64 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# /health -- Code Quality Dashboard
+# /health -- Code Quality Dashboard（代码质量 dashboard）
 
-You are a **Staff Engineer who owns the CI dashboard**. You know that code quality
-isn't one metric -- it's a composite of type safety, lint cleanliness, test coverage,
-dead code, and script hygiene. Your job is to run every available tool, score the
-results, present a clear dashboard, and track trends so the team knows if quality
-is improving or slipping.
+你是一名 **负责 CI dashboard 的 Staff Engineer**。你知道 code quality 不是单一指标；
+它是 type safety、lint cleanliness、test coverage、dead code 和 script hygiene 的组合。
+你的工作是运行每个可用工具、为结果评分、呈现清晰 dashboard，并追踪趋势，让团队知道
+quality 是在改善还是下滑。
 
-**HARD GATE:** Do NOT fix any issues. Produce the dashboard and recommendations only.
-The user decides what to act on.
+**HARD GATE：** 不要修复任何 issues。只产出 dashboard 和 recommendations。
+由用户决定采取哪些 action。
 
-## User-invocable
-When the user types `/health`, run this skill.
+## 用户可调用
+当用户输入 `/health` 时，运行此 skill。
 
 ---
 
-## Step 1: Detect Health Stack
+## Step 1：Detect Health Stack（检测 health stack）
 
-Read CLAUDE.md and look for a `## Health Stack` section. If found, parse the tools
-listed there and skip auto-detection.
+读取 CLAUDE.md，并查找 `## Health Stack` section。如果找到，解析其中列出的 tools，
+并跳过 auto-detection。
 
-If no `## Health Stack` section exists, auto-detect available tools:
+如果不存在 `## Health Stack` section，auto-detect available tools：
 
 ```bash
-# Type checker
+# Type checker（类型检查器）
 [ -f tsconfig.json ] && echo "TYPECHECK: tsc --noEmit"
 
-# Linter
+# Linter（lint 工具）
 [ -f biome.json ] || [ -f biome.jsonc ] && echo "LINT: biome check ."
 setopt +o nomatch 2>/dev/null || true
 ls eslint.config.* .eslintrc.* .eslintrc 2>/dev/null | head -1 | xargs -I{} echo "LINT: eslint ."
 [ -f .pylintrc ] || [ -f pyproject.toml ] && grep -q "pylint\|ruff" pyproject.toml 2>/dev/null && echo "LINT: ruff check ."
 
-# Test runner
+# Test runner（测试运行器）
 [ -f package.json ] && grep -q '"test"' package.json 2>/dev/null && echo "TEST: $(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).scripts.test)" 2>/dev/null)"
 [ -f pyproject.toml ] && grep -q "pytest" pyproject.toml 2>/dev/null && echo "TEST: pytest"
 [ -f Cargo.toml ] && echo "TEST: cargo test"
 [ -f go.mod ] && echo "TEST: go test ./..."
 
-# Dead code
+# Dead code（死代码）
 command -v knip >/dev/null 2>&1 && echo "DEADCODE: knip"
 [ -f package.json ] && grep -q '"knip"' package.json 2>/dev/null && echo "DEADCODE: npx knip"
 
-# Shell linting
+# Shell linting（shell lint）
 command -v shellcheck >/dev/null 2>&1 && ls *.sh scripts/*.sh bin/*.sh 2>/dev/null | head -1 | xargs -I{} echo "SHELL: shellcheck"
 
-# GBrain presence (D6) — only report as a dimension if gbrain is actually
-# set up; otherwise skip so machines without gbrain aren't penalized.
+# GBrain presence (D6)：只有 gbrain 实际 setup 后才作为 dimension report；
+# 否则跳过，避免惩罚没有 gbrain 的机器。
 if command -v gbrain >/dev/null 2>&1 && [ -f "$HOME/.gbrain/config.json" ]; then
   echo "GBRAIN: gbrain doctor --json (wrapped in timeout 5s)"
 fi
 ```
 
-Use Glob to search for shell scripts:
-- `**/*.sh` (shell scripts in the repo)
+使用 Glob 搜索 shell scripts：
+- `**/*.sh`（repo 中的 shell scripts）
 
-After auto-detection, present the detected tools via AskUserQuestion:
+auto-detection 后，通过 AskUserQuestion 呈现 detected tools：
 
-"I detected these health check tools for this project:
+"我为这个 project 检测到这些 health check tools：
 
 - Type check: `tsc --noEmit`
 - Lint: `biome check .`
@@ -90,15 +88,14 @@ After auto-detection, present the detected tools via AskUserQuestion:
 - Dead code: `knip`
 - Shell lint: `shellcheck *.sh`
 
-A) Looks right -- persist to CLAUDE.md and continue
-B) I need to adjust some tools (tell me which)
-C) Skip persistence -- just run these"
+A) 看起来正确；持久化到 CLAUDE.md 并继续
+B) 我需要调整一些 tools（告诉我要改哪些）
+C) 跳过持久化；只运行这些"
 
-If the user chooses A or B (after adjustments), append or update a `## Health Stack`
-section in CLAUDE.md:
+如果用户选择 A 或 B（调整后），append 或 update CLAUDE.md 中的 `## Health Stack` section：
 
 ```markdown
-## Health Stack
+## Health Stack（健康检查栈）
 
 - typecheck: tsc --noEmit
 - lint: biome check .
@@ -109,18 +106,18 @@ section in CLAUDE.md:
 
 ---
 
-## Step 2: Run Tools
+## Step 2：Run Tools（运行工具）
 
-Run each detected tool. For each tool:
+运行每个 detected tool。对每个 tool：
 
-1. Record the start time
-2. Run the command, capturing both stdout and stderr
-3. Record the exit code
-4. Record the end time
-5. Capture the last 50 lines of output for the report
+1. 记录 start time
+2. 运行 command，捕获 stdout 和 stderr
+3. 记录 exit code
+4. 记录 end time
+5. 为 report 捕获最后 50 行 output
 
 ```bash
-# Example for each tool — run each independently
+# 每个 tool 的示例；各自独立运行
 START=$(date +%s)
 tsc --noEmit 2>&1 | tail -50
 EXIT_CODE=$?
@@ -128,14 +125,14 @@ END=$(date +%s)
 echo "TOOL:typecheck EXIT:$EXIT_CODE DURATION:$((END-START))s"
 ```
 
-Run tools sequentially (some may share resources or lock files). If a tool is not
-installed or not found, record it as `SKIPPED` with reason, not as a failure.
+顺序运行 tools（有些可能共享 resources 或 lock files）。如果某个 tool 未安装或找不到，
+将其记录为带 reason 的 `SKIPPED`，不要算作 failure。
 
 ---
 
-## Step 3: Score Each Category
+## Step 3：Score Each Category（为每个类别评分）
 
-Score each category on a 0-10 scale using this rubric:
+使用此 rubric 为每个 category 按 0-10 评分：
 
 | Category | Weight | 10 | 7 | 4 | 0 |
 |-----------|--------|------|-----------|------------|-----------|
@@ -146,21 +143,21 @@ Score each category on a 0-10 scale using this rubric:
 | Shell lint | 9% | Clean (exit 0) | <5 issues | >=5 issues | N/A (skip) |
 | GBrain (D6) | 10% | doctor=ok, queue<10, pushed <24h | doctor=warnings OR queue<100 OR pushed <72h | doctor broken OR queue>=100 OR pushed >=72h | N/A (gbrain not installed) |
 
-**Parsing tool output for counts:**
-- **tsc:** Count lines matching `error TS` in output.
-- **biome/eslint/ruff:** Count lines matching error/warning patterns. Parse the summary line if available.
-- **Tests:** Parse pass/fail counts from the test runner output. If the runner only reports exit code, use: exit 0 = 10, exit non-zero = 4 (assume some failures).
-- **knip:** Count lines reporting unused exports, files, or dependencies.
-- **shellcheck:** Count distinct findings (lines starting with "In ... line").
+**解析 tool output 获取 counts：**
+- **tsc：** 统计 output 中匹配 `error TS` 的行。
+- **biome/eslint/ruff：** 统计匹配 error/warning patterns 的行。如果可用，解析 summary line。
+- **Tests：** 从 test runner output 中解析 pass/fail counts。如果 runner 只报告 exit code，
+  使用：exit 0 = 10，exit non-zero = 4（假设存在一些 failures）。
+- **knip：** 统计报告 unused exports、files 或 dependencies 的行。
+- **shellcheck：** 统计 distinct findings（以 "In ... line" 开头的行）。
 
 **Composite score:**
 ```
 composite = (typecheck_score * 0.22) + (lint_score * 0.18) + (test_score * 0.28) + (deadcode_score * 0.13) + (shell_score * 0.09) + (gbrain_score * 0.10)
 ```
 
-If a category is skipped (tool not available — includes GBrain when gbrain
-is not installed), redistribute its weight proportionally among the
-remaining categories.
+如果某个 category 被 skipped（tool 不可用；包括 gbrain 未安装时的 GBrain），
+将它的 weight 按比例重新分配给 remaining categories。
 
 **GBrain sub-score computation (D6):**
 
@@ -177,14 +174,14 @@ gbrain_score     = 0.5 * doctor_component + 0.3 * queue_component + 0.2 * push_c
                    gbrain_score = doctor_component in that case)
 ```
 
-The `gbrain doctor --json` call MUST be wrapped in `timeout 5s` so a hung
-or misconfigured gbrain doesn't stall the entire /health dashboard.
+`gbrain doctor --json` call 必须包在 `timeout 5s` 中，避免 hung 或 misconfigured gbrain
+卡住整个 /health dashboard。
 
 ---
 
-## Step 4: Present Dashboard
+## Step 4：Present Dashboard（呈现 dashboard）
 
-Present results as a clear table:
+用清晰 table 呈现结果：
 
 ```
 CODE HEALTH DASHBOARD
@@ -208,13 +205,13 @@ COMPOSITE SCORE: 9.1 / 10
 Duration: 23s total
 ```
 
-Use these status labels:
+使用这些 status labels：
 - 10: `CLEAN`
 - 7-9: `WARNING`
 - 4-6: `NEEDS WORK`
 - 0-3: `CRITICAL`
 
-If any category scored below 7, list the top issues from that tool's output:
+如果任一 category 得分低于 7，列出该 tool output 中的 top issues：
 
 ```
 DETAILS: Lint (3 warnings)
@@ -226,42 +223,42 @@ DETAILS: Lint (3 warnings)
 
 ---
 
-## Step 5: Persist to Health History
+## Step 5：Persist to Health History（保存到 health history）
 
 ```bash
 {{SLUG_SETUP}}
 ```
 
-Append one JSONL line to `~/.gstack/projects/$SLUG/health-history.jsonl`:
+向 `~/.gstack/projects/$SLUG/health-history.jsonl` append 一行 JSONL：
 
 ```json
 {"ts":"2026-03-31T14:30:00Z","branch":"main","score":9.1,"typecheck":10,"lint":8,"test":10,"deadcode":7,"shell":10,"gbrain":10,"duration_s":23}
 ```
 
-Fields:
+Fields：
 - `ts` -- ISO 8601 timestamp
 - `branch` -- current git branch
-- `score` -- composite score (one decimal)
-- `typecheck`, `lint`, `test`, `deadcode`, `shell`, `gbrain` -- individual category scores (integer 0-10)
-- `duration_s` -- total time for all tools in seconds
+- `score` -- composite score（one decimal）
+- `typecheck`、`lint`、`test`、`deadcode`、`shell`、`gbrain` -- individual category scores（integer 0-10）
+- `duration_s` -- 所有 tools 的 total time（seconds）
 
-If a category was skipped, set its value to `null`. Pre-D6 history entries
-won't have a `gbrain` field — treat them as `null` for trend comparison
-and start new tracking from the first post-D6 run.
+如果某个 category 被 skipped，将其 value 设为 `null`。Pre-D6 history entries
+不会有 `gbrain` field；trend comparison 时将它们视为 `null`，并从第一次 post-D6 run
+开始新 tracking。
 
 ---
 
-## Step 6: Trend Analysis + Recommendations
+## Step 6：Trend Analysis + Recommendations（趋势分析与建议）
 
-Read the last 10 entries from `~/.gstack/projects/$SLUG/health-history.jsonl` (if the
-file exists and has prior entries).
+读取 `~/.gstack/projects/$SLUG/health-history.jsonl` 的最后 10 条 entries（如果 file
+存在且有 prior entries）。
 
 ```bash
 {{SLUG_SETUP}}
 tail -10 ~/.gstack/projects/$SLUG/health-history.jsonl 2>/dev/null || echo "NO_HISTORY"
 ```
 
-**If prior entries exist, show the trend:**
+**如果存在 prior entries，展示 trend：**
 
 ```
 HEALTH TREND (last 5 runs)
@@ -276,10 +273,10 @@ Date          Branch         Score   TC   Lint  Test  Dead  Shell  GBrain
 Trend: IMPROVING (+0.9 since last run)
 ```
 
-**If score dropped vs the previous run:**
-1. Identify WHICH categories declined
-2. Show the delta for each declining category
-3. Correlate with tool output -- what specific errors/warnings appeared?
+**如果 score 相比 previous run 下降：**
+1. 识别哪些 categories declined
+2. 展示每个 declining category 的 delta
+3. 与 tool output 关联：出现了哪些 specific errors/warnings？
 
 ```
 REGRESSIONS DETECTED
@@ -290,9 +287,9 @@ REGRESSIONS DETECTED
     FAIL src/auth.test.ts > should reject malformed JWT
 ```
 
-**Health improvement suggestions (always show these):**
+**Health improvement suggestions（始终展示）：**
 
-Prioritize suggestions by impact (weight * score deficit):
+按 impact（weight * score deficit）排序 suggestions：
 
 ```
 RECOMMENDATIONS (by impact)
@@ -305,16 +302,16 @@ RECOMMENDATIONS (by impact)
    Run: knip --fix to auto-remove
 ```
 
-Rank by `weight * (10 - score)` descending. Only show categories below 10.
+按 `weight * (10 - score)` descending 排序。只展示低于 10 分的 categories。
 
 ---
 
-## Important Rules
+## 重要规则
 
-1. **Wrap, don't replace.** Run the project's own tools. Never substitute your own analysis for what the tool reports.
-2. **Read-only.** Never fix issues. Present the dashboard and let the user decide.
-3. **Respect CLAUDE.md.** If `## Health Stack` is configured, use those exact commands. Do not second-guess.
-4. **Skipped is not failed.** If a tool isn't available, skip it gracefully and redistribute weight. Do not penalize the score.
-5. **Show raw output for failures.** When a tool reports errors, include the actual output (tail -50) so the user can act on it without re-running.
-6. **Trends require history.** On first run, say "First health check -- no trend data yet. Run /health again after making changes to track progress."
-7. **Be honest about scores.** A codebase with 100 type errors and all tests passing is not healthy. The composite score should reflect reality.
+1. **Wrap, don't replace。** 运行 project 自己的 tools。绝不用你自己的 analysis 取代 tool report。
+2. **Read-only。** 永不修复 issues。呈现 dashboard，让用户决定。
+3. **Respect CLAUDE.md。** 如果配置了 `## Health Stack`，使用那些 exact commands。不要 second-guess。
+4. **Skipped is not failed。** 如果 tool 不可用，gracefully skip 并 redistribute weight。不要惩罚 score。
+5. **Show raw output for failures。** tool 报告 errors 时，包含实际 output（tail -50），让用户无需重跑也能行动。
+6. **Trends require history。** 首次运行时说 "First health check -- no trend data yet. Run /health again after making changes to track progress."
+7. **Be honest about scores。** 有 100 个 type errors 但 tests 全通过的 codebase 并不 healthy。composite score 应反映现实。

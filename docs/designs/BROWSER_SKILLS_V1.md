@@ -1,13 +1,12 @@
-# Browser-Skills v1 — codifying repeated browser flows
+# Browser-Skills v1 — codifying repeated browser flows（固化重复 browser flows）
 
-**Status:** Phase 1 shipped on `garrytan/browserharness`. Phases 2-4 enumerated below.
-**Last updated:** 2026-04-26
-**Authors:** garrytan (with /plan-eng-review and /codex outside-voice review)
+**Status（状态）：** Phase 1 shipped on `garrytan/browserharness`。Phases 2-4 enumerated below。
+**Last updated（最后更新）：** 2026-04-26
+**Authors（作者）：** garrytan（with /plan-eng-review and /codex outside-voice review）
 
-## What this is
+## 这是什么
 
-Browser-skills are per-task directories that codify a repeated browser flow
-into a deterministic Playwright script. Each skill has:
+Browser-skills 是按任务划分的目录，把重复 browser flow 固化为 deterministic Playwright script。每个 skill 包含：
 
 ```
 browser-skills/<name>/
@@ -18,140 +17,75 @@ browser-skills/<name>/
 └── script.test.ts                  # parser tests against the fixture
 ```
 
-A user (or, in Phase 2, an agent that just got a flow right) creates a skill
-once. Future invocations run the script, returning JSON in 200ms instead of
-the 30 seconds an agent would burn re-exploring via `$B` primitives.
+用户（或在 Phase 2 中，刚刚把 flow 跑对的 agent）只需要创建一次 skill。之后调用时直接运行 script，在 200ms 内返回 JSON，而不是让 agent 用 `$B` primitives 重新探索 30 秒。
 
-The shipped reference is `hackernews-frontpage`: scrapes the HN front page,
-returns 30 stories as JSON. Try `$B skill list` and `$B skill run hackernews-frontpage`.
+已 shipped 的 reference 是 `hackernews-frontpage`：抓取 HN front page，返回 30 条 stories 的 JSON。可以试试 `$B skill list` 和 `$B skill run hackernews-frontpage`。
 
-## Why this is different from domain-skills (v1.8.0.0)
+## 它与 domain-skills（v1.8.0.0）有什么不同
 
-- **Domain-skills** = "agent remembers facts about a site." JSONL notes keyed
-  by hostname, injected into prompts at session start. State machine handles
-  quarantine → active → global promotion.
-- **Browser-skills** = "agent codifies procedures into deterministic scripts."
-  Per-task directories, executed via `$B skill run`, scoped tokens at the
-  daemon for per-spawn capability isolation.
+- **Domain-skills** = “agent 记住一个站点的事实”。按 hostname keyed 的 JSONL notes，在 session start 时注入 prompt。State machine 处理 quarantine → active → global promotion。
+- **Browser-skills** = “agent 把 procedure 固化为 deterministic scripts”。按 task 的目录，通过 `$B skill run` 执行，在 daemon 侧用 scoped tokens 做 per-spawn capability isolation。
 
-Both use the same mental model (per-host, three-tier scoping). The procedure
-layer is where the bigger productivity gain lives because it pushes scraping
-and form automation out of latent space and into reproducible code.
+两者使用同一个 mental model（per-host、three-tier scoping）。Procedure layer 的 productivity gain 更大，因为它把 scraping 和 form automation 从 latent space 推到 reproducible code 中。
 
-## Why this is not the existing P1 ("self-authoring `$B` commands")
+## 为什么这不是现有 P1（“self-authoring `$B` commands”）
 
-The original P1 was blocked on Codex's T1 objection: agent-authored TypeScript
-cannot run safely *inside* the daemon (ambient globals, constructor gadgets,
-top-level-await TOCTOU between approval and execution). The right design was
-"out-of-process worker isolation with capability-passing IPC." That's a hard
-project that may never ship.
+原始 P1 被 Codex 的 T1 objection 阻塞：agent-authored TypeScript 不能安全地在 daemon *内部*运行（ambient globals、constructor gadgets、approval 和 execution 之间 top-level-await TOCTOU）。正确设计是“out-of-process worker isolation with capability-passing IPC”。这是个很重的项目，可能永远不会 ship。
 
-Browser-skills sidestep the entire problem by running scripts *outside* the
-daemon as standalone Bun processes. The daemon never imports or evals skill
-code. Skills talk to the daemon over loopback HTTP — same wire format any
-external client would use.
+Browser-skills 通过把 scripts 作为 standalone Bun processes 在 daemon *外部*运行，绕开整个问题。daemon 永远不 import 或 eval skill code。Skills 通过 loopback HTTP 与 daemon 通信，wire format 与任何 external client 使用的一样。
 
-The plan as approved replaces the existing P1.
+Approved plan 会替换现有 P1。
 
 ---
 
-## Phasing
+## Phasing（阶段划分）
 
-| Phase | Branch | Scope |
+| Phase（阶段） | Branch（分支） | Scope（范围） |
 |-------|--------|-------|
-| **1** | `garrytan/browserharness` | SDK, storage, `$B skill list/run/show/test/rm` subcommands, scoped-token model, bundled `hackernews-frontpage` reference. **Shipped (v1.19.0.0, consolidated with Phase 2a).** |
-| **2a** | `garrytan/browserharness` (continues) | `/scrape <intent>` (read-only, single entry point with match/prototype paths) + `/skillify` (codifies prototype into permanent skill). Adds `browse/src/browser-skill-write.ts` D3 atomic-write helper. **Shipping v1.19.0.0.** |
-| **2b** | new (`browser-skills-automate`) | `/automate` skill template (mutating-flow sibling of `/scrape`). Reuses `/skillify` and the D3 helper. Per-mutating-step confirmation gate when running non-codified. P0 in TODOS. |
-| **3** | new (`browser-skills-resolver`) | Resolver injection at session start (per-host browser-skill discovery). Mirrors domain-skill injection. `gstack-config browser_skillify_prompts` knob. |
-| **4** | new | Eval test infrastructure (LLM-judge), fixture-staleness detection, periodic re-validation against live pages, OS-level FS sandbox for untrusted spawns. |
+| **1** | `garrytan/browserharness` | SDK、storage、`$B skill list/run/show/test/rm` subcommands、scoped-token model、bundled `hackernews-frontpage` reference。**Shipped（v1.19.0.0，与 Phase 2a consolidated）。** |
+| **2a** | `garrytan/browserharness` (continues) | `/scrape <intent>`（read-only，带 match/prototype paths 的 single entry point）+ `/skillify`（把 prototype 固化为 permanent skill）。新增 `browse/src/browser-skill-write.ts` D3 atomic-write helper。**Shipping v1.19.0.0。** |
+| **2b** | new (`browser-skills-automate`) | `/automate` skill template（`/scrape` 的 mutating-flow sibling）。复用 `/skillify` 和 D3 helper。运行 non-codified flow 时，对每个 mutating step 加 confirmation gate。TODOS 中 P0。 |
+| **3** | new (`browser-skills-resolver`) | Session start 时做 resolver injection（per-host browser-skill discovery）。镜像 domain-skill injection。`gstack-config browser_skillify_prompts` knob。 |
+| **4** | new | Eval test infrastructure（LLM-judge）、fixture-staleness detection、against live pages 的 periodic re-validation、untrusted spawns 的 OS-level FS sandbox。 |
 
 ---
 
-## Phase 1 architecture
+## Phase 1 architecture（Phase 1 架构）
 
-### Decisions locked (13)
+### Locked decisions（13 个锁定决策）
 
-1. **Phase 1 = full storage + SDK + subcommands + bundled reference.** No agent
-   authoring yet. Phase 2 lands `/scrape` and `/automate`.
-2. **Two verbs in Phase 2: `/scrape` (read-only) and `/automate` (mutating).**
-   They share skillify approval-gate machinery but live as separate skill
-   templates.
-3. **Replaces the existing self-authoring-`$B` P1 in TODOS.md.** Same
-   user-visible goal, no in-daemon isolation problem.
-4. **SDK distribution: sibling file inside each skill (Option E).** The
-   canonical SDK lives at `browse/src/browse-client.ts` (~250 LOC). Each skill
-   ships a copy at `<skill>/_lib/browse-client.ts`. Phase 2's generator copies
-   the current SDK alongside every generated script. Each skill is fully
-   self-contained: copy the directory anywhere, it runs. Version drift
-   impossible (the SDK is frozen at the version the skill was authored
-   against). Disk cost: ~3KB per skill.
-5. **Three-tier lookup: bundled → global → project.** Bundled skills ship
-   read-only with the gstack install (`<gstack-install>/browser-skills/<name>/`).
-   Global at `~/.gstack/browser-skills/<name>/`. Per-project at
-   `<project>/.gstack/browser-skills/<name>/`. Lookup walks tiers in priority
-   order project → global → bundled; first hit wins. **`$B skill list`
-   prints the resolved tier alongside each skill name** so "why did it run
-   that one?" is never a debugging mystery.
-6. **Trust model: scoped tokens at spawn time, NOT env-scrub-as-sandbox.**
-   See "Trust model" below. (Revised from original env-scrub plan after
-   Codex flagged it as security theater.)
-7. **Single source of truth: SKILL.md frontmatter only.** No `meta.json`.
-   Frontmatter holds host, triggers, args, version, source, trusted.
-   SHA256/staleness deferred to Phase 4 as a separate `.checksum` sidecar
-   if it lands at all.
-8. **No INDEX.json. Walk the directory.** `$B skill list` enumerates the
-   three tiers and parses each SKILL.md frontmatter. ~5-10ms for 50 skills.
-   Eliminates the entire "index drifted from disk" bug class.
-9. **`$B skill run` output protocol.** stdout = JSON. stderr = streaming
-   logs. Exit 0 / nonzero. Default 60s timeout, override via `--timeout=Ns`.
-   Max stdout 1MB (truncate + nonzero exit if exceeded). Matches `gh` /
-   `kubectl` / `docker` conventions.
-10. **Fixture replay: two patterns for two test types.** SDK unit test
-    stands up an in-test mock HTTP server. End-to-end skill tests parse
-    bundled HTML fixtures via the script's exported parser function (no
-    daemon required). Phase 1 fixture-only is adequate for `hackernews-frontpage`;
-    Phase 2 `/automate` will need richer fixtures.
-11. **Reference skill: `hackernews-frontpage`.** Scrapes HN front page
-    (titles, points, comments). No auth, stable HTML, ideal fixture-test
-    target.
-12. **Token/port discovery: scoped-token env-only for spawned skills;
-    state-file fallback for standalone debug runs.** When spawned via
-    `$B skill run`, the SDK reads `GSTACK_PORT` + `GSTACK_SKILL_TOKEN` from
-    env. For standalone `bun run script.ts`, the SDK falls back to
-    `<project>/.gstack/browse.json` (the actual state-file path per
-    `config.ts:50`).
-13. **CHANGELOG honesty.** Phase 1 lead: humans can hand-write deterministic
-    browser scripts that gstack runs. Phase 1 explicitly notes that agent
-    authoring lands in next release. No fabricated perf numbers — Phase 1
-    has no before/after.
+1. **Phase 1 = full storage + SDK + subcommands + bundled reference。** 暂不做 agent authoring。Phase 2 落地 `/scrape` 和 `/automate`。
+2. **Phase 2 中两个 verbs：`/scrape`（read-only）和 `/automate`（mutating）。** 它们共享 skillify approval-gate machinery，但作为独立 skill templates 存在。
+3. **替换 TODOS.md 中现有 self-authoring-`$B` P1。** 用户可见目标相同，但没有 in-daemon isolation 问题。
+4. **SDK distribution：每个 skill 内的 sibling file（Option E）。** Canonical SDK 位于 `browse/src/browse-client.ts`（约 250 LOC）。每个 skill 在 `<skill>/_lib/browse-client.ts` 中携带一份 copy。Phase 2 generator 会把当前 SDK copy 到每个 generated script 旁边。每个 skill 都完全 self-contained：复制目录到任何地方都能运行。Version drift 不可能发生（SDK frozen at the version the skill was authored against）。Disk cost：每个 skill 约 3KB。
+5. **Three-tier lookup：bundled → global → project。** Bundled skills 随 gstack install 以 read-only 方式 shipped（`<gstack-install>/browser-skills/<name>/`）。Global 位于 `~/.gstack/browser-skills/<name>/`。Per-project 位于 `<project>/.gstack/browser-skills/<name>/`。Lookup 按 project → global → bundled 的 priority order walking tiers；first hit wins。**`$B skill list` 会在每个 skill name 旁打印 resolved tier**，因此“为什么运行了那个？”不会成为 debugging mystery。
+6. **Trust model：spawn time 的 scoped tokens，不是 env-scrub-as-sandbox。** 见下方“Trust model”。（Codex 指出原 env-scrub plan 是 security theater 后修订。）
+7. **Single source of truth：只用 SKILL.md frontmatter。** 不用 `meta.json`。Frontmatter 保存 host、triggers、args、version、source、trusted。SHA256/staleness 如果落地，作为 Phase 4 的独立 `.checksum` sidecar。
+8. **No INDEX.json。Walk the directory。** `$B skill list` 枚举三个 tiers 并解析每个 SKILL.md frontmatter。50 个 skills 约 5-10ms。消除整个“index drifted from disk” bug class。
+9. **`$B skill run` output protocol。** stdout = JSON。stderr = streaming logs。Exit 0 / nonzero。默认 60s timeout，可通过 `--timeout=Ns` override。Max stdout 1MB（超出则 truncate + nonzero exit）。匹配 `gh` / `kubectl` / `docker` conventions。
+10. **Fixture replay：两种 test type 使用两种 patterns。** SDK unit test 启动 in-test mock HTTP server。End-to-end skill tests 通过 script exported parser function 解析 bundled HTML fixtures（不需要 daemon）。Phase 1 fixture-only 对 `hackernews-frontpage` 足够；Phase 2 `/automate` 需要更丰富的 fixtures。
+11. **Reference skill：`hackernews-frontpage`。** 抓取 HN front page（titles、points、comments）。无 auth，HTML 稳定，是理想 fixture-test target。
+12. **Token/port discovery：spawned skills 使用 scoped-token env-only；standalone debug runs 使用 state-file fallback。** 通过 `$B skill run` spawn 时，SDK 从 env 读取 `GSTACK_PORT` + `GSTACK_SKILL_TOKEN`。对 standalone `bun run script.ts`，SDK fallback 到 `<project>/.gstack/browse.json`（`config.ts:50` 中的实际 state-file path）。
+13. **CHANGELOG honesty。** Phase 1 lead：humans can hand-write deterministic browser scripts that gstack runs。Phase 1 明确说明 agent authoring 会在下一版落地。不编造 perf numbers，Phase 1 没有 before/after。
 
-### Trust model (decision #6 in detail)
+### Trust model（decision #6 in detail）
 
-Two orthogonal axes:
+两个正交 axes：
 
-| Axis | Mechanism | Default |
+| Axis（轴） | Mechanism（机制） | Default（默认） |
 |------|-----------|---------|
-| **Daemon-side capability** | Per-spawn scoped token bound to `read+write` scope (the 17-cmd browser-driving surface, minus admin commands like `eval`/`js`/`cookies`/`storage`). Single-use clientId encodes skill name + spawn id. Revoked when the spawn exits. | Always scoped (never the daemon root token). |
-| **Process-side env access** | SKILL.md frontmatter `trusted: true` passes `process.env` minus `GSTACK_TOKEN`. `trusted: false` (default) drops everything except a minimal allowlist (LANG, LC_ALL, TERM, TZ, locked PATH) and explicitly strips secret-pattern keys (TOKEN/KEY/SECRET/PASSWORD, AWS_*, AZURE_*, GCP_*, ANTHROPIC_*, OPENAI_*, GITHUB_*, etc.). | Untrusted (must opt in). |
+| **Daemon-side capability** | Per-spawn scoped token bound to `read+write` scope（17-cmd browser-driving surface，减去 `eval`/`js`/`cookies`/`storage` 等 admin commands）。Single-use clientId 编码 skill name + spawn id。Spawn exit 时 revoke。 | Always scoped（never the daemon root token）。 |
+| **Process-side env access** | SKILL.md frontmatter `trusted: true` 传递 `process.env` minus `GSTACK_TOKEN`。`trusted: false`（default）丢弃除 minimal allowlist（LANG、LC_ALL、TERM、TZ、locked PATH）外的一切，并显式剥离 secret-pattern keys（TOKEN/KEY/SECRET/PASSWORD、AWS_*、AZURE_*、GCP_*、ANTHROPIC_*、OPENAI_*、GITHUB_* 等）。 | Untrusted（必须 opt in）。 |
 
-`GSTACK_PORT` and `GSTACK_SKILL_TOKEN` are always injected last so a parent
-process cannot override them by setting them in env.
+`GSTACK_PORT` 和 `GSTACK_SKILL_TOKEN` 总是最后注入，因此 parent process 不能通过提前设置 env 来覆盖它们。
 
-**What this gets right:** the daemon-side scoped token is enforceable by the
-daemon. A skill that tries to call `eval` (admin scope) gets a 403 even though
-the SDK exposes it. The capability boundary is in the right place.
+**做对的地方：** daemon-side scoped token 可由 daemon enforce。一个 skill 即使 SDK 暴露了 `eval`，只要它尝试调用 `eval`（admin scope），就会得到 403。Capability boundary 放在正确位置。
 
-**What this does NOT close:** Bun has no built-in FS sandbox. An untrusted
-skill can still `import 'fs'` and read whatever the OS user can read (e.g.
-`~/.ssh/id_rsa`). The env scrub is hygiene, not a sandbox. OS-level isolation
-(`sandbox-exec`, namespaces) is Phase 4 work and drops in cleanly behind the
-existing trusted/untrusted contract.
+**没有关闭的地方：** Bun 没有内置 FS sandbox。Untrusted skill 仍可 `import 'fs'` 并读取 OS user 可读的一切（例如 `~/.ssh/id_rsa`）。Env scrub 是 hygiene，不是 sandbox。OS-level isolation（`sandbox-exec`、namespaces）是 Phase 4 work，并且可以干净地接到现有 trusted/untrusted contract 后面。
 
-The original plan called env-scrub a sandbox. Codex correctly flagged that as
-theater. The revised plan calls it what it is: best-effort hygiene plus
-defense-in-depth, with the real boundary at the daemon-side scoped token.
+原计划把 env-scrub 称为 sandbox。Codex 正确指出那是 theater。修订后的 plan 称它为它实际是什么：best-effort hygiene + defense-in-depth，真正边界在 daemon-side scoped token。
 
-### File layout
+### File layout（文件布局）
 
 ```
 browse/src/
@@ -177,74 +111,57 @@ browse/test/
 test/skill-validation.test.ts       # extended: bundled-skill contract checks
 ```
 
-### What does NOT change
+### 不改变什么
 
-- Domain-skills storage, state machine, or injection. Untouched.
-- Tunnel-surface allowlist (`server.ts:118-123`). Same 17 commands.
-- L1-L6 security stack. Browser-skills don't inject text into prompts in
-  Phase 1; Phase 3's resolver injection will ride the existing UNTRUSTED
-  envelope.
-- The `cli.ts` HTTP client at `sendCommand()`. The SDK is a separate module
-  with a different concern (library vs CLI process).
+- Domain-skills storage、state machine 或 injection。完全不动。
+- Tunnel-surface allowlist（`server.ts:118-123`）。同样 17 commands。
+- L1-L6 security stack。Browser-skills 在 Phase 1 不把 text 注入 prompts；Phase 3 的 resolver injection 会沿用现有 UNTRUSTED envelope。
+- `cli.ts` 中的 `sendCommand()` HTTP client。SDK 是单独 module，关注点不同（library vs CLI process）。
 
 ---
 
-## Codex outside-voice findings (post-review responses)
+## Codex outside-voice findings（post-review responses，评审后回应）
 
-The /codex review flagged 8 findings. The plan addresses them as follows:
+/codex review 标记了 8 个 findings。Plan 逐项处理如下：
 
-| # | Finding | Phase 1 response |
+| # | Finding（发现） | Phase 1 response（Phase 1 回应） |
 |---|---------|------------------|
-| 1 | Trust model is fake without FS sandbox | **Closed** by decision #6 (scoped tokens) above. |
-| 2 | Phase 1 is overbuilt for one bundled skill (lookup tiers, tombstones, etc.) | **Acknowledged but kept.** User chose full Phase 1 to lock the architecture before Phase 2 lands agent authoring. Each subsystem is small enough to remove cleanly if data later says it's unused. |
-| 3 | Existing client pattern in `cli.ts:398` may make sibling SDK redundant | **Verified false.** Line 398 is the end of `extractTabId()` (a flag-parser). The actual HTTP client is `sendCommand()` at cli.ts:401-467, but it's CLI-coupled (`process.stdout.write`, `process.exit`, server-restart recovery). Not reusable as a library. The new `browse-client.ts` mirrors its wire format but is library-shaped. |
-| 4 | "First hit wins" lookup is opaque | **Mitigated** by listing the resolved tier inline in `$B skill list` and `$B skill show`. Future: optional `--source bundled\|global\|project` flag if the tier override proves confusing. |
-| 5 | Atomic skill packaging matters more than the index question; symlink defenses | **Closed for Phase 1**: bundled skills ship as part of the gstack install (no live writes; atomic by virtue of being read-only files in the install dir). Phase 2's `writeBrowserSkill` will write to a temp dir then rename, and use `realpath`/`lstat` discipline (existing `browse/src/path-security.ts`). |
-| 6 | Phase 2 synthesis from activity feed is weak (lossy ring buffer) | **Open issue for Phase 2 design.** The activity feed is telemetry, not a replay IR. Phase 2 will need a structured recorder OR re-prompting the agent to write the script from scratch using its own context. Decide in Phase 2's design pass. |
-| 7 | Bun runtime regression: skill scripts as standalone Bun reintroduce a Bun runtime requirement | **Open issue for Phase 2 distribution.** Phase 1 sidesteps this because the bundled reference skill ships inside the gstack install (which already builds with Bun). Phase 2 needs to decide between (a) shipping a Bun binary with each generated skill, (b) compiling skills to self-contained executables, or (c) using Node.js with `cli.ts`'s HTTP pattern. |
-| 8 | `file://` fixtures don't prove timing/auth/navigation/lazy hydration | **Documented limit.** Adequate for `hackernews-frontpage`. Phase 2 `/automate` will need richer fixtures (mock daemon with timing, recorded HAR replay, etc.). |
+| 1 | Trust model is fake without FS sandbox | **Closed** by decision #6（scoped tokens）。 |
+| 2 | Phase 1 is overbuilt for one bundled skill（lookup tiers、tombstones 等） | **Acknowledged but kept。** 用户选择 full Phase 1，以便在 Phase 2 agent authoring 落地前锁定架构。每个 subsystem 都小到如果数据之后说明无用，可以干净移除。 |
+| 3 | Existing client pattern in `cli.ts:398` may make sibling SDK redundant | **Verified false。** Line 398 是 `extractTabId()`（flag-parser）的末尾。实际 HTTP client 是 cli.ts:401-467 的 `sendCommand()`，但它 CLI-coupled（`process.stdout.write`、`process.exit`、server-restart recovery）。不能复用为 library。新的 `browse-client.ts` 镜像其 wire format，但 shaped as library。 |
+| 4 | "First hit wins" lookup 不透明 | **已缓解**：在 `$B skill list` 和 `$B skill show` 中 inline listing resolved tier。未来：如果 tier override 证明令人困惑，可加 optional `--source bundled\|global\|project` flag。 |
+| 5 | Atomic skill packaging matters more than the index question; symlink defenses | **Closed for Phase 1**：bundled skills 作为 gstack install 的一部分 shipped（无 live writes；因为是 install dir 中的 read-only files，天然 atomic）。Phase 2 的 `writeBrowserSkill` 会先写 temp dir，再 rename，并使用 `realpath`/`lstat` discipline（现有 `browse/src/path-security.ts`）。 |
+| 6 | Phase 2 synthesis from activity feed is weak（lossy ring buffer） | **Open issue for Phase 2 design。** Activity feed 是 telemetry，不是 replay IR。Phase 2 需要 structured recorder，或者 re-prompt agent 使用自己的 context 从头写 script。Phase 2 design pass 决定。 |
+| 7 | Bun runtime regression：skill scripts as standalone Bun reintroduce a Bun runtime requirement | **Open issue for Phase 2 distribution。** Phase 1 避开这个问题，因为 bundled reference skill shipped 在 gstack install 内（gstack 已经用 Bun build）。Phase 2 需要在 (a) 每个 generated skill 附带 Bun binary，(b) 编译 skills 为 self-contained executables，(c) 使用 Node.js + `cli.ts` HTTP pattern 之间选择。 |
+| 8 | `file://` fixtures don't prove timing/auth/navigation/lazy hydration | **Documented limit。** 对 `hackernews-frontpage` 足够。Phase 2 `/automate` 需要更丰富的 fixtures（mock daemon with timing、recorded HAR replay 等）。 |
 
 ---
 
-## Phase 2a — `/scrape` + `/skillify` (shipping v1.19.0.0)
+## Phase 2a — `/scrape` + `/skillify`（shipping v1.19.0.0）
 
-Two skill templates plus one helper module. `/scrape <intent>` is the single
-entry point for pulling page data; first call on a new intent prototypes via
-`$B` primitives and returns JSON, subsequent calls on a matching intent route
-to a codified browser-skill in ~200ms. `/skillify` codifies the most recent
-successful prototype into a permanent browser-skill on disk. Mutating-flow
-sibling `/automate` deferred to Phase 2b (P0 in TODOS).
+两个 skill templates 加一个 helper module。`/scrape <intent>` 是拉取 page data 的 single entry point；在新 intent 上第一次调用时通过 `$B` primitives prototype 并返回 JSON，之后对 matching intent 的调用会 route 到 codified browser-skill，约 200ms 返回。`/skillify` 会把最近一次 successful prototype 固化为磁盘上的 permanent browser-skill。Mutating-flow sibling `/automate` 延后到 Phase 2b（TODOS 中 P0）。
 
-### Decisions locked during the v1.19.0.0 plan review (`/plan-eng-review`)
+### v1.19.0.0 plan review（`/plan-eng-review`）期间锁定的 decisions
 
-| ID | Decision | Locked behavior |
+| ID | Decision（决策） | Locked behavior（锁定行为） |
 |----|----------|-----------------|
-| **D1** | `/skillify` provenance guard | Walk back ≤10 agent turns looking for a clearly-bounded `/scrape` invocation (the prototype's intent line + its trailing JSON output). If not found, refuse with: *"No recent /scrape result found in this conversation. Run /scrape <intent> first, then say /skillify."* No silent fallback. |
-| **D2** | Synthesis input slice | Template instructs the agent to extract ONLY the final-attempt `$B` calls that produced the JSON the user accepted, plus the user's stated intent string. Drop failed selector attempts, drop unrelated chat, drop earlier-session content. Closes Codex finding #6 by picking option (b) (re-prompt from agent's own context, not a structured recorder). |
-| **D3** | Atomic write discipline | `/skillify` writes to `~/.gstack/.tmp/skillify-<spawnId>/`, runs `$B skill test` against the temp dir, and only renames into the final tier path on success + user approval. On test failure or approval rejection: `rm -rf` the temp dir entirely (no tombstone for never-approved skills). New module `browse/src/browser-skill-write.ts` (`stageSkill` / `commitSkill` / `discardStaged`) with `realpath`/`lstat` discipline per Codex finding #5. |
-| **D4** | Test scope | 5 gate-tier E2E (scrape match, scrape prototype, skillify happy, skillify provenance refusal, approval-gate reject) + 1 unit test (atomic-write helper failure cleanup) + 1 hand-verified smoke (mutating-intent refusal). Registered in `test/helpers/touchfiles.ts`. |
+| **D1** | `/skillify` provenance guard | 向回扫描 ≤10 个 agent turns，寻找 clearly-bounded `/scrape` invocation（prototype 的 intent line + trailing JSON output）。如果找不到，拒绝并输出：*"No recent /scrape result found in this conversation. Run /scrape <intent> first, then say /skillify."* 不 silent fallback。 |
+| **D2** | Synthesis input slice | Template 指示 agent 只抽取产生用户接受 JSON 的 final-attempt `$B` calls，以及用户声明的 intent string。丢弃 failed selector attempts、unrelated chat、earlier-session content。通过选择 option (b)（从 agent 自己的 context re-prompt，而不是 structured recorder）关闭 Codex finding #6。 |
+| **D3** | Atomic write discipline | `/skillify` 写入 `~/.gstack/.tmp/skillify-<spawnId>/`，对 temp dir 运行 `$B skill test`，只有在 success + user approval 后才 rename 到 final tier path。Test failure 或 approval rejection 时：完整 `rm -rf` temp dir（never-approved skills 不产生 tombstone）。新增 module `browse/src/browser-skill-write.ts`（`stageSkill` / `commitSkill` / `discardStaged`），按 Codex finding #5 使用 `realpath`/`lstat` discipline。 |
+| **D4** | Test scope | 5 个 gate-tier E2E（scrape match、scrape prototype、skillify happy、skillify provenance refusal、approval-gate reject）+ 1 个 unit test（atomic-write helper failure cleanup）+ 1 个 hand-verified smoke（mutating-intent refusal）。注册到 `test/helpers/touchfiles.ts`。 |
 
-### Carry-overs
+### Carry-overs（延续项）
 
-- **Default tier: global.** Lean global for procedures, with per-project
-  override at `/skillify` time (mirrors domain-skill scope). Phase 1 storage
-  helpers support both lookup paths.
-- **Bun runtime distribution.** Codex finding #7 stays open. Phase 2a assumes
-  Bun is on PATH (gstack already requires it via `setup:6-15`). Documented
-  in `/skillify` SKILL.md "Limits". Real fix lands in Phase 4.
+- **默认 tier：global。** Procedures 更适合 lean global，在 `/skillify` time 提供 per-project override（镜像 domain-skill scope）。Phase 1 storage helpers 支持两种 lookup paths。
+- **Bun runtime distribution。** Codex finding #7 保持 open。Phase 2a 假设 PATH 上有 Bun（gstack 已经通过 `setup:6-15` 要求）。记录在 `/skillify` SKILL.md "Limits"。真正修复在 Phase 4。
 
-## Phase 2b — `/automate` sketch
+## Phase 2b — `/automate` sketch（草案）
 
-Mutating-flow sibling of `/scrape`. Same skillify pattern (reuses `/skillify`
-and the D3 helper as-is). Difference: per-mutating-step UNTRUSTED-wrapped
-summary + `AskUserQuestion` confirmation gate when run non-codified. After
-codification, the skill runs unattended (the codified script enumerates exactly
-which `$B click`/`fill`/`type` calls run). See P0 entry in `TODOS.md`.
+`/scrape` 的 mutating-flow sibling。使用相同 skillify pattern（原样复用 `/skillify` 和 D3 helper）。区别是：以 non-codified 方式运行时，每个 mutating step 都有 UNTRUSTED-wrapped summary + `AskUserQuestion` confirmation gate。Codification 后，skill 可以 unattended 运行（codified script 明确枚举会执行哪些 `$B click`/`fill`/`type` calls）。见 `TODOS.md` 中 P0 entry。
 
-## Phase 3 sketch
+## Phase 3 sketch（Phase 3 草案）
 
-Resolver injection at session start. Mirror the domain-skill injection at
-`server.ts:722-743`:
+Session start 时做 resolver injection。镜像 `server.ts:722-743` 的 domain-skill injection：
 
 ```ts
 const browserSkillsBlock = await renderBrowserSkillsForHost(hostname, projectSlug);
@@ -253,27 +170,22 @@ if (browserSkillsBlock) {
 }
 ```
 
-`renderBrowserSkillsForHost()` reads the 3 tiers, filters to skills whose
-`host` field matches, and emits an UNTRUSTED-wrapped block listing them.
+`renderBrowserSkillsForHost()` 读取 3 tiers，筛选 `host` field 匹配的 skills，并 emit 一个 UNTRUSTED-wrapped block 列出它们。
 
-`gstack-config browser_skillify_prompts` (default off): when on, end-of-task
-nudges in `/qa`, `/design-review`, etc. fire when activity feed shows ≥N
-commands on a single host AND no skill exists yet for that host+intent.
+`gstack-config browser_skillify_prompts`（default off）：开启后，如果 activity feed 显示在单个 host 上有 ≥N commands，且该 host+intent 还不存在 skill，则 `/qa`、`/design-review` 等会在 end-of-task nudges 中触发。
 
-## Phase 4 sketch
+## Phase 4 sketch（Phase 4 草案）
 
-- LLM-judge eval ("did the agent reach for the skill instead of re-exploring?").
-- Fixture-staleness detection — compare bundled fixture against live page.
-- OS-level FS sandbox for untrusted spawns (`sandbox-exec` on macOS,
-  namespaces / seccomp on Linux).
-- `$B skill upgrade <name>` — regenerate the sibling SDK copy when the
-  canonical SDK changes.
+- LLM-judge eval（“agent 是否使用 skill 而不是重新探索？”）。
+- Fixture-staleness detection：对比 bundled fixture 与 live page。
+- Untrusted spawns 的 OS-level FS sandbox（macOS 上 `sandbox-exec`，Linux 上 namespaces / seccomp）。
+- `$B skill upgrade <name>`：canonical SDK 变化时重新生成 sibling SDK copy。
 
 ---
 
-## Verification (Phase 1)
+## 验证（Phase 1）
 
-`bun test` passes the new test files:
+`bun test` 通过新的 test files：
 - `browse/test/skill-token.test.ts` — 15 assertions
 - `browse/test/browse-client.test.ts` — 26 assertions
 - `browse/test/browser-skills-storage.test.ts` — 31 assertions
@@ -281,7 +193,7 @@ commands on a single host AND no skill exists yet for that host+intent.
 - `browser-skills/hackernews-frontpage/script.test.ts` — 13 assertions
 - `test/skill-validation.test.ts` — 7 new bundled-skill assertions
 
-End-to-end with the daemon running:
+Daemon running 时的 end-to-end：
 
 ```bash
 $B skill list                            # shows hackernews-frontpage (bundled)

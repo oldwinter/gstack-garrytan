@@ -1,27 +1,26 @@
 #!/usr/bin/env bun
 /**
- * 2013 vs 2026 output throughput comparison.
+ * 2013 vs 2026 output throughput comparison。
  *
- * Rationale: the README hero used to brag "600,000+ lines of production code" as
- * a proxy for productivity. After Louise de Sadeleer's review
- * (https://x.com/LouiseDSadeleer/status/2045139351227478199) called out LOC as
- * a vanity metric when AI writes most of the code, we replaced it with a real
- * pro-rata multiple on logical code change: non-blank, non-comment lines added
- * across authored commits in public repos, computed for 2013 and 2026.
+ * Rationale：README hero 过去用 "600,000+ lines of production code" 作为
+ * productivity proxy。Louise de Sadeleer 的 review
+ * (https://x.com/LouiseDSadeleer/status/2045139351227478199) 指出，当大多数
+ * code 由 AI 写出时，LOC 是 vanity metric。我们把它替换为 logical code change
+ * 的真实 pro-rata multiple：public repos 中 authored commits 新增的 non-blank、
+ * non-comment lines，并分别计算 2013 和 2026。
  *
- * Algorithm (per Codex Pass 2 review in PLAN_TUNING_V1):
- *   1. For each year (2013, 2026), enumerate authored commits. Author filter
- *      comes from --email CLI flags (repeatable), the GSTACK_AUTHOR_EMAILS env
- *      var (comma-separated), or falls back to `git config user.email`.
- *   2. For each commit, git diff <commit>^ <commit> produces a unified diff.
- *   3. Extract ADDED lines from the diff. Classify as "logical" by filtering
- *      out blank lines + single-line comments (per-language regex; imperfect
- *      but honest — better than raw LOC).
- *   4. Sum per year. Report raw additions + logical additions + per-language
- *      breakdown + caveats. Caveats matter: public repos only, commit-style drift,
- *      private work exclusion.
+ * Algorithm（按 PLAN_TUNING_V1 中的 Codex Pass 2 review）：
+ *   1. 对每个 year（2013、2026），枚举 authored commits。Author filter 来自
+ *      --email CLI flags（可重复）、GSTACK_AUTHOR_EMAILS env var（逗号分隔），
+ *      或 fallback 到 `git config user.email`。
+ *   2. 对每个 commit，git diff <commit>^ <commit> 生成 unified diff。
+ *   3. 从 diff 中提取 ADDED lines。通过过滤 blank lines + single-line comments
+ *      归类为 "logical"（per-language regex；不完美但诚实，比 raw LOC 更好）。
+ *   4. 按 year 汇总。报告 raw additions + logical additions + per-language
+ *      breakdown + caveats。Caveats 很重要：仅 public repos、commit-style drift、
+ *      private work exclusion。
  *
- * Requires: scc (for classification when available; falls back to regex).
+ * Requires：scc（可用时用于 classification；不可用则 fallback 到 regex）。
  * Run: bun run scripts/garry-output-comparison.ts [--repo-root <path>] [--email <addr>...]
  *      GSTACK_AUTHOR_EMAILS=a@x.com,b@y.com bun run scripts/garry-output-comparison.ts
  * Output: docs/throughput-2013-vs-2026.json
@@ -64,10 +63,9 @@ function resolveAuthorEmails(argv: string[]): string[] {
 
 const TARGET_YEARS = [2013, 2026];
 
-// Repos to skip entirely because they're not real shipping work (demos, spikes,
-// vendored imports, throwaway experiments). When the script is pointed at one
-// of these, it emits a stderr note and exits without writing a per-repo JSON.
-// Add more via PR with a one-line rationale.
+// 完全跳过的 repos，因为它们不是真正 shipping work（demos、spikes、vendored imports、
+// throwaway experiments）。如果 script 指向其中之一，它会输出 stderr note 并退出，
+// 不写 per-repo JSON。新增时请通过 PR 附一行 rationale。
 const EXCLUDED_REPOS: Record<string, string> = {
   'tax-app': 'demo app for an upcoming YC channel video, not production shipping work',
 };
@@ -80,14 +78,14 @@ type PerYearResult = {
   raw_lines_added: number;
   logical_lines_added: number;
   active_weeks: number;
-  days_elapsed: number;           // 365 for past years; day-of-year for current year
-  is_partial: boolean;            // true for current year (2026 today), false for past
-  per_day_rate: {                  // per calendar day (incl. non-active days)
+  days_elapsed: number;           // 过去 years 为 365；current year 为 day-of-year
+  is_partial: boolean;            // current year（今天的 2026）为 true；过去为 false
+  per_day_rate: {                  // 按 calendar day（包含 non-active days）
     logical: number;
     raw: number;
     commits: number;
   };
-  annualized_projection: {         // per_day_rate × 365 — what the year looks like if pace holds
+  annualized_projection: {         // per_day_rate × 365，表示如果 pace 保持，全年会怎样
     logical: number;
     raw: number;
     commits: number;
@@ -101,23 +99,23 @@ type Output = {
   scc_available: boolean;
   years: PerYearResult[];
   multiples: {
-    // TO-DATE: raw totals. Compares full 2013 year vs (possibly partial) 2026.
-    // Answers: "How much has been produced so far?"
+    // TO-DATE：raw totals。比较完整 2013 年和（可能是 partial 的）2026 年。
+    // 回答："How much has been produced so far?"
     to_date: {
       logical_lines_added: number | null;
       raw_lines_added: number | null;
       commits: number | null;
       files_touched: number | null;
     };
-    // RUN RATE: per-day pace, apples-to-apples regardless of calendar coverage.
-    // Answers: "What's the pace at, normalized for time elapsed?"
+    // RUN RATE：per-day pace，不受 calendar coverage 影响，可 apples-to-apples 比较。
+    // 回答："What's the pace at, normalized for time elapsed?"
     run_rate: {
       logical_per_day: number | null;
       raw_per_day: number | null;
       commits_per_day: number | null;
     };
-    // Deprecated: kept for backwards-compat with older consumers reading the JSON.
-    // Aliases `to_date.logical_lines_added` — will be removed in a future version.
+    // Deprecated：为读取 JSON 的 older consumers 保留 backwards-compat。
+    // Alias 到 `to_date.logical_lines_added`，未来版本会移除。
     logical_lines_added: number | null;
   };
   caveats_global: string[];
@@ -306,8 +304,8 @@ function analyzeRepo(repoPath: string, year: number, authorEmails: string[], scc
     },
     per_language: perLang,
     caveats: commits.length === 0
-      ? [`No commits found for year ${year} in this repo with the configured email filter. If private work existed in this era, it is excluded.`]
-      : (isPartial ? [`Year ${year} is partial (day ${days} of 365). Run-rate multiple extrapolates current pace.`] : []),
+      ? [`使用当前 email filter，在此 repo 的 ${year} 年没有找到 commits。如果该时期存在 private work，则已被排除。`]
+      : (isPartial ? [`${year} 年是不完整年份（第 ${days}/365 天）。Run-rate multiple 会按当前 pace 外推。`] : []),
   };
 }
 
@@ -394,13 +392,13 @@ function main() {
     years,
     multiples,
     caveats_global: [
-      'Public repos only. Private work at both eras is excluded to make the comparison apples-to-apples.',
-      '2013 and 2026 may differ in commit-style: 2013 tends toward monolithic commits, 2026 tends toward smaller AI-assisted commits. Multiples reflect this drift.',
+      '仅统计 public repos。两个时期的 private work 都被排除，以保持 apples-to-apples comparison。',
+      '2013 和 2026 的 commit-style 可能不同：2013 更偏 monolithic commits，2026 更偏较小的 AI-assisted commits。Multiples 会反映这种 drift。',
       sccAvailable
-        ? 'Logical-line classification uses scc-aware regex (approximate).'
-        : 'Logical-line classification uses a crude regex fallback (scc not installed). Exclude blank lines + single-line comments; does not catch block comments or docstrings. Approximate.',
-      'This script analyzes a single repo at a time. Full 2013-vs-2026 picture requires running against every public repo with commits in both years and summing results (future work).',
-      'Authorship attribution relies on commit email matching. Supply historical aliases via --email flags or GSTACK_AUTHOR_EMAILS.',
+        ? 'Logical-line classification 使用 scc-aware regex（近似）。'
+        : 'Logical-line classification 使用粗略 regex fallback（未安装 scc）。会排除 blank lines + single-line comments；不会捕获 block comments 或 docstrings。结果为近似值。',
+      '此 script 一次只分析一个 repo。完整 2013-vs-2026 picture 需要对两个年份都有 commits 的每个 public repo 运行并汇总结果（future work）。',
+      'Authorship attribution 依赖 commit email matching。可通过 --email flags 或 GSTACK_AUTHOR_EMAILS 提供历史 aliases。',
     ],
     version: 1,
   };

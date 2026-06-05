@@ -1,52 +1,52 @@
-# Performance Specialist Review Checklist
+# Performance Specialist Review Checklist（性能专项审查清单）
 
-Scope: When SCOPE_BACKEND=true OR SCOPE_FRONTEND=true
-Output: JSON objects, one finding per line. Schema:
+Scope: 当 SCOPE_BACKEND=true 或 SCOPE_FRONTEND=true
+Output: JSON objects，每行一个 finding。Schema:
 {"severity":"CRITICAL|INFORMATIONAL","confidence":N,"path":"file","line":N,"category":"performance","summary":"...","fix":"...","fingerprint":"path:line:performance","specialist":"performance"}
 Optional: line, fix, fingerprint, evidence, test_stub.
-If no findings: output `NO FINDINGS` and nothing else.
+If no findings: 只输出 `NO FINDINGS`，不要输出其他内容。
 
 ---
 
-## Categories
+## Categories（类别）
 
-### N+1 Queries
-- ActiveRecord/ORM associations traversed in loops without eager loading (.includes, joinedload, include)
-- Database queries inside iteration blocks (each, map, forEach) that could be batched
-- Nested serializers that trigger lazy-loaded associations
-- GraphQL resolvers that query per-field instead of batching (check for DataLoader usage)
+### N+1 Queries（N+1 查询）
+- 循环中遍历 ActiveRecord/ORM associations，但没有 eager loading（.includes、joinedload、include）
+- Iteration blocks（each、map、forEach）中存在可 batch 的 database queries
+- Nested serializers 触发 lazy-loaded associations
+- GraphQL resolvers 按 field 查询，而不是 batching（检查 DataLoader usage）
 
-### Missing Database Indexes
-- New WHERE clauses on columns without indexes (check migration files or schema)
-- New ORDER BY on non-indexed columns
-- Composite queries (WHERE a AND b) without composite indexes
-- Foreign key columns added without indexes
+### Missing Database Indexes（缺少数据库 indexes）
+- 新增 WHERE clauses 作用于无 indexes 的 columns（检查 migration files 或 schema）
+- 新增 ORDER BY 作用于 non-indexed columns
+- Composite queries（WHERE a AND b）缺少 composite indexes
+- 新增 foreign key columns 但没有 indexes
 
-### Algorithmic Complexity
-- O(n^2) or worse patterns: nested loops over collections, Array.find inside Array.map
-- Repeated linear searches that could use a hash/map/set lookup
-- String concatenation in loops (use join or StringBuilder)
-- Sorting or filtering large collections multiple times when once would suffice
+### Algorithmic Complexity（算法复杂度）
+- O(n^2) 或更差的 patterns：collections 上的 nested loops、Array.map 内的 Array.find
+- 可使用 hash/map/set lookup 的 repeated linear searches
+- 循环中的 string concatenation（使用 join 或 StringBuilder）
+- Large collections 被多次 sort 或 filter，而一次即可
 
-### Bundle Size Impact (Frontend)
-- New production dependencies that are known-heavy (moment.js, lodash full, jquery)
-- Barrel imports (import from 'library') instead of deep imports (import from 'library/specific')
-- Large static assets (images, fonts) committed without optimization
-- Missing code splitting for route-level chunks
+### Bundle Size Impact（Frontend bundle size 影响）
+- 新增 known-heavy 的 production dependencies（moment.js、lodash full、jquery）
+- 使用 barrel imports（import from 'library'），而不是 deep imports（import from 'library/specific'）
+- Large static assets（images、fonts）未经 optimization 就 committed
+- Route-level chunks 缺少 code splitting
 
-### Rendering Performance (Frontend)
-- Fetch waterfalls: sequential API calls that could be parallel (Promise.all)
-- Unnecessary re-renders from unstable references (new objects/arrays in render)
-- Missing React.memo, useMemo, or useCallback on expensive computations
-- Layout thrashing from reading then writing DOM properties in loops
-- Missing loading="lazy" on below-fold images
+### Rendering Performance（Frontend rendering 性能）
+- Fetch waterfalls：可 parallel 的 sequential API calls（Promise.all）
+- Unstable references 导致 unnecessary re-renders（render 中新建 objects/arrays）
+- Expensive computations 缺少 React.memo、useMemo 或 useCallback
+- 循环中先读后写 DOM properties 导致 layout thrashing
+- Below-fold images 缺少 loading="lazy"
 
-### Missing Pagination
-- List endpoints that return unbounded results (no LIMIT, no pagination params)
-- Database queries without LIMIT that grow with data volume
-- API responses that embed full nested objects instead of IDs with expansion
+### Missing Pagination（缺少 pagination）
+- 返回 unbounded results 的 list endpoints（无 LIMIT，无 pagination params）
+- 随 data volume 增长且没有 LIMIT 的 database queries
+- API responses embed full nested objects，而不是使用 IDs with expansion
 
-### Blocking in Async Contexts
-- Synchronous I/O (file reads, subprocess, HTTP requests) inside async functions
-- time.sleep() / Thread.sleep() inside event-loop-based handlers
-- CPU-intensive computation blocking the main thread without worker offload
+### Blocking in Async Contexts（async contexts 中的 blocking）
+- Async functions 内部存在 synchronous I/O（file reads、subprocess、HTTP requests）
+- Event-loop-based handlers 内部存在 time.sleep() / Thread.sleep()
+- CPU-intensive computation 在没有 worker offload 的情况下 blocking main thread

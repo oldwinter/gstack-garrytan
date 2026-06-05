@@ -25,7 +25,7 @@ const PENDING = 'GSTACK-THROUGHPUT-PENDING';
 
 function main() {
   if (!fs.existsSync(README)) {
-    process.stderr.write(`README.md not found at ${README}\n`);
+    process.stderr.write(`未在 ${README} 找到 README.md\n`);
     process.exit(1);
   }
 
@@ -43,7 +43,7 @@ function main() {
     const updated = readme.replace(ANCHOR, replacement);
     fs.writeFileSync(README, updated);
     process.stderr.write(
-      `${JSON_PATH} not found. Wrote ${PENDING} marker to README. Run scripts/garry-output-comparison.ts to generate it.\n`
+      `${JSON_PATH} 不存在。已将 ${PENDING} marker 写入 README。运行 scripts/garry-output-comparison.ts 生成它。\n`
     );
     // Non-zero exit so CI that wraps this sees the signal, but local dev workflows
     // can continue. Callers can decide whether this is fatal.
@@ -54,7 +54,7 @@ function main() {
   try {
     parsed = JSON.parse(fs.readFileSync(JSON_PATH, 'utf-8'));
   } catch (err) {
-    process.stderr.write(`Failed to parse ${JSON_PATH}: ${err}\n`);
+    process.stderr.write(`解析 ${JSON_PATH} 失败：${err}\n`);
     process.exit(1);
   }
 
@@ -65,7 +65,7 @@ function main() {
     const replacement = `${PENDING}: multiple not yet computable (one or both years inactive in this repo) ${ANCHOR}`;
     const updated = readme.replace(ANCHOR, replacement);
     fs.writeFileSync(README, updated);
-    process.stderr.write(`Multiple not computable. Wrote ${PENDING} marker.\n`);
+    process.stderr.write(`Multiple 暂不可计算。已写入 ${PENDING} marker。\n`);
     process.exit(0);
   }
 
@@ -73,7 +73,7 @@ function main() {
   const replacement = `**${mult}×** ${ANCHOR}`;
   const updated = readme.replace(ANCHOR, replacement);
   fs.writeFileSync(README, updated);
-  process.stderr.write(`README throughput multiple updated: ${mult}×\n`);
+  process.stderr.write(`README throughput multiple 已更新：${mult}×\n`);
 }
 
 main();

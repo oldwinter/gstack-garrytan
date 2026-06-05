@@ -1,35 +1,34 @@
-# Slate Host Integration — Research & Design Doc
+# Slate Host Integration — Research & Design Doc（研究与设计文档）
 
-**Date:** 2026-04-02
-**Branch:** garrytan/slate-agent-support
-**Status:** Research complete, blocked on host config refactor
-**Supersedes:** None
+**Date（日期）：** 2026-04-02
+**Branch（分支）：** garrytan/slate-agent-support
+**Status（状态）：** Research complete，blocked on host config refactor
+**Supersedes（取代）：** None
 
-## What is Slate
+## Slate 是什么
 
-Slate is a proprietary coding agent CLI from Random Labs.
-Install: `npm i -g @randomlabs/slate` or `brew install anthropic/tap/slate`.
-License: Proprietary. 85MB compiled Bun binary (arm64/x64, darwin/linux/windows).
-npm package: `@randomlabs/slate@1.0.25` (thin 8.8KB launcher + platform-specific optional deps).
+Slate 是 Random Labs 的 proprietary coding agent CLI。
+Install：`npm i -g @randomlabs/slate` 或 `brew install anthropic/tap/slate`。
+License：Proprietary。85MB compiled Bun binary（arm64/x64，darwin/linux/windows）。
+npm package：`@randomlabs/slate@1.0.25`（thin 8.8KB launcher + platform-specific optional deps）。
 
-Multi-model: dynamically selects Claude Sonnet/Opus/Haiku, plus other models.
-Built for "swarm orchestration" with extended multi-hour sessions.
+Multi-model：动态选择 Claude Sonnet/Opus/Haiku，以及其他 models。
+为带 extended multi-hour sessions 的 "swarm orchestration" 构建。
 
-## Slate is an OpenCode fork
+## Slate 是 OpenCode fork
 
-**Confirmed via binary strings analysis** of the 85MB Mach-O arm64 binary:
+**通过 85MB Mach-O arm64 binary 的 binary strings analysis confirmed：**
 
-- Internal name: `name: "opencode"` (literal string in binary)
-- All `OPENCODE_*` env vars present alongside `SLATE_*` equivalents
-- Shares OpenCode's tool/skill architecture, LSP integration, terminal management
-- Own branding, API endpoints (`api.randomlabs.ai`, `agent-worker-prod.randomlabs.workers.dev`), and config paths
+- Internal name：`name: "opencode"`（binary 中 literal string）
+- 所有 `OPENCODE_*` env vars 与 `SLATE_*` equivalents 同时存在
+- 共享 OpenCode 的 tool/skill architecture、LSP integration、terminal management
+- 自有 branding、API endpoints（`api.randomlabs.ai`、`agent-worker-prod.randomlabs.workers.dev`）和 config paths
 
-This matters for integration: OpenCode conventions mostly apply, but Slate adds
-its own paths and env vars on top.
+这对 integration 很重要：OpenCode conventions 基本适用，但 Slate 在其上添加自己的 paths 和 env vars。
 
-## Skill Discovery (confirmed from binary)
+## Skill Discovery（从 binary 确认）
 
-Slate scans ALL four directory families for skills. Error messages in binary confirm:
+Slate 会 scan 全部四个 directory families 查找 skills。Binary 中的 error messages confirm：
 
 ```
 "failed .slate directory scan for skills"
@@ -38,42 +37,41 @@ Slate scans ALL four directory families for skills. Error messages in binary con
 "failed .opencode directory scan for skills"
 ```
 
-**Discovery paths (priority order from Slate docs):**
+**Discovery paths（发现路径，来自 Slate docs 的 priority order）：**
 
-1. `.slate/skills/<name>/SKILL.md` — project-level, highest priority
-2. `~/.slate/skills/<name>/SKILL.md` — global
-3. `.opencode/skills/`, `.agents/skills/` — compatibility fallback
-4. `.claude/skills/` — Claude Code compatibility fallback (lowest)
+1. `.slate/skills/<name>/SKILL.md`：project-level，highest priority
+2. `~/.slate/skills/<name>/SKILL.md`：global
+3. `.opencode/skills/`、`.agents/skills/`：compatibility fallback
+4. `.claude/skills/`：Claude Code compatibility fallback（lowest）
 5. Custom paths via `slate.json`
 
-**Glob patterns:** `**/SKILL.md` and `{skill,skills}/**/SKILL.md`
+**Glob patterns（匹配模式）：** `**/SKILL.md` 和 `{skill,skills}/**/SKILL.md`
 
-**Commands:** Same directory structure but under `commands/` subdirs:
-`/.slate/commands/`, `/.claude/commands/`, `/.agents/commands/`, `/.opencode/commands/`
+**Commands（命令）：** 相同 directory structure，但位于 `commands/` subdirs：
+`/.slate/commands/`、`/.claude/commands/`、`/.agents/commands/`、`/.opencode/commands/`
 
-**Skill frontmatter:** YAML with `name` and `description` fields (per Slate docs).
-No documented length limits on either field.
+**Skill frontmatter（skill 前置元数据）：** YAML，包含 `name` 和 `description` fields（per Slate docs）。
+两者都没有 documented length limits。
 
-## Project Instructions
+## 项目说明
 
-Slate reads both `CLAUDE.md` and `AGENTS.md` for project instructions.
-Both literal strings confirmed in binary. No changes needed to existing
-gstack projects... CLAUDE.md works as-is.
+Slate 会读取 `CLAUDE.md` 和 `AGENTS.md` 作为 project instructions。
+两个 literal strings 都已在 binary 中 confirmed。现有 gstack projects 不需要 changes，CLAUDE.md works as-is。
 
-## Configuration
+## 配置
 
-**Config file:** `slate.json` / `slate.jsonc` (NOT opencode.json)
+**Config file（配置文件）：** `slate.json` / `slate.jsonc`（不是 opencode.json）
 
-**Config options (from Slate docs):**
-- `privacy` (boolean) — disables telemetry/logging
-- Permissions: `allow`, `ask`, `deny` per tool (`read`, `edit`, `bash`, `grep`, `webfetch`, `websearch`, `*`)
-- Model slots: `models.main`, `models.subagent`, `models.search`, `models.reasoning`
-- MCP servers: local or remote with custom commands and headers
-- Custom commands: `/commands` with templates
+**配置选项（from Slate docs）：**
+- `privacy`（boolean）：disable telemetry/logging
+- Permissions：per tool 的 `allow`、`ask`、`deny`（`read`、`edit`、`bash`、`grep`、`webfetch`、`websearch`、`*`）
+- Model slots：`models.main`、`models.subagent`、`models.search`、`models.reasoning`
+- MCP servers：local 或 remote，带 custom commands 和 headers
+- Custom commands：带 templates 的 `/commands`
 
-The setup script should NOT create `slate.json`. Users configure their own permissions.
+Setup script 不应 create `slate.json`。Users configure their own permissions。
 
-## CLI Flags (Headless Mode)
+## CLI Flags（Headless Mode，无头模式）
 
 ```
 --stream-json / --output-format stream-json  — JSONL output, "compatible with Anthropic Claude Code SDK"
@@ -84,16 +82,13 @@ The setup script should NOT create `slate.json`. Users configure their own permi
 --output-format text                         — plain text output (default)
 ```
 
-**Stream-JSON format:** Slate docs claim "compatible with Anthropic Claude Code SDK."
-Not yet empirically verified. Given OpenCode heritage, likely matches Claude Code's
-NDJSON event schema (type: "assistant", type: "tool_result", type: "result").
+**Stream-JSON format（格式）：** Slate docs 声称 "compatible with Anthropic Claude Code SDK"。尚未 empirically verified。考虑到 OpenCode heritage，可能匹配 Claude Code 的 NDJSON event schema（type: "assistant"、type: "tool_result"、type: "result"）。
 
-**Need to verify:** Run `slate -q "hello" --stream-json` with valid credits and
-capture actual JSONL events before building the session runner parser.
+**Need to verify（待验证）：** 使用 valid credits 运行 `slate -q "hello" --stream-json`，capture actual JSONL events，然后再构建 session runner parser。
 
-## Environment Variables (from binary strings)
+## Environment Variables（环境变量，from binary strings）
 
-### Slate-specific
+### Slate-specific（Slate 专属）
 ```
 SLATE_API_KEY                              — API key
 SLATE_AGENT                                — agent selection
@@ -141,7 +136,7 @@ SLATE_TEST_HOME                           — test home directory
 SLATE_TOKEN_DIR                           — token storage directory
 ```
 
-### OpenCode legacy (still functional)
+### OpenCode legacy（仍可用）
 ```
 OPENCODE_DISABLE_LSP_DOWNLOAD
 OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER
@@ -155,18 +150,17 @@ OPENCODE_LIBC
 OPENCODE_TERMINAL
 ```
 
-### Critical env vars for gstack integration
+### gstack integration 的 critical env vars（关键环境变量）
 
-**`SLATE_DISABLE_CLAUDE_CODE_SKILLS`** — When set, `.claude/skills/` loading is disabled.
-This makes publishing to `.slate/skills/` load-bearing, not just an optimization.
-Without native `.slate/` publishing, gstack skills vanish when this flag is set.
+**`SLATE_DISABLE_CLAUDE_CODE_SKILLS`**：设置后会 disable `.claude/skills/` loading。
+这让 publishing to `.slate/skills/` 成为 load-bearing，而不只是 optimization。
+没有 native `.slate/` publishing 时，设置该 flag 会让 gstack skills disappear。
 
-**`SLATE_TEST_HOME`** — Useful for E2E tests. Can redirect Slate's home directory
-to an isolated temp directory, similar to how Codex tests use a temp HOME.
+**`SLATE_TEST_HOME`**：对 E2E tests 有用。可以把 Slate home directory redirect 到 isolated temp directory，类似 Codex tests 使用 temp HOME。
 
-**`SLATE_DANGEROUSLY_SKIP_PERMISSIONS`** — Required for headless E2E tests.
+**`SLATE_DANGEROUSLY_SKIP_PERMISSIONS`**：headless E2E tests 需要它。
 
-## Model References (from binary)
+## Model References（模型引用，from binary）
 
 ```
 anthropic/claude-sonnet-4.6
@@ -178,7 +172,7 @@ google/nano-banana
 randomlabs/fast-default-alpha
 ```
 
-## API Endpoints (from binary)
+## API Endpoints（API 端点，from binary）
 
 ```
 https://api.randomlabs.ai                          — main API
@@ -190,9 +184,9 @@ https://docs.randomlabs.ai                         — documentation
 https://randomlabs.ai/config.json                  — remote config
 ```
 
-Brew tap: `anthropic/tap/slate` (notable: under Anthropic's tap, not Random Labs)
+Brew tap：`anthropic/tap/slate`（notable：位于 Anthropic tap 下，而不是 Random Labs）
 
-## npm Package Structure
+## npm Package Structure（npm package 结构）
 
 ```
 @randomlabs/slate (8.8 kB, thin launcher)
@@ -215,58 +209,49 @@ Platform packages (85MB each):
 └── @randomlabs/slate-windows-x64-baseline
 ```
 
-Binary override: `SLATE_BIN_PATH` env var skips all discovery, runs the specified binary directly.
+Binary override：`SLATE_BIN_PATH` env var 会 skip all discovery，直接运行指定 binary。
 
-## What Already Works Today
+## 当前已经可用的内容
 
-gstack skills already work in Slate via the `.claude/skills/` fallback path.
-No changes needed for basic functionality. Users who install gstack for Claude Code
-and also use Slate will find their skills available in both agents.
+gstack skills 已经可以通过 `.claude/skills/` fallback path 在 Slate 中工作。Basic functionality 不需要 changes。安装了 gstack for Claude Code 且同时使用 Slate 的 users，会发现两个 agents 都能使用这些 skills。
 
-## What First-Class Support Adds
+## First-Class Support 会增加什么
 
-1. **Reliability** — `.slate/skills/` is Slate's highest-priority path. Immune to
-   `SLATE_DISABLE_CLAUDE_CODE_SKILLS`.
-2. **Optimized frontmatter** — Strip Claude-specific fields (allowed-tools, hooks, version)
-   that Slate doesn't use. Keep only `name` and `description`.
-3. **Setup script** — Auto-detect `slate` binary, install skills to `~/.slate/skills/`.
-4. **E2E tests** — Verify skills work when invoked by Slate directly.
+1. **Reliability**：`.slate/skills/` 是 Slate highest-priority path，不受 `SLATE_DISABLE_CLAUDE_CODE_SKILLS` 影响。
+2. **Optimized frontmatter**：Strip Slate 不使用的 Claude-specific fields（allowed-tools、hooks、version）。只保留 `name` 和 `description`。
+3. **Setup script**：Auto-detect `slate` binary，install skills to `~/.slate/skills/`。
+4. **E2E tests**：验证 skills 被 Slate 直接 invoke 时可用。
 
-## Blocked On: Host Config Refactor
+## Blocked On：Host Config Refactor
 
-Codex's outside voice review identified that adding Slate as a 4th host (after Claude,
-Codex, Factory) is "host explosion for a path alias." The current architecture has:
+Codex outside voice review 指出，把 Slate 作为第 4 个 host（继 Claude、Codex、Factory 之后）添加，是 “host explosion for a path alias”。当前 architecture 有：
 
-- Hard-coded host names in `type Host = 'claude' | 'codex' | 'factory'`
-- Per-host branches in `transformFrontmatter()` with near-duplicate logic
-- Per-host config in `EXTERNAL_HOST_CONFIG` with similar patterns
-- Per-host functions in the setup script (`create_codex_runtime_root`, `link_codex_skill_dirs`)
-- Host names duplicated in `bin/gstack-platform-detect`, `bin/gstack-uninstall`, `bin/dev-setup`
+- `type Host = 'claude' | 'codex' | 'factory'` 中 hard-coded host names
+- `transformFrontmatter()` 中 per-host branches，逻辑 near-duplicate
+- `EXTERNAL_HOST_CONFIG` 中 per-host config，patterns 相似
+- Setup script 中 per-host functions（`create_codex_runtime_root`、`link_codex_skill_dirs`）
+- `bin/gstack-platform-detect`、`bin/gstack-uninstall`、`bin/dev-setup` 中 duplicated host names
 
-Adding Slate means copying all of these patterns again. A refactor to make hosts
-data-driven (config objects instead of if/else branches) would make Slate integration
-trivial AND make future hosts (any new OpenCode fork, any new agent) zero-effort.
+添加 Slate 意味着再次 copy 所有这些 patterns。把 hosts 改成 data-driven（config objects instead of if/else branches）的 refactor 会让 Slate integration trivial，也让 future hosts（任何 new OpenCode fork、任何 new agent）zero-effort。
 
-### Missing from the plan (identified by Codex)
+### Plan 中缺失内容（由 Codex identified）
 
-- `lib/worktree.ts` only copies `.agents/`, not `.slate/` — E2E tests in worktrees won't
-  have Slate skills
-- `bin/gstack-uninstall` doesn't know about `.slate/`
-- `bin/dev-setup` doesn't wire `.slate/` for contributor dev mode
-- `bin/gstack-platform-detect` doesn't detect Slate
-- E2E tests should set `SLATE_DISABLE_CLAUDE_CODE_SKILLS=1` to prove `.slate/` path
-  actually works (not just falling back to `.claude/`)
+- `lib/worktree.ts` 只 copy `.agents/`，不 copy `.slate/`，因此 worktrees 中的 E2E tests 不会有 Slate skills
+- `bin/gstack-uninstall` 不知道 `.slate/`
+- `bin/dev-setup` 不为 contributor dev mode wire `.slate/`
+- `bin/gstack-platform-detect` 不 detect Slate
+- E2E tests 应设置 `SLATE_DISABLE_CLAUDE_CODE_SKILLS=1`，证明 `.slate/` path 真的有效（而不是 fallback 到 `.claude/`）
 
-## Session Runner Design (for later)
+## Session Runner Design（for later）
 
-When the JSONL format is verified, the session runner should:
+JSONL format verified 后，session runner 应该：
 
-- Spawn: `slate -q "<prompt>" --stream-json --dangerously-skip-permissions -w <dir>`
-- Parse: Claude Code SDK-compatible NDJSON (assumed, needs verification)
-- Skills: Install to `.slate/skills/` in test fixture (not `.claude/skills/`)
-- Auth: Use `SLATE_API_KEY` or existing `~/.slate/` credentials
-- Isolation: Use `SLATE_TEST_HOME` for home directory isolation
-- Timeout: 300s default (same as Codex)
+- Spawn：`slate -q "<prompt>" --stream-json --dangerously-skip-permissions -w <dir>`
+- Parse：Claude Code SDK-compatible NDJSON（assumed，needs verification）
+- Skills：在 test fixture 中 install 到 `.slate/skills/`（不是 `.claude/skills/`）
+- Auth：使用 `SLATE_API_KEY` 或 existing `~/.slate/` credentials
+- Isolation：使用 `SLATE_TEST_HOME` 做 home directory isolation
+- Timeout：默认 300s（与 Codex 相同）
 
 ```typescript
 export interface SlateResult {
@@ -281,10 +266,10 @@ export interface SlateResult {
 }
 ```
 
-## Docs References
+## 文档参考
 
 - Slate docs: https://docs.randomlabs.ai
 - Quickstart: https://docs.randomlabs.ai/en/getting-started/quickstart
 - Skills: https://docs.randomlabs.ai/en/using-slate/skills
-- Configuration: https://docs.randomlabs.ai/en/using-slate/configuration
+- Configuration（配置）：https://docs.randomlabs.ai/en/using-slate/configuration
 - Hotkeys: https://docs.randomlabs.ai/en/using-slate/hotkey_reference

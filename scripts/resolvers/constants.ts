@@ -11,10 +11,10 @@
 export const AI_SLOP_BLACKLIST = [
   'Purple/violet/indigo gradient backgrounds or blue-to-purple color schemes',
   '**The 3-column feature grid:** icon-in-colored-circle + bold title + 2-line description, repeated 3x symmetrically. THE most recognizable AI layout.',
-  'Icons in colored circles as section decoration (SaaS starter template look)',
+  'Colored circles 里的 icons 作为 section decoration（SaaS starter template look）',
   'Centered everything (`text-align: center` on all headings, descriptions, cards)',
-  'Uniform bubbly border-radius on every element (same large radius on everything)',
-  'Decorative blobs, floating circles, wavy SVG dividers (if a section feels empty, it needs better content, not decoration)',
+  '每个 element 都使用统一 bubbly border-radius（所有地方都是同一个 large radius）',
+  'Decorative blobs、floating circles、wavy SVG dividers（如果 section 觉得空，需要的是更好的 content，不是 decoration）',
   'Emoji as design elements (rockets in headings, emoji as bullet points)',
   'Colored left-border on cards (`border-left: 3px solid <accent>`)',
   'Generic hero copy ("Welcome to [X]", "Unlock the power of...", "Your all-in-one solution for...")',

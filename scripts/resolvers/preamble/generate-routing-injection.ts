@@ -1,44 +1,44 @@
 import type { TemplateContext } from '../types';
 
 export function generateRoutingInjection(ctx: TemplateContext): string {
-  return `If \`HAS_ROUTING\` is \`no\` AND \`ROUTING_DECLINED\` is \`false\` AND \`PROACTIVE_PROMPTED\` is \`yes\`:
-Check if a CLAUDE.md file exists in the project root. If it does not exist, create it.
+  return `如果 \`HAS_ROUTING\` 为 \`no\`，且 \`ROUTING_DECLINED\` 为 \`false\`，且 \`PROACTIVE_PROMPTED\` 为 \`yes\`：
+检查项目根目录是否存在 CLAUDE.md。如果不存在，则创建它。
 
-Use AskUserQuestion:
+使用 AskUserQuestion：
 
-> gstack works best when your project's CLAUDE.md includes skill routing rules.
+> 当 project 的 CLAUDE.md 包含 skill routing rules 时，gstack 效果最好。
 
 Options:
-- A) Add routing rules to CLAUDE.md (recommended)
-- B) No thanks, I'll invoke skills manually
+- A) 把 routing rules 添加到 CLAUDE.md（recommended）
+- B) 不，谢谢，我会手动 invoke skills
 
-If A: Append this section to the end of CLAUDE.md:
+如果选择 A：把以下 section 追加到 CLAUDE.md 末尾：
 
 \`\`\`markdown
 
-## Skill routing
+## Skill routing（Skill 路由）
 
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+当用户请求匹配可用 skill 时，通过 Skill tool 调用它。不确定时，也调用对应 skill。
 
-Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
-- Author a backlog-ready spec/issue → invoke /spec
+关键 routing rules：
+- 产品想法/brainstorming -> 调用 /office-hours
+- 策略/scope -> 调用 /plan-ceo-review
+- 架构 -> 调用 /plan-eng-review
+- Design system/plan review -> 调用 /design-consultation 或 /plan-design-review
+- 完整 review pipeline -> 调用 /autoplan
+- Bugs/errors -> 调用 /investigate
+- QA/testing site behavior -> 调用 /qa 或 /qa-only
+- Code review/diff check -> 调用 /review
+- Visual polish -> 调用 /design-review
+- Ship/deploy/PR -> 调用 /ship 或 /land-and-deploy
+- 保存进度 -> 调用 /context-save
+- 恢复上下文 -> 调用 /context-restore
+- 编写 backlog-ready spec/issue -> 调用 /spec
 \`\`\`
 
-Then commit the change: \`git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"\`
+然后提交改动：\`git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"\`
 
-If B: run \`${ctx.paths.binDir}/gstack-config set routing_declined true\` and say they can re-enable with \`gstack-config set routing_declined false\`.
+如果选择 B：运行 \`${ctx.paths.binDir}/gstack-config set routing_declined true\`，并说明可用 \`gstack-config set routing_declined false\` 重新启用。
 
-This only happens once per project. Skip if \`HAS_ROUTING\` is \`yes\` or \`ROUTING_DECLINED\` is \`true\`.`;
+每个项目只执行一次。如果 \`HAS_ROUTING\` 为 \`yes\` 或 \`ROUTING_DECLINED\` 为 \`true\`，则跳过。`;
 }

@@ -1,57 +1,57 @@
-# Chrome Sidebar + Conductor: What We Need
+# Chrome Sidebar + Conductor：我们需要什么
 
-## What we're building
+## 我们在构建什么
 
-Right now when Claude is working in a Conductor workspace — editing files, running tests, browsing your app — you can only watch from Conductor's chat window. If Claude is doing QA on your website, you see tool calls scrolling by but you can't actually *see* the browser.
+现在，当 Claude 在 Conductor workspace 中工作时，例如编辑文件、运行测试、浏览你的 app，你只能从 Conductor 的 chat window 里看进度。如果 Claude 正在对你的网站做 QA，你会看到 tool calls 不断滚动，但你无法真正*看见*浏览器。
 
-We built a Chrome sidebar that fixes this. When you run `$B connect`, Chrome opens with a side panel that shows everything Claude is doing in real time. You can type messages in the sidebar and Claude acts on them — "click the signup button", "go to the settings page", "summarize what you see."
+我们构建了一个 Chrome sidebar 来解决这个问题。运行 `$B connect` 时，Chrome 会打开一个 side panel，实时显示 Claude 正在做的所有事。你可以在 sidebar 里输入消息，Claude 会照做，例如“click the signup button”、“go to the settings page”、“summarize what you see”。
 
-The problem: the sidebar currently runs its own separate Claude instance. It can't see what the main Conductor session is doing, and the main session can't see what the sidebar is doing. They're two separate agents that don't talk to each other.
+问题是：sidebar 目前运行自己的独立 Claude instance。它看不到主 Conductor session 在做什么，主 session 也看不到 sidebar 在做什么。它们是两个互不通信的独立 agents。
 
-The fix is simple: make the sidebar a *window into* the Conductor session, not a separate thing.
+修复思路很简单：让 sidebar 成为 Conductor session 的一个*窗口*，而不是一个独立事物。
 
-## What we need from Conductor (3 things)
+## 我们需要 Conductor 提供什么（3 件事）
 
-### 1. Let us watch what the agent is doing
+### 1. 让我们看到 agent 正在做什么
 
-We need a way to subscribe to the active session's events. Something like an SSE stream or WebSocket that sends us events as they happen:
+我们需要一种方式订阅 active session 的 events。类似 SSE stream 或 WebSocket，在事件发生时把它们发给我们：
 
 - "Claude is editing `src/App.tsx`"
 - "Claude is running `npm test`"
 - "Claude says: I'll fix the CSS issue..."
 
-The sidebar already knows how to render these events — tool calls show as compact badges, text shows as chat bubbles. We just need a pipe from Conductor's session to our extension.
+sidebar 已经知道如何渲染这些 events：tool calls 显示为紧凑 badges，文本显示为 chat bubbles。我们只需要一条从 Conductor session 到 extension 的管道。
 
-### 2. Let us send messages into the session
+### 2. 让我们向 session 发送消息
 
-When the user types "click the other button" in the Chrome sidebar, that message should appear in the Conductor session as if the user typed it in the workspace chat. The agent picks it up on its next turn and acts on it.
+当用户在 Chrome sidebar 中输入“click the other button”时，这条消息应该出现在 Conductor session 中，就像用户在 workspace chat 里输入的一样。agent 在下一轮接收它并执行。
 
-This is the magic moment: user is watching Chrome, sees something wrong, types a correction in the sidebar, and Claude responds — without the user ever switching windows.
+这是关键体验：用户正在看 Chrome，发现有地方不对，在 sidebar 中输入修正，Claude 立刻响应，而用户完全不需要切换窗口。
 
-### 3. Let us create a workspace from a directory
+### 3. 让我们从目录创建 workspace
 
-When `$B connect` launches, it creates a git worktree for file isolation. We want to register that worktree as a Conductor workspace so the user can see the sidebar agent's file changes in Conductor's file tree. This also sets up the foundation for multiple browser sessions, each with their own workspace.
+`$B connect` 启动时会创建一个 git worktree 用于文件隔离。我们希望把这个 worktree 注册为 Conductor workspace，让用户能在 Conductor 的 file tree 中看到 sidebar agent 的文件改动。这也为多个 browser sessions 打基础：每个 session 都有自己的 workspace。
 
-## Why this matters
+## 为什么重要
 
-Today, `/qa` and `/design-review` feel like a black box. Claude says "I found 3 issues" but you can't see what it's looking at. With the sidebar connected to Conductor:
+今天，`/qa` 和 `/design-review` 感觉像黑箱。Claude 说“I found 3 issues”，但你看不到它正在看什么。sidebar 连接到 Conductor 后：
 
-- **You watch Claude test your app** in real time — every click, every navigation, every screenshot appears in Chrome while you watch
-- **You can interrupt** — "no, test the mobile view" or "skip that page" — without switching windows
-- **One agent, two views** — the same Claude that's editing your code is also controlling the browser. No context duplication, no stale state
+- **你可以实时看 Claude 测试你的 app**：每一次点击、每一次导航、每一张截图都会出现在 Chrome 里。
+- **你可以打断它**：比如“no, test the mobile view”或“skip that page”，不需要切换窗口。
+- **一个 agent，两个视图**：同一个正在编辑代码的 Claude 也在控制浏览器。没有 context duplication，也没有 stale state。
 
-## What's already built (gstack side)
+## gstack 侧已经构建了什么
 
-Everything on our side is done and shipping:
+我们这边的内容已经完成并正在 shipping：
 
-- Chrome extension that auto-loads when you run `$B connect`
-- Side panel that auto-opens (zero setup for the user)
-- Streaming event renderer (tool calls, text, results)
+- 运行 `$B connect` 时会 auto-load 的 Chrome extension
+- 会 auto-open 的 side panel（用户 zero setup）
+- Streaming event renderer（tool calls、text、results）
 - Chat input with message queuing
-- Reconnect logic with status banners
-- Session management with persistent chat history
-- Agent lifecycle (spawn, stop, kill, timeout detection)
+- 带 status banners 的 reconnect logic
+- 带 persistent chat history 的 session management
+- Agent lifecycle（spawn、stop、kill、timeout detection）
 
-The only change on our side: swap the data source from "local `claude -p` subprocess" to "Conductor session stream." The extension code stays the same.
+我们这边唯一需要改的是：把数据源从“local `claude -p` subprocess”切换为“Conductor session stream”。extension code 保持不变。
 
-**Estimated effort:** 2-3 days Conductor engineering, 1 day gstack integration.
+**预估工作量：** Conductor engineering 2-3 天，gstack integration 1 天。

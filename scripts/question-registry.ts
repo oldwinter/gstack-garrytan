@@ -1,55 +1,54 @@
 /**
- * Question Registry — typed schema for AskUserQuestion invocations across gstack.
+ * Question Registry — gstack 内 AskUserQuestion invocations 的 typed schema。
  *
  * Purpose
  * -------
- * Every AskUserQuestion invocation is tagged with a stable question_id that maps
- * to an entry in this registry. The registry is the substrate /plan-tune builds on:
- * - Logging (question-log.jsonl) tags events with a registered id
- * - Per-question preferences (question-preferences.json) are keyed by registered id
- * - One-way door safety is declared here, not inferred from prose summaries
- * - The psychographic signal map (scripts/psychographic-signals.ts) maps id → dimension delta
+ * 每次 AskUserQuestion invocation 都会带上 stable question_id，并映射到此
+ * registry 中的一条 entry。此 registry 是 /plan-tune 的基础：
+ * - Logging (question-log.jsonl) 用 registered id 标记 events
+ * - Per-question preferences (question-preferences.json) 以 registered id 为 key
+ * - One-way door safety 在这里声明，而不是从 prose summaries 推断
+ * - psychographic signal map (scripts/psychographic-signals.ts) 映射 id → dimension delta
  *
- * Not every AskUserQuestion in gstack needs a registry entry right away. Skills
- * often craft questions dynamically at runtime — the agent generates an ad-hoc id
- * of the form `{skill}-{slug}` for those. The /plan-tune skill surfaces frequently-
- * firing ad-hoc ids as candidates for registry promotion.
+ * 不是 gstack 中的每个 AskUserQuestion 都需要立刻有 registry entry。Skills 经常在
+ * runtime 动态构造 questions；agent 会为它们生成 `{skill}-{slug}` 形式的 ad-hoc id。
+ * /plan-tune skill 会把高频触发的 ad-hoc ids 暴露出来，作为 registry promotion 候选。
  *
- * v1 coverage target: the ~30-50 most-common recurring question categories across
+ * v1 coverage target：覆盖以下 skills 中最常见的约 30-50 类 recurring question：
  * ship, review, office-hours, plan-ceo-review, plan-eng-review, plan-design-review,
  * plan-devex-review, qa, investigate, and land-and-deploy. One-way doors 100%.
  *
  * Adding a new entry
  * ------------------
- * 1. Pick a kebab-case id of the form `{skill}-{what-it-asks-about}`.
- * 2. Classify `door_type`:
- *    - `one-way` for destructive ops, architecture/data-model forks,
- *      scope-adds > 1 day CC effort, security/compliance choices.
- *      ALWAYS asked regardless of user preference.
- *    - `two-way` for everything else (can be auto-decided by explicit preference).
- * 3. Pick the `category` that describes the question's shape.
- * 4. Add an optional `signal_key` if this question's answer should nudge a
- *    specific psychographic dimension. The signal map in scripts/psychographic-
- *    signals.ts uses (id, user_choice) to look up the dimension delta.
- * 5. `options` is a short list of stable option keys. UI labels can vary; keys
- *    must stay the same so preferences survive wording changes.
- * 6. Run `bun test test/plan-tune.test.ts` to verify format + uniqueness.
+ * 1. 选择 `{skill}-{what-it-asks-about}` 形式的 kebab-case id。
+ * 2. 分类 `door_type`：
+ *    - `one-way` 用于 destructive ops、architecture/data-model forks、
+ *      scope-adds > 1 day CC effort、security/compliance choices。
+ *      无论 user preference 如何都 ALWAYS asked。
+ *    - `two-way` 用于其他所有问题（可由 explicit preference 自动决定）。
+ * 3. 选择描述 question shape 的 `category`。
+ * 4. 如果此 question 的答案应推动某个 specific psychographic dimension，
+ *    添加 optional `signal_key`。scripts/psychographic-signals.ts 中的
+ *    signal map 使用 (id, user_choice) 查找 dimension delta。
+ * 5. `options` 是 stable option keys 的短列表。UI labels 可变化；keys 必须保持不变，
+ *    这样 preferences 才能跨 wording changes 保留。
+ * 6. 运行 `bun test test/plan-tune.test.ts` 验证 format + uniqueness。
  */
 
 export type QuestionCategory =
-  | 'approval'         // proceed/stop gate (e.g., "approve this plan?")
-  | 'clarification'    // need more info to proceed
-  | 'routing'          // which path to take (modes, strategies)
-  | 'cherry-pick'      // opt-in scope decision (add/defer/skip)
-  | 'feedback-loop';   // inline tune: prompt, iteration feedback
+  | 'approval'         // proceed/stop gate（例如 "approve this plan?"）
+  | 'clarification'    // 需要更多信息才能继续
+  | 'routing'          // 选择哪条路径（modes、strategies）
+  | 'cherry-pick'      // opt-in scope decision（add/defer/skip）
+  | 'feedback-loop';   // inline tune：prompt、iteration feedback
 
 export type DoorType = 'one-way' | 'two-way';
 
 /**
- * Stable keys for the most-common user choice patterns. UI labels can vary
- * (e.g., "Add to plan" vs "Include in scope"); the stored choice is the key.
- * Skills may emit custom keys for uncategorizable questions — those still log
- * but don't get psychographic signal attribution.
+ * 最常见 user choice patterns 的 stable keys。UI labels 可变化
+ * （例如 "Add to plan" vs "Include in scope"）；存储的 choice 是 key。
+ * Skills 可为无法归类的问题发出 custom keys；这些仍会记录日志，
+ * 但不会获得 psychographic signal attribution。
  */
 export type StandardOption =
   | 'accept'
@@ -72,28 +71,28 @@ export type StandardOption =
   | 'stop';
 
 export interface QuestionDef {
-  /** Stable kebab-case id: `{skill}-{semantic-description}` */
+  /** Stable kebab-case id：`{skill}-{semantic-description}` */
   id: string;
-  /** Skill that owns this question (must match a gstack skill directory name) */
+  /** 拥有此 question 的 skill（必须匹配 gstack skill directory name） */
   skill: string;
-  /** Shape of the question */
+  /** Question 的形态 */
   category: QuestionCategory;
-  /** Safety classification. one-way is ALWAYS asked regardless of preference */
+  /** Safety classification。one-way 无论 preference 如何都 ALWAYS asked */
   door_type: DoorType;
-  /** Stable option keys (skills may emit keys outside this list; those are logged but untagged) */
+  /** Stable option keys（skills 可发出此列表之外的 keys；会记录但不打标签） */
   options?: StandardOption[] | string[];
-  /** Optional key into scripts/psychographic-signals.ts for dimension attribution */
+  /** 用于 dimension attribution 的 scripts/psychographic-signals.ts optional key */
   signal_key?: string;
-  /** One-line description for docs and /plan-tune profile output */
+  /** 给 docs 和 /plan-tune profile output 使用的一行描述 */
   description: string;
 }
 
 /**
- * QUESTIONS — initial v1 coverage of recurring question categories.
- * Grouped by skill for readability. Maintained by hand.
+ * QUESTIONS — recurring question categories 的 initial v1 coverage。
+ * 按 skill 分组以提升可读性。手动维护。
  *
- * When adding new skills or question types, extend this object. The CI lint
- * test/plan-tune.test.ts verifies format, uniqueness, and required fields.
+ * 添加新 skills 或 question types 时扩展此 object。CI lint
+ * test/plan-tune.test.ts 会验证 format、uniqueness 和 required fields。
  */
 export const QUESTIONS = {
   // -----------------------------------------------------------------------
@@ -106,7 +105,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['accept', 'defer', 'skip'],
     signal_key: 'distribution-care',
-    description: "New artifact added without CI/CD release pipeline — add now, defer to TODOs, or skip?",
+    description: "新增 artifact 但没有 CI/CD release pipeline — 现在添加、defer 到 TODOs，还是跳过？",
   },
   'ship-test-failure-triage': {
     id: 'ship-test-failure-triage',
@@ -115,7 +114,7 @@ export const QUESTIONS = {
     door_type: 'one-way',
     options: ['fix-now', 'investigate', 'ack-and-ship'],
     signal_key: 'test-discipline',
-    description: "Failing tests detected — fix before shipping or investigate root cause?",
+    description: "检测到 failing tests — shipping 前修复，还是先调查 root cause？",
   },
   'ship-pre-landing-review-fix': {
     id: 'ship-pre-landing-review-fix',
@@ -124,7 +123,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['fix-now', 'skip'],
     signal_key: 'code-quality-care',
-    description: "Pre-landing review flagged an issue — fix now or ship as-is?",
+    description: "Pre-landing review 标记了 issue — 现在修复，还是按现状 ship？",
   },
   'ship-greptile-comment-valid': {
     id: 'ship-greptile-comment-valid',
@@ -133,7 +132,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['fix-now', 'ack-and-ship', 'false-positive'],
     signal_key: 'code-quality-care',
-    description: "Greptile flagged a valid issue — fix, ack and ship, or mark false positive?",
+    description: "Greptile 标记了 valid issue — 修复、ack and ship，还是标为 false positive？",
   },
   'ship-greptile-comment-false-positive': {
     id: 'ship-greptile-comment-false-positive',
@@ -141,7 +140,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['reply', 'fix-anyway', 'ignore'],
-    description: "Greptile comment looks like a false positive — reply to explain, fix anyway, or ignore silently?",
+    description: "Greptile comment 看起来像 false positive — reply 解释、仍然修复，还是静默忽略？",
   },
   'ship-todos-create': {
     id: 'ship-todos-create',
@@ -149,7 +148,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'skip'],
-    description: "No TODOS.md found — create a skeleton file now?",
+    description: "未找到 TODOS.md — 现在创建 skeleton file？",
   },
   'ship-todos-reorganize': {
     id: 'ship-todos-reorganize',
@@ -158,7 +157,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['accept', 'skip'],
     signal_key: 'detail-preference',
-    description: "TODOS.md doesn't follow the recommended structure — reorganize now?",
+    description: "TODOS.md 不符合 recommended structure — 现在重组？",
   },
   'ship-changelog-voice-polish': {
     id: 'ship-changelog-voice-polish',
@@ -167,7 +166,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['accept', 'skip'],
     signal_key: 'detail-preference',
-    description: "CHANGELOG entry could be polished for voice — apply edits?",
+    description: "CHANGELOG entry 的 voice 可以 polish — 应用编辑？",
   },
   'ship-version-bump-tier': {
     id: 'ship-version-bump-tier',
@@ -175,7 +174,7 @@ export const QUESTIONS = {
     category: 'routing',
     door_type: 'two-way',
     options: ['major', 'minor', 'patch'],
-    description: "Version bump: major, minor, or patch?",
+    description: "Version bump：major、minor 还是 patch？",
   },
 
   // -----------------------------------------------------------------------
@@ -188,7 +187,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['fix-now', 'ack-and-ship', 'false-positive'],
     signal_key: 'code-quality-care',
-    description: "Review finding — fix now, ack and ship, or false positive?",
+    description: "Review finding — 现在修复、ack and ship，还是 false positive？",
   },
   'review-sql-safety': {
     id: 'review-sql-safety',
@@ -196,7 +195,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'one-way',
     options: ['fix-now', 'investigate'],
-    description: "Potential SQL injection / unsafe query — fix or investigate further?",
+    description: "潜在 SQL injection / unsafe query — 修复还是进一步调查？",
   },
   'review-llm-trust-boundary': {
     id: 'review-llm-trust-boundary',
@@ -204,7 +203,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'one-way',
     options: ['fix-now', 'investigate'],
-    description: "LLM trust boundary violation — fix before merge?",
+    description: "LLM trust boundary violation — merge 前修复？",
   },
 
   // -----------------------------------------------------------------------
@@ -217,7 +216,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['startup', 'intrapreneur', 'hackathon', 'oss-research', 'learning', 'fun'],
     signal_key: 'session-mode',
-    description: "What's your goal with this session? (Sets mode: startup vs builder)",
+    description: "这次 session 的目标是什么？（设置 mode：startup vs builder）",
   },
   'office-hours-premise-confirm': {
     id: 'office-hours-premise-confirm',
@@ -225,7 +224,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'reject'],
-    description: "Premise check — agree or disagree?",
+    description: "Premise check — 同意还是不同意？",
   },
   'office-hours-cross-model-run': {
     id: 'office-hours-cross-model-run',
@@ -233,7 +232,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'skip'],
-    description: "Want a second-opinion cross-model review of your brainstorm?",
+    description: "需要对 brainstorm 做 second-opinion cross-model review 吗？",
   },
   'office-hours-landscape-privacy-gate': {
     id: 'office-hours-landscape-privacy-gate',
@@ -241,7 +240,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'one-way',
     options: ['accept', 'skip'],
-    description: "Run a web search for landscape awareness? (Sends generalized terms to search provider.)",
+    description: "为了 landscape awareness 运行 web search？（会把 generalized terms 发送给 search provider。）",
   },
   'office-hours-approach-choose': {
     id: 'office-hours-approach-choose',
@@ -250,7 +249,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['minimal', 'ideal', 'creative'],
     signal_key: 'scope-appetite',
-    description: "Which implementation approach? (minimal viable vs ideal architecture vs creative lateral)",
+    description: "选择哪种 implementation approach？（minimal viable vs ideal architecture vs creative lateral）",
   },
   'office-hours-design-doc-approve': {
     id: 'office-hours-design-doc-approve',
@@ -258,7 +257,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'revise', 'restart'],
-    description: "Approve the design doc, revise sections, or start over?",
+    description: "批准 design doc、修改 sections，还是重新开始？",
   },
 
   // -----------------------------------------------------------------------
@@ -271,7 +270,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['expand', 'selective', 'hold', 'reduce'],
     signal_key: 'scope-appetite',
-    description: "Review mode: push scope up, cherry-pick expansions, hold scope, or cut to minimum?",
+    description: "Review mode：提升 scope、cherry-pick expansions、保持 scope，还是削减到 minimum？",
   },
   'plan-ceo-review-expansion-proposal': {
     id: 'plan-ceo-review-expansion-proposal',
@@ -280,7 +279,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['accept', 'defer', 'skip'],
     signal_key: 'scope-appetite',
-    description: "Scope expansion proposal — add to plan, defer to TODOs, or skip?",
+    description: "Scope expansion proposal — 加入 plan、defer 到 TODOs，还是跳过？",
   },
   'plan-ceo-review-premise-revise': {
     id: 'plan-ceo-review-premise-revise',
@@ -288,7 +287,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'one-way',
     options: ['revise', 'hold'],
-    description: "Cross-model challenged an agreed premise — revise or keep?",
+    description: "Cross-model challenge 了已同意的 premise — revise 还是 keep？",
   },
   'plan-ceo-review-outside-voice': {
     id: 'plan-ceo-review-outside-voice',
@@ -296,7 +295,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'skip'],
-    description: "Get an outside-voice second opinion on the plan?",
+    description: "为 plan 获取 outside-voice second opinion？",
   },
   'plan-ceo-review-promote-to-docs': {
     id: 'plan-ceo-review-promote-to-docs',
@@ -304,7 +303,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'keep-local', 'skip'],
-    description: "Promote the CEO plan to docs/designs/ in the repo?",
+    description: "把 CEO plan promote 到 repo 中的 docs/designs/？",
   },
 
   // -----------------------------------------------------------------------
@@ -317,7 +316,7 @@ export const QUESTIONS = {
     door_type: 'one-way',
     options: ['fix-now', 'defer', 'accept-risk'],
     signal_key: 'architecture-care',
-    description: "Architecture finding — fix, defer, or accept the risk?",
+    description: "Architecture finding — 修复、defer，还是接受 risk？",
   },
   'plan-eng-review-scope-reduce': {
     id: 'plan-eng-review-scope-reduce',
@@ -326,7 +325,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['reduce', 'hold'],
     signal_key: 'scope-appetite',
-    description: "Plan touches 8+ files — reduce scope or hold?",
+    description: "Plan 触及 8+ files — reduce scope 还是 hold？",
   },
   'plan-eng-review-test-gap': {
     id: 'plan-eng-review-test-gap',
@@ -335,7 +334,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['add-test', 'defer', 'skip'],
     signal_key: 'test-discipline',
-    description: "Test gap identified — add now, defer, or skip?",
+    description: "识别到 test gap — 现在添加、defer，还是跳过？",
   },
   'plan-eng-review-outside-voice': {
     id: 'plan-eng-review-outside-voice',
@@ -343,7 +342,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'skip'],
-    description: "Get an outside-voice second opinion on the plan?",
+    description: "为 plan 获取 outside-voice second opinion？",
   },
   'plan-eng-review-todo-add': {
     id: 'plan-eng-review-todo-add',
@@ -351,7 +350,7 @@ export const QUESTIONS = {
     category: 'cherry-pick',
     door_type: 'two-way',
     options: ['accept', 'skip', 'build-now'],
-    description: "Proposed TODO item — add to TODOs, skip, or build in this PR?",
+    description: "Proposed TODO item — 加入 TODOs、跳过，还是在此 PR 中构建？",
   },
 
   // -----------------------------------------------------------------------
@@ -364,7 +363,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['expand', 'polish', 'triage'],
     signal_key: 'design-care',
-    description: "Design review depth: expand for competitive edge, polish every touchpoint, or triage critical gaps?",
+    description: "Design review depth：为 competitive edge 扩展、polish every touchpoint，还是 triage critical gaps？",
   },
   'plan-design-review-fix': {
     id: 'plan-design-review-fix',
@@ -373,7 +372,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['fix-now', 'defer', 'skip'],
     signal_key: 'design-care',
-    description: "Design issue flagged — fix now, defer to TODOs, or skip?",
+    description: "标记了 design issue — 现在修复、defer 到 TODOs，还是跳过？",
   },
 
   // -----------------------------------------------------------------------
@@ -384,7 +383,7 @@ export const QUESTIONS = {
     skill: 'plan-devex-review',
     category: 'clarification',
     door_type: 'two-way',
-    description: "Who is your target developer? (Determines persona for review.)",
+    description: "你的 target developer 是谁？（决定 review persona。）",
   },
   'plan-devex-review-mode': {
     id: 'plan-devex-review-mode',
@@ -393,7 +392,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['expand', 'polish', 'triage'],
     signal_key: 'devex-care',
-    description: "DX review depth: expand for competitive advantage, polish every touchpoint, or triage critical gaps?",
+    description: "DX review depth：为 competitive advantage 扩展、polish every touchpoint，还是 triage critical gaps？",
   },
   'plan-devex-review-friction-fix': {
     id: 'plan-devex-review-friction-fix',
@@ -402,7 +401,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['fix-now', 'defer', 'skip'],
     signal_key: 'devex-care',
-    description: "Friction point in the developer journey — fix now, defer, or skip?",
+    description: "Developer journey 中的 friction point — 现在修复、defer，还是跳过？",
   },
 
   // -----------------------------------------------------------------------
@@ -415,7 +414,7 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['fix-now', 'defer', 'skip'],
     signal_key: 'code-quality-care',
-    description: "Bug found during QA — fix now, defer, or skip?",
+    description: "QA 中发现 bug — 现在修复、defer，还是跳过？",
   },
   'qa-tier': {
     id: 'qa-tier',
@@ -423,7 +422,7 @@ export const QUESTIONS = {
     category: 'routing',
     door_type: 'two-way',
     options: ['quick', 'standard', 'deep'],
-    description: "QA tier: quick (critical/high only), standard (+medium), or deep (+low)?",
+    description: "QA tier：quick（仅 critical/high）、standard（+medium）还是 deep（+low）？",
   },
 
   // -----------------------------------------------------------------------
@@ -435,7 +434,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'reject', 'refine'],
-    description: "Root-cause hypothesis — accept, reject, or refine before proceeding to fix?",
+    description: "Root-cause hypothesis — fix 前 accept、reject，还是 refine？",
   },
   'investigate-fix-apply': {
     id: 'investigate-fix-apply',
@@ -443,7 +442,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'one-way',
     options: ['accept', 'reject'],
-    description: "Apply the proposed fix?",
+    description: "应用 proposed fix？",
   },
 
   // -----------------------------------------------------------------------
@@ -456,7 +455,7 @@ export const QUESTIONS = {
     door_type: 'one-way',
     options: ['accept', 'reject'],
     signal_key: 'decision-autonomy',
-    description: "Merge this PR to base branch?",
+    description: "将此 PR merge 到 base branch？",
   },
   'land-and-deploy-rollback': {
     id: 'land-and-deploy-rollback',
@@ -465,7 +464,7 @@ export const QUESTIONS = {
     door_type: 'one-way',
     options: ['accept', 'reject'],
     signal_key: 'decision-autonomy',
-    description: "Canary detected regressions — roll back the deploy?",
+    description: "Canary 检测到 regressions — roll back deploy？",
   },
 
   // -----------------------------------------------------------------------
@@ -477,7 +476,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'one-way',
     options: ['accept', 'deny'],
-    description: "Run a global security scan? (Scans files outside this branch.)",
+    description: "运行 global security scan？（扫描此 branch 之外的 files。）",
   },
   'cso-finding-fix': {
     id: 'cso-finding-fix',
@@ -485,7 +484,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'one-way',
     options: ['fix-now', 'defer', 'accept-risk'],
-    description: "Security finding — fix, defer to TODOs, or accept the risk?",
+    description: "Security finding — 修复、defer 到 TODOs，还是接受 risk？",
   },
 
   // -----------------------------------------------------------------------
@@ -497,7 +496,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['yes-upgrade', 'always-auto', 'not-now', 'never-ask'],
-    description: "Upgrade gstack now? (Also: always auto-upgrade, snooze, or disable the prompt.)",
+    description: "现在 upgrade gstack？（也可选择 always auto-upgrade、snooze 或 disable prompt。）",
   },
 
   // -----------------------------------------------------------------------
@@ -509,7 +508,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['community', 'anonymous', 'off'],
-    description: "Share usage data with gstack? community (recommended) / anonymous / off",
+    description: "与 gstack share usage data？community（recommended）/ anonymous / off",
   },
   'preamble-proactive-behavior': {
     id: 'preamble-proactive-behavior',
@@ -517,7 +516,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['on', 'off'],
-    description: "Let gstack proactively suggest skills based on conversation context?",
+    description: "允许 gstack 基于 conversation context proactive suggest skills？",
   },
   'preamble-routing-injection': {
     id: 'preamble-routing-injection',
@@ -525,7 +524,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'decline'],
-    description: "Add gstack skill routing rules to CLAUDE.md?",
+    description: "将 gstack skill routing rules 添加到 CLAUDE.md？",
   },
   'preamble-vendored-migration': {
     id: 'preamble-vendored-migration',
@@ -533,7 +532,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'keep-vendored'],
-    description: "This repo has vendored gstack (deprecated) — migrate to team mode?",
+    description: "此 repo 有 vendored gstack（deprecated）— migrate 到 team mode？",
   },
   'preamble-completeness-intro': {
     id: 'preamble-completeness-intro',
@@ -541,7 +540,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'skip'],
-    description: "Open the Boil-the-Lake essay in your browser? (one-time intro)",
+    description: "在 browser 中打开 Boil-the-Lake essay？（one-time intro）",
   },
   'preamble-cross-project-learnings': {
     id: 'preamble-cross-project-learnings',
@@ -549,7 +548,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'reject'],
-    description: "Enable cross-project learnings search? (local only, helpful for solo devs)",
+    description: "启用 cross-project learnings search？（local only，对 solo devs 有帮助）",
   },
 
   // -----------------------------------------------------------------------
@@ -561,14 +560,14 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'skip'],
-    description: "Question tuning is off — enable it and set up your profile?",
+    description: "Question tuning 当前关闭 — 启用并设置 profile？",
   },
   'plan-tune-declared-dimension': {
     id: 'plan-tune-declared-dimension',
     skill: 'plan-tune',
     category: 'clarification',
     door_type: 'two-way',
-    description: "Self-declaration question (one per dimension during /plan-tune setup)",
+    description: "Self-declaration question（/plan-tune setup 期间每个 dimension 一个）",
   },
   'plan-tune-confirm-mutation': {
     id: 'plan-tune-confirm-mutation',
@@ -576,7 +575,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'reject'],
-    description: "Confirm profile change before writing (user sovereignty gate for free-form edits)",
+    description: "写入前确认 profile change（free-form edits 的 user sovereignty gate）",
   },
 
   // -----------------------------------------------------------------------
@@ -588,7 +587,7 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'two-way',
     options: ['accept', 'override', 'investigate'],
-    description: "Autoplan surfaced a taste decision at the final gate — accept, override, or investigate?",
+    description: "Autoplan 在 final gate 暴露了 taste decision — accept、override，还是 investigate？",
   },
   'autoplan-user-challenge': {
     id: 'autoplan-user-challenge',
@@ -596,21 +595,21 @@ export const QUESTIONS = {
     category: 'approval',
     door_type: 'one-way',
     options: ['accept', 'reject', 'revise'],
-    description: "Both models agree your direction should change — accept, reject, or revise the plan?",
+    description: "两个 models 都认为你的 direction 应该改变 — accept、reject，还是 revise plan？",
   },
 } as const satisfies Record<string, QuestionDef>;
 
 export type RegisteredQuestionId = keyof typeof QUESTIONS;
 
 /**
- * Runtime lookup — returns undefined for ad-hoc question_ids (not registered).
- * Ad-hoc ids still log; they just don't get psychographic signal attribution.
+ * Runtime lookup — 对 ad-hoc question_ids（未注册）返回 undefined。
+ * Ad-hoc ids 仍会记录日志；只是不会获得 psychographic signal attribution。
  */
 export function getQuestion(id: string): QuestionDef | undefined {
   return (QUESTIONS as Record<string, QuestionDef>)[id];
 }
 
-/** Get all registered one-way door question ids (used by sensitivity checker) */
+/** 获取所有 registered one-way door question ids（由 sensitivity checker 使用） */
 export function getOneWayDoorIds(): Set<string> {
   return new Set(
     Object.values(QUESTIONS as Record<string, QuestionDef>)
@@ -619,12 +618,12 @@ export function getOneWayDoorIds(): Set<string> {
   );
 }
 
-/** All registered question ids, for CI completeness checks */
+/** 所有 registered question ids，供 CI completeness checks 使用 */
 export function getAllRegisteredIds(): Set<string> {
   return new Set(Object.keys(QUESTIONS));
 }
 
-/** Registry stats, for /plan-tune stats */
+/** Registry stats，供 /plan-tune stats 使用 */
 export function getRegistryStats() {
   const all = Object.values(QUESTIONS as Record<string, QuestionDef>);
   const bySkill: Record<string, number> = {};

@@ -1,95 +1,95 @@
-# Pacing Updates v0 — Design Doc
+# Pacing Updates v0 — Design Doc（设计文档）
 
-**Status:** V1.1 plan (not yet implemented).
-**Extracted from:** [PLAN_TUNING_V1.md](./PLAN_TUNING_V1.md) during implementation, when review rigor revealed the pacing workstream had structural gaps unfixable via plan-text editing.
-**Authors:** Garry Tan (user), with AI-assisted reviews from Claude Opus 4.7 + OpenAI Codex gpt-5.4.
-**Review plan:** CEO + Codex + DX + Eng cycle, same rigor as V1.
+**Status（状态）：** V1.1 plan（尚未实现）。
+**Extracted from（来源）：** 实现期间从 [PLAN_TUNING_V1.md](./PLAN_TUNING_V1.md) 抽出；当时严格 review 发现 pacing workstream 存在结构性缺口，无法只靠 plan-text editing 修复。
+**Authors（作者）：** Garry Tan（user），并包含 Claude Opus 4.7 + OpenAI Codex gpt-5.4 协助的 reviews。
+**Review plan（评审计划）：** CEO + Codex + DX + Eng cycle，与 V1 保持同等 rigor。
 
-## Credit
+## Credit（致谢）
 
-This plan exists because of **[Louise de Sadeleer](https://x.com/LouiseDSadeleer/status/2045139351227478199)**. Her "yes yes yes" during architecture review wasn't only about jargon (V1 addresses that) — it was pacing and agency. Too many interruptive decisions over too long a review. V1.1 addresses the pacing half.
+这个 plan 因 **[Louise de Sadeleer](https://x.com/LouiseDSadeleer/status/2045139351227478199)** 而存在。她在 architecture review 中的 “yes yes yes” 不只是关于 jargon（V1 已处理），也是关于 pacing 和 agency。太多 interruptive decisions，且 review 时间过长。V1.1 处理 pacing 这一半。
 
-## Problem
+## 问题
 
-Louise's fatigue reading gstack review output came from two sources:
+Louise 阅读 gstack review output 的 fatigue 来自两个来源：
 
-1. **Jargon density** — technical terms appeared without explanation. *Addressed in V1 (ELI10 writing).*
-2. **Interruption volume** — `/autoplan` ran 4 phases (CEO + Design + Eng + DX), each with 5–10 AskUserQuestion prompts. Total ≈ 30–50 prompts over ~45 minutes. Non-technical users check out at ~10–15 interruptions. **This is V1.1.**
+1. **Jargon density**：technical terms 出现时没有解释。*已在 V1 中处理（ELI10 writing）。*
+2. **Interruption volume**：`/autoplan` 运行 4 phases（CEO + Design + Eng + DX），每个 phase 有 5-10 个 AskUserQuestion prompts。总计约 30-50 个 prompts，持续约 45 分钟。Non-technical users 在约 10-15 次 interruptions 后会 check out。**这就是 V1.1。**
 
-Translation alone doesn't fix interruption volume. A translated interruption is still an interruption. The fix needs to change WHEN findings surface, not just HOW they're worded.
+仅靠翻译不能修复 interruption volume。翻译后的 interruption 仍然是 interruption。Fix 需要改变 findings surface 的 WHEN，而不只是 HOW wording（措辞方式）。
 
-## Why it's extracted (structural gaps from V1's third eng review + Codex pass 2)
+## 为什么它被 extract（来自 V1 第三轮 eng review + Codex pass 2 的 structural gaps）
 
-During V1 planning, a pacing workstream was drafted: rank findings, auto-accept two-way doors, max 3 AskUserQuestion prompts per review phase, Silent Decisions block for auto-accepted items, "flip <id>" command to re-open auto-accepted decisions post-hoc. The third eng-review pass + second Codex pass surfaced 10 gaps that couldn't be closed with plan-text edits:
+V1 planning 中曾 draft 一个 pacing workstream：rank findings、auto-accept two-way doors、每个 review phase 最多 3 个 AskUserQuestion prompts、为 auto-accepted items 提供 Silent Decisions block、用 "flip <id>" command post-hoc re-open auto-accepted decisions。第三轮 eng-review pass + 第二轮 Codex pass surface 了 10 个无法通过 plan-text edits 关闭的 gaps：
 
-1. **Session-state model undefined.** Pacing needs per-phase state (which findings surfaced, which auto-accepted, which user can flip). V1 has per-skill-invocation state for glossing but no backing store for per-phase pacing memory.
-2. **Phase identifier missing from question-log.** Silent Eng #8 wanted to warn when > 3 prompts within one phase. V0's `question-log.jsonl` has no `phase` field. V1 claimed "no schema change" — contradicts the enforcement target.
-3. **Question registry ≠ finding registry.** V0's `scripts/question-registry.ts` covers *questions* (registered at skill definition time). Review findings are *dynamic* (discovered at runtime). `door_type: one-way` enforcement via registry doesn't cover ad-hoc findings. One-way-door safety isn't enforceable for findings the agent generates mid-review.
-4. **Pacing as prose can't invert existing control flow.** V1 planned to add a "rank findings, then ask" rule to preamble prose. But existing skill templates like `plan-eng-review/SKILL.md.tmpl` have per-section STOP/AskUserQuestion sequences. A prose rule in preamble can't reliably override a hardcoded per-section STOP. The behavioral change is sequencing, not prompt wording.
-5. **Flip mechanism has no implementation.** "Reply `flip <id>` to change" was prose. No command parser, no state store, no replay behavior. If the conversation compacts and the Silent Decisions block leaves context, the original decision is lost.
-6. **Migration prompt is itself an interrupt.** V1's post-upgrade migration prompt (offering to restore V0 prose) counts against the interruption budget V1.1 is trying to reduce. V1.1 must decide: exempt from budget, or include as interrupt-1-of-N?
-7. **First-run preamble prompts count too.** Lake intro, telemetry, proactive, routing injection — Louise saw all of them on first run. They're interruptions before the first real skill runs. V1.1 must audit which of these are load-bearing for new users vs. deferrable until session N.
-8. **Ranking formula not calibrated against real data.** V1 considered `product 0-8` (broken: `{0,1,2,4,8}` distribution), then `sum 0-6` with threshold ≥ 4. But neither was validated against actual finding distribution. V1.1 should instrument V0 question-log to measure what real findings look like, then calibrate.
-9. **"Every one-way door surfaces" vs "max 3 per phase" contradicts.** One-way cap = uncapped (safety); two-way cap = 3. But the plan had both rules without explicit precedence. V1.1 must state: one-way doors surface uncapped regardless of phase budget.
-10. **Undefined verification values.** V1 plan had "Silent Decisions block ≥ N entries" with N never defined, and `active: true` field in throughput JSON never defined. V1.1 gets concrete values.
+1. **Session-state model undefined。** Pacing 需要 per-phase state（哪些 findings surfaced、哪些 auto-accepted、哪些 user 可 flip）。V1 有 glossing 用的 per-skill-invocation state，但没有 per-phase pacing memory 的 backing store。
+2. **Phase identifier missing from question-log。** Silent Eng #8 想在一个 phase 内 > 3 prompts 时 warn。V0 的 `question-log.jsonl` 没有 `phase` field。V1 声称 “no schema change”，与 enforcement target 矛盾。
+3. **Question registry != finding registry。** V0 的 `scripts/question-registry.ts` 覆盖的是 *questions*（skill definition time registered）。Review findings 是 *dynamic*（runtime discovered）。通过 registry enforce `door_type: one-way` 不能覆盖 ad-hoc findings。Agent 在 mid-review 生成的 findings 无法 enforce one-way-door safety。
+4. **Pacing as prose 不能 invert existing control flow。** V1 计划向 preamble prose 添加 “rank findings, then ask” rule。但现有 skill templates（如 `plan-eng-review/SKILL.md.tmpl`）有 per-section STOP/AskUserQuestion sequences。Preamble 中的 prose rule 无法可靠 override hardcoded per-section STOP。Behavioral change 是 sequencing，不是 prompt wording。
+5. **Flip mechanism has no implementation。** “Reply `flip <id>` to change” 只是 prose。没有 command parser、state store 或 replay behavior。如果 conversation compacts，Silent Decisions block 离开 context，original decision 就 lost。
+6. **Migration prompt 本身是 interrupt。** V1 的 post-upgrade migration prompt（offering to restore V0 prose）会计入 V1.1 正要减少的 interruption budget。V1.1 必须决定：exempt from budget，还是 include as interrupt-1-of-N。
+7. **First-run preamble prompts 也计数。** Louise 在 first run 看到所有这些：lake intro、telemetry、proactive、routing injection。它们是第一个 real skill 运行前的 interruptions。V1.1 必须 audit 哪些对 new users load-bearing，哪些可 defer 到 session N。
+8. **Ranking formula 未用真实 data calibrate。** V1 考虑过 `product 0-8`（broken：`{0,1,2,4,8}` distribution），后来是 threshold >= 4 的 `sum 0-6`。但两者都未用 actual finding distribution validate。V1.1 应 instrument V0 question-log，measure real findings 的样子，再 calibrate。
+9. **“Every one-way door surfaces” vs “max 3 per phase” 矛盾。** One-way cap = uncapped（safety）；two-way cap = 3。但 plan 同时有两条 rules，未说明 precedence。V1.1 必须声明：one-way doors surface uncapped regardless of phase budget。
+10. **Undefined verification values。** V1 plan 中有 “Silent Decisions block >= N entries”，但 N 未定义；throughput JSON 中的 `active: true` field 也未定义。V1.1 要给出 concrete values。
 
-## Scope for V1.1
+## Scope for V1.1（范围）
 
-1. **Define session-state model.** Per-skill-invocation vs per-phase vs per-conversation. Backing store: likely a JSON file at `~/.gstack/sessions/<session_id>/pacing-state.json` that records which findings surfaced vs. auto-accepted per phase. Cleanup: same TTL as existing session tracking in preamble.
+1. **Define session-state model。** Per-skill-invocation vs per-phase vs per-conversation。Backing store：可能是 `~/.gstack/sessions/<session_id>/pacing-state.json`，记录每个 phase 中哪些 findings surfaced vs. auto-accepted。Cleanup：与 preamble 中现有 session tracking 相同 TTL。
 
-2. **Add `phase` field to question-log.jsonl schema.** Classify each AskUserQuestion by which review phase it came from (CEO / Design / Eng / DX / other). Migration: existing entries default to `"unknown"`. Non-breaking schema extension.
+2. **Add `phase` field to question-log.jsonl schema。** 按 review phase（CEO / Design / Eng / DX / other）classify 每个 AskUserQuestion。Migration：existing entries default to `"unknown"`。Non-breaking schema extension。
 
-3. **Extend registry coverage for dynamic findings.** Two options, pick during CEO review:
-   - (a) Widen `scripts/question-registry.ts` to allow runtime registration (ad-hoc IDs still get logged + classified).
-   - (b) Add a secondary runtime classifier `scripts/finding-classifier.ts` that maps finding text → risk tier using pattern matching.
+3. **Extend registry coverage for dynamic findings。** 两个选项，CEO review 时选择：
+   - (a) Widen `scripts/question-registry.ts`，允许 runtime registration（ad-hoc IDs 仍会 logged + classified）。
+   - (b) 添加 secondary runtime classifier `scripts/finding-classifier.ts`，用 pattern matching 把 finding text -> risk tier。
 
-4. **Move pacing from preamble prose into skill-template control flow.** Update each review skill template to: (i) internally complete the phase, (ii) rank findings with the `gstack-pacing-rank` binary, (iii) emit up to 3 AskUserQuestion prompts, (iv) emit Silent Decisions block with the rest. Not a preamble rule — explicit sequence in each template.
+4. **Move pacing from preamble prose into skill-template control flow。** 更新每个 review skill template，使其：(i) internally complete phase，(ii) 用 `gstack-pacing-rank` binary rank findings，(iii) emit 最多 3 个 AskUserQuestion prompts，(iv) emit 包含其余 items 的 Silent Decisions block。不是 preamble rule，而是每个 template 中的 explicit sequence。
 
-5. **Flip mechanism implementation.** New binary `bin/gstack-flip-decision`. Command parser accepts `flip <id>` from user message. Looks up the original decision in pacing-state.json. Re-opens as an explicit AskUserQuestion. New choice persists.
+5. **Flip mechanism implementation。** 新 binary `bin/gstack-flip-decision`。Command parser 接受 user message 中的 `flip <id>`。从 pacing-state.json 查找 original decision。重新 open 为 explicit AskUserQuestion。New choice persists。
 
-6. **Migration-prompt budget decision.** Explicit rule: one-shot migration prompts are exempt from the per-phase interruption budget. Rationale: they fire before review phases start, not during.
+6. **Migration-prompt budget decision。** Explicit rule：one-shot migration prompts exempt from per-phase interruption budget。Rationale：它们在 review phases 开始前 fire，不在期间。
 
-7. **First-run preamble audit.** Audit lake intro, telemetry, proactive, routing injection. For each: is this load-bearing for a first-time user, or deferrable? Likely outcome: suppress all but lake intro until session 2+. Offer remaining ones via a `/plan-tune first-run` command that users can invoke voluntarily.
+7. **First-run preamble audit。** Audit lake intro、telemetry、proactive、routing injection。逐项判断：对 first-time user 是否 load-bearing，还是 deferrable？Likely outcome：除 lake intro 外，全部 suppress until session 2+。Remaining ones 通过用户可 voluntary invoke 的 `/plan-tune first-run` command 提供。
 
-8. **Ranking threshold calibration.** Instrument V0's question-log (already running, has history). Measure the actual distribution of `severity × irreversibility × user-decision-matters` across recent CEO + Eng + DX + Design reviews. Pick threshold based on real data. Target: ~20% of findings surface, ~80% auto-accept.
+8. **Ranking threshold calibration。** Instrument V0 question-log（已经运行，有 history）。Measure recent CEO + Eng + DX + Design reviews 中 `severity × irreversibility × user-decision-matters` 的 actual distribution。基于真实 data 选择 threshold。Target：约 20% findings surface，约 80% auto-accept。
 
-9. **Explicit rule: one-way doors uncapped.** Hard-coded in skill template prose: "one-way doors surface regardless of phase interruption budget." Two-way findings cap at 3 per phase.
+9. **Explicit rule：one-way doors uncapped。** 在 skill template prose 中 hard-code：“one-way doors surface regardless of phase interruption budget.” Two-way findings cap at 3 per phase。
 
-10. **Concrete verification values.** Define `N` for Silent Decisions (e.g., ≥ 5 entries expected for a non-trivial plan), define the throughput JSON schema with concrete field names.
+10. **Concrete verification values。** 为 Silent Decisions 定义 `N`（例如 non-trivial plan 期望 >= 5 entries），并用 concrete field names 定义 throughput JSON schema。
 
-## Acceptance criteria for V1.1
+## Acceptance criteria for V1.1（验收标准）
 
-- **Interruption count:** Louise (or similar non-technical collaborator) reruns `/autoplan` end-to-end on a plan comparable to V0-baseline. AskUserQuestion count ≤ 50% of V0 baseline. (V1 captures this baseline transcript for V1.1 calibration.)
-- **One-way-door coverage:** 100% of safety-critical decisions (`door_type: one-way` OR classifier-flagged dynamic findings) surface individually at full technical detail. Uncapped.
-- **Flip round-trip:** User types `flip test-coverage-bookclub-form`. The original auto-accepted decision re-opens as an AskUserQuestion. User's new choice persists to the Silent Decisions block (or is removed if user flips to explicit surfacing).
-- **Per-phase observability:** `/plan-tune` can display per-phase AskUserQuestion counts for any session, reading from question-log.jsonl's new `phase` field.
-- **First-run reduction:** New users see ≤ 1 meta-prompt (lake intro) before their first real skill runs, vs. V1's 4 (lake + telemetry + proactive + routing).
-- **Human rerun:** Louise + Garry independent qualitative reviews, same pattern as V1.
+- **Interruption count：** Louise（或类似 non-technical collaborator）在与 V0-baseline 相当的 plan 上 end-to-end rerun `/autoplan`。AskUserQuestion count <= V0 baseline 的 50%。（V1 会捕获这个 baseline transcript，供 V1.1 calibration 使用。）
+- **One-way-door coverage：** 100% safety-critical decisions（`door_type: one-way` OR classifier-flagged dynamic findings）以 full technical detail 单独 surface。Uncapped。
+- **Flip round-trip：** 用户输入 `flip test-coverage-bookclub-form`。Original auto-accepted decision 重新 open 为 AskUserQuestion。用户 new choice persists 到 Silent Decisions block（或如果用户 flip to explicit surfacing，则 removed）。
+- **Per-phase observability：** `/plan-tune` 可以从 question-log.jsonl 的 new `phase` field 读取并显示任意 session 的 per-phase AskUserQuestion counts。
+- **First-run reduction：** New users 在第一个 real skill 运行前看到 <= 1 个 meta-prompt（lake intro），相比 V1 的 4 个（lake + telemetry + proactive + routing）。
+- **Human rerun：** Louise + Garry 独立做 qualitative reviews，与 V1 相同 pattern。
 
-## Dependencies on V1
+## Dependencies on V1（对 V1 的依赖）
 
-V1.1 builds on V1's infrastructure:
-- `explain_level` config key + preamble echo pattern (A4).
-- Jargon list + Writing Style section (V1.1's interruption language should respect ELI10 rules).
-- V0 dormancy negative tests (V1.1 won't wake the 5D psychographic machinery either).
-- V1's captured Louise transcript (baseline for acceptance criterion calibration).
+V1.1 构建在 V1 infrastructure 上：
+- `explain_level` config key + preamble echo pattern（A4）。
+- Jargon list + Writing Style section（V1.1 的 interruption language 应遵守 ELI10 rules）。
+- V0 dormancy negative tests（V1.1 也不会唤醒 5D psychographic machinery）。
+- V1 captured Louise transcript（acceptance criterion calibration baseline）。
 
-V1.1 does NOT depend on any V2 items (E1 substrate wiring, narrative/vibe, etc.).
+V1.1 不依赖任何 V2 items（E1 substrate wiring、narrative/vibe 等）。
 
-## Review plan
+## Review plan（评审计划）
 
-- **Pre-work:** capture real question-log distribution from current V0 data. Use as calibration input for Scope #8.
-- **CEO review.** Premise challenge: is pacing the right fix, or should V1.1 consider removing phases entirely? (E.g., collapse CEO + Design + Eng + DX into a single unified review pass.) Scope mode: SELECTIVE EXPANSION likely (pacing is the core, related improvements are cherry-picks).
-- **Codex review.** Independent pass on the V1.1 plan. Expect particular scrutiny on the control-flow change (Scope #4) since that's the area V1 struggled with.
-- **DX review.** Focus on the flip mechanism's DX — is `flip <id>` discoverable, is the command syntax natural, is the error path clear?
-- **Eng review ×N.** Expect multiple passes, same as V1.
+- **Pre-work：** 从当前 V0 data capture real question-log distribution。作为 Scope #8 的 calibration input。
+- **CEO review。** Premise challenge：pacing 是否是正确 fix，还是 V1.1 应考虑完全移除 phases？（例如，把 CEO + Design + Eng + DX collapse 为 single unified review pass。）Scope mode：SELECTIVE EXPANSION likely（pacing 是 core，相关 improvements cherry-pick）。
+- **Codex review。** 对 V1.1 plan 做 independent pass。预计会特别 scrutinize control-flow change（Scope #4），因为这是 V1 struggled 的 area。
+- **DX review。** Focus on flip mechanism 的 DX：`flip <id>` 是否 discoverable，command syntax 是否 natural，error path 是否清晰？
+- **Eng review xN。** 预计 multiple passes，与 V1 相同。
 
-## NOT touched in V1.1
+## NOT touched in V1.1（V1.1 不涉及）
 
-V2 items remain deferred:
+V2 items 继续 deferred：
 - Confusion-signal detection
-- 5D psychographic-driven skill adaptation (V0 E1)
-- /plan-tune narrative + /plan-tune vibe (V0 E3)
-- Per-skill or per-topic explain levels
+- 5D psychographic-driven skill adaptation（V0 E1）
+- /plan-tune narrative + /plan-tune vibe（V0 E3）
+- Per-skill 或 per-topic 的 explain levels
 - Team profiles
 - AST-based "delivered features" metric

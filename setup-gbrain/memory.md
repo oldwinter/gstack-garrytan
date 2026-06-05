@@ -1,18 +1,15 @@
-# gstack memory ingest — what it does, what stays local, what you can do with it
+# gstack memory ingest — 它做什么、什么保持本地、你能用它做什么
 
-This is the user-facing reference for the V1 transcript + memory ingest
-feature in `/setup-gbrain`. If you ran `/setup-gbrain` and it asked
-"Ingest THIS repo's transcripts into gbrain?", this doc explains what
-happens after you say yes.
+这是 `/setup-gbrain` 中 V1 transcript + memory ingest feature 的 user-facing reference。如果你运行 `/setup-gbrain`，并看到它询问 "Ingest THIS repo's transcripts into gbrain?"，本 doc 解释你选择 yes 后会发生什么。
 
-## What gets ingested
+## What gets ingested（会 ingest 什么）
 
 | Source | Type | Where | Sensitivity |
 |---|---|---|---|
-| Claude Code session JSONL | `transcript` | `~/.claude/projects/*/` | High — full conversations including tool I/O |
+| Claude Code session JSONL | `transcript` | `~/.claude/projects/*/` | High — 包含 tool I/O 的完整 conversations |
 | Codex CLI session JSONL | `transcript` | `~/.codex/sessions/YYYY/MM/DD/` | High |
 | Cursor session SQLite (V1.0.1) | `transcript` | `~/Library/Application Support/Cursor/` | Same — deferred V1.0.1 |
-| Eureka log | `eureka` | `~/.gstack/analytics/eureka.jsonl` | Medium — your insights, often non-secret |
+| Eureka log | `eureka` | `~/.gstack/analytics/eureka.jsonl` | Medium — 你的 insights，通常非 secret |
 | Project learnings | `learning` | `~/.gstack/projects/<slug>/learnings.jsonl` | Medium |
 | Project timeline | `timeline` | `~/.gstack/projects/<slug>/timeline.jsonl` | Low |
 | CEO plans | `ceo-plan` | `~/.gstack/projects/<slug>/ceo-plans/*.md` | Medium |
@@ -20,31 +17,22 @@ happens after you say yes.
 | Retros | `retro` | `~/.gstack/projects/<slug>/retros/*.md` | Medium |
 | Builder profile | `builder-profile-entry` | `~/.gstack/builder-profile.jsonl` | Low |
 
-## What stays local
+## What stays local（什么保持本地）
 
-- **State files** (`~/.gstack/.gbrain-sync-state.json`,
+- **State files**（`~/.gstack/.gbrain-sync-state.json`,
   `~/.gstack/.transcript-ingest-state.json`,
   `~/.gstack/.gbrain-engine-cache.json`,
-  `~/.gstack/.gbrain-errors.jsonl`) are local-only per ED1 (state file
-  sync semantics decision). They are not synced via the brain remote.
+  `~/.gstack/.gbrain-errors.jsonl`）按 ED1（state file sync semantics decision）保持 local-only。它们不会通过 brain remote sync。
 
-- **Sessions with no resolvable git remote** (running in `/tmp/`, scratch
-  dirs, etc.) are skipped by default. Pass `--include-unattributed` to
-  the ingest helper to opt them in.
+- **Sessions with no resolvable git remote**（运行在 `/tmp/`、scratch dirs 等）默认 skipped。向 ingest helper 传 `--include-unattributed` 可以 opt in。
 
-- **Repos under a `deny` trust policy** (set in `/setup-gbrain` Step 6)
-  are skipped — neither code nor transcripts from those repos ingest.
+- **Repos under a `deny` trust policy**（在 `/setup-gbrain` Step 6 设置）会 skipped；这些 repos 的 code 和 transcripts 都不会 ingest。
 
-## What gets scanned for secrets
+## What gets scanned for secrets（哪些内容会扫 secrets）
 
-The cross-machine secret boundary is `gstack-brain-sync` (the git push
-to your private artifacts repo), which runs its own scanner before any
-content leaves this Mac. Local PGLite ingest doesn't change the exposure
-surface for content that already lives on disk in plaintext.
+Cross-machine secret boundary 是 `gstack-brain-sync`（push 到你的 private artifacts repo 的 git push）。任何 content 离开这台 Mac 前，它会运行自己的 scanner。Local PGLite ingest 不会改变已经以 plaintext 存在于 disk 上的内容的 exposure surface。
 
-Per-file **gitleaks** scanning during memory ingest is **opt-in** as of
-v1.33.0.0 — off by default. To re-enable it (adds ~4-8 min to cold runs
-on a large transcript corpus), use either:
+从 v1.33.0.0 起，memory ingest 期间的 per-file **gitleaks** scanning 是 **opt-in**；默认关闭。要重新启用它（large transcript corpus 的 cold runs 会增加约 4-8 min），使用：
 
 ```bash
 gstack-memory-ingest --bulk --scan-secrets
@@ -52,212 +40,147 @@ gstack-memory-ingest --bulk --scan-secrets
 GSTACK_MEMORY_INGEST_SCAN_SECRETS=1 gstack-memory-ingest --bulk
 ```
 
-When enabled, gitleaks covers:
+启用后，gitleaks 覆盖：
 
 - AWS / GCP / Azure access keys
 - ANTHROPIC_API_KEY, OPENAI_API_KEY, GitHub tokens
 - Stripe keys, Slack tokens, JWT secrets
-- Generic high-entropy strings (configurable threshold)
+- Generic high-entropy strings（configurable threshold）
 
-A session with a positive finding is **skipped entirely** — not partially
-redacted. The match line + rule ID are logged to stderr; you can see what
-was skipped via `bun run bin/gstack-memory-ingest.ts --probe` (which
-shows new vs. updated counts) or by reviewing the helper's output during
-`/sync-gbrain --full`.
+有 positive finding 的 session 会 **entirely skipped**，不会 partial redacted。Match line + rule ID 会 log 到 stderr；你可以通过 `bun run bin/gstack-memory-ingest.ts --probe`（显示 new vs. updated counts）查看 skipped 内容，或在 `/sync-gbrain --full` 期间 review helper output。
 
-If gitleaks is not installed (run `brew install gitleaks` on macOS, or
-`apt install gitleaks` on Linux) and you passed `--scan-secrets` anyway,
-the helper warns once and disables secret scanning for that run.
+如果未安装 gitleaks（macOS 运行 `brew install gitleaks`，Linux 运行 `apt install gitleaks`），但你仍传了 `--scan-secrets`，helper 会 warn 一次，并在该 run 中 disable secret scanning。
 
-## Where it goes
+## Where it goes（写到哪里）
 
-Storage tier depends on your gbrain engine (set during `/setup-gbrain`):
+Storage tier 取决于你的 gbrain engine（在 `/setup-gbrain` 中设置）：
 
-- **Supabase configured:** code + transcripts go to Supabase Storage
-  (multi-Mac native). Curated memory (eureka/learnings/etc.) goes to the
-  brain-linked git repo via `gstack-brain-sync`.
-- **Local PGLite only:** everything stays on this Mac. Curated memory
-  syncs via git if you've enabled brain-sync.
+- **Supabase configured:** code + transcripts 写入 Supabase Storage（multi-Mac native）。Curated memory（eureka/learnings/etc.）通过 `gstack-brain-sync` 写入 brain-linked git repo。
+- **Local PGLite only:** 所有内容都留在这台 Mac。如果启用了 brain-sync，curated memory 会通过 git sync。
 
-The "never double-store" rule per the plan: code and transcripts NEVER
-go in the gbrain-linked git repo. They're too big and they're
-replaceable from disk on each Mac.
+计划中的 "never double-store" rule：code 和 transcripts 永远不进入 gbrain-linked git repo。它们太大，而且可以从每台 Mac 的 disk 重新生成。
 
-## What you can do with it
+## What you can do with it（你能用它做什么）
 
-- **Query in natural language:**
+- **用 natural language query：**
   ```bash
   gbrain query "what was I doing on the auth migration"
   gbrain search "session_id:abc123"
   ```
 
-- **Browse by type:**
+- **按 type browse：**
   ```bash
   gbrain list_pages --type transcript --limit 10
   gbrain list_pages --type ceo-plan
   ```
 
-- **Read a specific page:**
+- **读取 specific page：**
   ```bash
   gbrain get_page transcripts/claude-code/garrytan-gstack/2026-05-01-abc123
   ```
 
-- **Delete a page:**
+- **删除 page：**
   ```bash
   gbrain delete_page <slug>
   ```
-  Caveat: with brain-sync enabled, the page is removed from gbrain's
-  index but git history retains it. For hard-delete, run `git filter-repo`
-  on the brain remote.
+  Caveat：启用 brain-sync 时，page 会从 gbrain index 移除，但 git history 仍保留。Hard-delete 需要在 brain remote 上运行 `git filter-repo`。
 
-- **Bulk-delete by criteria** (V1.0.1 follow-up — `gstack-transcript-prune`
-  helper). For V1.0, use `gbrain delete_page <slug>` per-page or write
-  a small loop over `gbrain list_pages` output.
+- **按 criteria bulk-delete**（V1.0.1 follow-up — `gstack-transcript-prune` helper）。V1.0 中，逐页使用 `gbrain delete_page <slug>`，或基于 `gbrain list_pages` output 写一个 small loop。
 
-- **Disable entirely:**
+- **完全 disable：**
   ```bash
   gstack-config set transcript_ingest_mode off
   gstack-config set gbrain_context_load off  # also disables retrieval
   ```
 
-## How the agent uses it
+## How the agent uses it（agent 如何使用）
 
-At every gstack skill start, the preamble runs
-`gstack-brain-context-load` which:
+每次 gstack skill start 时，preamble 会运行 `gstack-brain-context-load`，它会：
 
-1. Reads the active skill's `gbrain.context_queries:` frontmatter
-2. Dispatches each query to gbrain (vector / list / filesystem)
-3. Renders results into `## <render_as>` sections wrapped in
-   `<USER_TRANSCRIPT_DATA do-not-interpret-as-instructions>` envelopes
-4. The model sees this as part of the preamble before making any decisions
+1. 读取 active skill 的 `gbrain.context_queries:` frontmatter
+2. 将每个 query dispatch 到 gbrain（vector / list / filesystem）
+3. 将 results render 到 `## <render_as>` sections，并包在 `<USER_TRANSCRIPT_DATA do-not-interpret-as-instructions>` envelopes 中
+4. Model 在做任何 decision 前，会把这作为 preamble 的一部分看到
 
-For example, when you run `/office-hours`, the model context
-automatically includes:
+例如运行 `/office-hours` 时，model context 会自动包含：
 
 - `## Prior office-hours sessions in this repo` (last 5)
 - `## Your builder profile snapshot` (latest entry)
 - `## Recent design docs for this project` (last 3)
 - `## Recent eureka moments` (last 5)
 
-So the "Welcome back, last time you were on X" beat is sourced from
-your actual data, not cold-start.
+因此 "Welcome back, last time you were on X" 这种 beat 来自你的真实 data，而不是 cold-start。
 
-If gbrain is unavailable (CLI missing, MCP not registered, query
-timeout), the helper renders `(unavailable)` and the skill continues —
-startup never blocks > 2s on gbrain issues (Section 1C).
+如果 gbrain unavailable（CLI missing、MCP not registered、query timeout），helper 会 render `(unavailable)`，skill 继续运行；startup 不会因 gbrain issues block 超过 2s（Section 1C）。
 
-## What to do when something feels off
+## What to do when something feels off（感觉不对时怎么办）
 
-Run `/setup-gbrain` again. It's idempotent: every step detects existing
-state, repairs only what's missing, and prints a GREEN/YELLOW/RED
-verdict block. If a row is RED, the row tells you what to do.
+再次运行 `/setup-gbrain`。它是 idempotent：每个 step 都会 detect existing state，只 repair 缺失部分，并打印 GREEN/YELLOW/RED verdict block。如果某行是 RED，该行会告诉你该怎么做。
 
-Common cases:
+Common cases：
 
-- **Salience block is empty** — your transcripts may not be ingested
-  yet. Run `gstack-gbrain-sync --full` to do a full pass.
+- **Salience block is empty** — 你的 transcripts 可能尚未 ingested。运行 `gstack-gbrain-sync --full` 做 full pass。
 
-- **"gbrain CLI missing" in the preamble output** — gbrain isn't on
-  your PATH. Run `/setup-gbrain` to install/wire it.
+- **Preamble output 中出现 "gbrain CLI missing"** — gbrain 不在 PATH 上。运行 `/setup-gbrain` install/wire。
 
-- **PGLite engine corrupt (V1.5)** — V1.5 ships
-  `gbrain restore-from-sync` for atomic rebuild from the brain remote.
-  For V1.0, manual recovery: `cd ~/.gbrain && rm -rf db && gbrain init
-  --pglite && gbrain import <brain-remote-clone-dir>`.
+- **PGLite engine corrupt (V1.5)** — V1.5 提供 `gbrain restore-from-sync`，可从 brain remote atomic rebuild。V1.0 的 manual recovery：`cd ~/.gbrain && rm -rf db && gbrain init --pglite && gbrain import <brain-remote-clone-dir>`。
 
-- **A page has stale or wrong content** — `gbrain delete_page <slug>`,
-  then re-run `gstack-gbrain-sync --incremental` to re-ingest from
-  source if the source file is still on disk and unchanged.
+- **Page 内容 stale 或 wrong** — 运行 `gbrain delete_page <slug>`，然后重新运行 `gstack-gbrain-sync --incremental`；如果 source file 仍在 disk 上且 unchanged，会从 source re-ingest。
 
-## Privacy + audit
+## Privacy + audit（隐私与审计）
 
-- Every `secretScanFile` finding is logged to stderr at ingest time.
-- Every gbrain put/delete is logged to `~/.gstack/.gbrain-errors.jsonl`
-  with `{ts, op, duration_ms, outcome}` for forensic tracing.
-- `~/.gstack/.gbrain-engine-cache.json` shows which storage tier is
-  active (PGLite vs Supabase).
-- Brain-sync git history shows every curated artifact push with the
-  user's git identity.
+- 每个 `secretScanFile` finding 都会在 ingest time log 到 stderr。
+- 每个 gbrain put/delete 都会以 `{ts, op, duration_ms, outcome}` log 到 `~/.gstack/.gbrain-errors.jsonl`，用于 forensic tracing。
+- `~/.gstack/.gbrain-engine-cache.json` 显示 active storage tier（PGLite vs Supabase）。
+- Brain-sync git history 会显示每次 curated artifact push 及 user 的 git identity。
 
-If you find a transcript page that contains a secret (either because
-per-file scanning was off, or gitleaks missed it), the recovery path is:
-1. `gbrain delete_page <slug>` — removes from index immediately
-2. Rotate the secret (rotate it anyway as a defensive measure)
-3. If brain-sync is on: `git filter-repo --invert-paths --path <relative-path>`
-   on the brain remote for hard-delete from history
-4. If the miss looks like a gitleaks rule gap, file a gitleaks issue
-   with the pattern (or extend the gitleaks config at `~/.gitleaks.toml`).
+如果发现某个 transcript page 包含 secret（无论是因为 per-file scanning 关闭，还是 gitleaks 漏掉），recovery path 是：
+1. `gbrain delete_page <slug>` — 立即从 index 移除
+2. Rotate secret（作为 defensive measure，无论如何都 rotate）
+3. 如果 brain-sync 开启：在 brain remote 上运行 `git filter-repo --invert-paths --path <relative-path>`，从 history hard-delete
+4. 如果 miss 看起来像 gitleaks rule gap，带 pattern 提交 gitleaks issue（或扩展 `~/.gitleaks.toml` 中的 gitleaks config）。
 
 ## Path 4: Remote MCP setup (v1.27.0.0+)
 
-If you don't run gbrain locally — you have a teammate or another machine
-running `gbrain serve` over HTTP, accessible via Tailscale, ngrok, or
-internal LAN — `/setup-gbrain` Path 4 is the one-paste flow.
+如果你不在本机运行 gbrain，而是由 teammate 或另一台 machine 通过 HTTP 运行 `gbrain serve`，并可经 Tailscale、ngrok 或 internal LAN 访问，那么 `/setup-gbrain` Path 4 就是 one-paste flow。
 
-You provide:
-- The MCP URL (e.g., `https://wintermute.tail554574.ts.net:3131/mcp`)
-- A bearer token (issued by the brain admin via `gbrain access-token issue`)
+你提供：
+- MCP URL（例如 `https://wintermute.tail554574.ts.net:3131/mcp`）
+- Bearer token（由 brain admin 通过 `gbrain access-token issue` 签发）
 
-What `/setup-gbrain` does:
-1. Verifies the URL + token via `gstack-gbrain-mcp-verify`. Three failure
-   modes get classified with one-line remediation hints:
-   **NETWORK** ("check Tailscale/DNS"), **AUTH** ("rotate token"),
-   **MALFORMED** ("Accept-header gotcha — pass both `application/json`
-   AND `text/event-stream`").
-2. Registers the MCP at user scope:
+`/setup-gbrain` 会：
+1. 通过 `gstack-gbrain-mcp-verify` verify URL + token。三类 failure modes 会带 one-line remediation hints 分类：
+   **NETWORK**（"check Tailscale/DNS"）、**AUTH**（"rotate token"）、
+   **MALFORMED**（"Accept-header gotcha — pass both `application/json` AND `text/event-stream`"）。
+2. 在 user scope 注册 MCP：
    ```
    claude mcp add --scope user --transport http gbrain "$URL" \
      --header "Authorization: Bearer $TOKEN"
    ```
-3. Skips local install, local doctor, transcript ingest, and federated
-   source registration. All four require a local `gbrain` CLI that Path 4
-   doesn't install.
-4. Optionally provisions a `gstack-artifacts-$USER` private repo on
-   GitHub or GitLab and prints the one-line `gbrain sources add` command
-   for your brain admin to run on the brain host.
+3. 跳过 local install、local doctor、transcript ingest 和 federated source registration。这四项都需要 Path 4 不会安装的 local `gbrain` CLI。
+4. 可选地在 GitHub 或 GitLab provision 一个 `gstack-artifacts-$USER` private repo，并打印一行 `gbrain sources add` command，供 brain admin 在 brain host 上运行。
 
 ### Token storage trade-off
 
-The bearer token lives in `~/.claude.json` (mode 0600), where Claude Code
-stores every MCP server's credentials. During `claude mcp add --header
-"Authorization: Bearer $TOKEN"`, the token is briefly visible in
-process argv (~10ms) — visible to `ps` running concurrently. The window
-is small but it's not zero.
+Bearer token 存在 `~/.claude.json`（mode 0600）中；Claude Code 会在那里存放每个 MCP server 的 credentials。在 `claude mcp add --header "Authorization: Bearer $TOKEN"` 期间，token 会短暂出现在 process argv 中（约 10ms），并可被同时运行的 `ps` 看到。窗口很小，但不是 0。
 
-Mitigations we've considered:
-- **Stdin or env-var input form for headers** — would close the argv
-  window. As of Claude Code v1.0.x, the CLI doesn't expose either.
-  When it does, `/setup-gbrain` Path 4 will switch automatically.
-- **Keychain storage** — explicitly out of scope (the token's resting
-  state in `~/.claude.json` is the existing trust surface for every MCP
-  credential; expanding to Keychain would touch every MCP server, not
-  just gbrain).
+考虑过的 mitigations：
+- **Headers 的 stdin 或 env-var input form** — 可以关闭 argv window。截至 Claude Code v1.0.x，CLI 两者都不 expose。未来支持后，`/setup-gbrain` Path 4 会自动切换。
+- **Keychain storage** — 明确 out of scope（token 静态存放在 `~/.claude.json` 是每个 MCP credential 的现有 trust surface；扩展到 Keychain 会触碰每个 MCP server，而不只是 gbrain）。
 
-### Why Path 4 is "always print" for the brain-admin hookup
+### 为什么 Path 4 对 brain-admin hookup 采用 "always print"
 
-`gstack-artifacts-init` always prints the `gbrain sources add` command
-labeled "Send this to your brain admin" — even when the user IS the
-brain admin (consistent UX, no mode-detection fragility).
+`gstack-artifacts-init` 总是打印标注为 "Send this to your brain admin" 的 `gbrain sources add` command；即便 user 本人就是 brain admin 也一样（consistent UX，避免 mode-detection fragility）。
 
-A previous design proposed probing whether the user's bearer has admin
-scope (via a benign MCP write call like `add_tag`) and auto-executing
-the source registration when scope was sufficient. The design review
-flagged that page-write doesn't actually prove source-management
-permission — those are different scopes in any sensible auth model.
-Until gbrain ships:
-- a `mcp__gbrain__whoami` capability tool that returns the bearer's
-  scope set, AND
-- a `mcp__gbrain__sources_add` MCP tool with admin-scope gating
+之前的 design 提议 probe user 的 bearer 是否有 admin scope（通过 `add_tag` 之类 benign MCP write call），并在 scope 足够时 auto-execute source registration。Design review 指出 page-write 并不能证明 source-management permission；在任何合理 auth model 中，这些都是不同 scopes。直到 gbrain ship：
+- 返回 bearer scope set 的 `mcp__gbrain__whoami` capability tool，以及
+- 带 admin-scope gating 的 `mcp__gbrain__sources_add` MCP tool
 
-we always print the command rather than pretending we know who has
-permission to run it.
+我们始终打印 command，而不是假装知道谁有 permission 运行它。
 
-### CLAUDE.md block in Path 4
+### Path 4 中的 CLAUDE.md block
 
-Distinct from local-stdio mode. Token is **never** written to CLAUDE.md
-(many projects check CLAUDE.md into git). The block records the URL,
-the verified server version, the artifacts repo URL (if provisioned),
-and the per-repo trust policy.
+这不同于 local-stdio mode。Token **永远不会** 写入 CLAUDE.md（很多 projects 会把 CLAUDE.md check into git）。该 block 记录 URL、verified server version、artifacts repo URL（如果 provisioned）以及 per-repo trust policy。
 
 ```markdown
 ## GBrain Configuration (configured by /setup-gbrain)
@@ -274,14 +197,10 @@ and the per-repo trust policy.
 
 ### Token rotation
 
-Server-side. When verify hits `AUTH` (e.g., the brain admin rotated the
-token), the helper says: "rotate token on the brain host, re-run
-/setup-gbrain." On wintermute or wherever your gbrain server lives:
+Server-side。当 verify 命中 `AUTH`（例如 brain admin rotate 了 token），helper 会说："rotate token on the brain host, re-run /setup-gbrain." 在 wintermute 或任何运行 gbrain server 的地方执行：
 
 ```
 gbrain access-token rotate    # invalidates old, issues new
 ```
 
-(See `gstack/setup-gbrain/SKILL.md.tmpl` for the full Path 4 flow plus
-the gbrain enhancement requests around scoped tokens that would let
-gstack auto-rotate in V2.)
+完整 Path 4 flow，以及围绕 scoped tokens、让 gstack 在 V2 中 auto-rotate 的 gbrain enhancement requests，见 `gstack/setup-gbrain/SKILL.md.tmpl`。

@@ -1,11 +1,11 @@
-# Adding a New Host to gstack
+# 向 gstack 添加新 Host
 
-gstack uses a declarative host config system. Each supported AI coding agent
-(Claude, Codex, Factory, Kiro, OpenCode, Slate, Cursor, OpenClaw) is defined
-as a typed TypeScript config object. Adding a new host means creating one file
-and re-exporting it. Zero code changes to the generator, setup, or tooling.
+gstack 使用 declarative host config system。每个受支持的 AI coding agent
+（Claude、Codex、Factory、Kiro、OpenCode、Slate、Cursor、OpenClaw）都定义为
+typed TypeScript config object。添加新 host 意味着创建一个文件并 re-export 它。
+Generator、setup 或 tooling 都不需要 code changes。
 
-## How it works
+## 工作方式
 
 ```
 hosts/
@@ -20,26 +20,26 @@ hosts/
 └── index.ts         # Registry: imports all, derives Host type
 ```
 
-Each config file exports a `HostConfig` object that tells the generator:
-- Where to put generated skills (paths)
-- How to transform frontmatter (allowlist/denylist fields)
-- What Claude-specific references to rewrite (paths, tool names)
-- What binary to detect for auto-install
-- What resolver sections to suppress
-- What assets to symlink at install time
+每个 config file 都 export 一个 `HostConfig` object，告诉 generator：
+- generated skills 放在哪里（paths）
+- 如何 transform frontmatter（allowlist/denylist fields）
+- 要 rewrite 哪些 Claude-specific references（paths、tool names）
+- auto-install 时检测哪个 binary
+- suppress 哪些 resolver sections
+- install time symlink 哪些 assets
 
-The generator, setup script, platform-detect, uninstall, health checks, worktree
-copy, and tests all read from these configs. None of them have per-host code.
+Generator、setup script、platform-detect、uninstall、health checks、worktree copy
+和 tests 都读取这些 configs。它们都没有 per-host code。
 
-## Step-by-step: add a new host
+## Step-by-step（分步）：添加新 host
 
-### 1. Create the config file
+### 1. 创建 config file
 
-Copy an existing config as a starting point. `hosts/opencode.ts` is a good
-minimal example. `hosts/factory.ts` shows tool rewrites and conditional fields.
-`hosts/openclaw.ts` shows the adapter pattern for hosts with different tool models.
+复制一个 existing config 作为起点。`hosts/opencode.ts` 是很好的 minimal example。
+`hosts/factory.ts` 展示 tool rewrites 和 conditional fields。`hosts/openclaw.ts`
+展示不同 tool models 的 hosts 所需的 adapter pattern。
 
-Create `hosts/myhost.ts`:
+创建 `hosts/myhost.ts`：
 
 ```typescript
 import type { HostConfig } from '../scripts/host-config';
@@ -47,7 +47,7 @@ import type { HostConfig } from '../scripts/host-config';
 const myhost: HostConfig = {
   name: 'myhost',
   displayName: 'MyHost',
-  cliCommand: 'myhost',        // binary name for `command -v` detection
+  cliCommand: 'myhost',        // 用于 `command -v` detection 的 binary name
   cliAliases: [],              // alternative binary names
 
   globalRoot: '.myhost/skills/gstack',
@@ -56,14 +56,14 @@ const myhost: HostConfig = {
   usesEnvVars: true,           // false only for Claude (uses literal ~ paths)
 
   frontmatter: {
-    mode: 'allowlist',         // 'allowlist' keeps only listed fields
+    mode: 'allowlist',         // 'allowlist' 只保留 listed fields
     keepFields: ['name', 'description'],
-    descriptionLimit: null,    // set to 1024 for hosts with limits
+    descriptionLimit: null,    // 对有限制的 hosts 设为 1024
   },
 
   generation: {
-    generateMetadata: false,   // true only for Codex (openai.yaml)
-    skipSkills: ['codex'],     // codex skill is Claude-only
+    generateMetadata: false,   // 仅 Codex 为 true（openai.yaml）
+    skipSkills: ['codex'],     // codex skill 是 Claude-only
   },
 
   pathRewrites: [
@@ -88,41 +88,41 @@ const myhost: HostConfig = {
 export default myhost;
 ```
 
-### 2. Register in the index
+### 2. 在 index 中注册
 
-Edit `hosts/index.ts`:
+编辑 `hosts/index.ts`：
 
 ```typescript
 import myhost from './myhost';
 
-// Add to ALL_HOST_CONFIGS array:
+// 添加到 ALL_HOST_CONFIGS array：
 export const ALL_HOST_CONFIGS: HostConfig[] = [
   claude, codex, factory, kiro, opencode, slate, cursor, openclaw, myhost
 ];
 
-// Add to re-exports:
+// 添加到 re-exports：
 export { claude, codex, factory, kiro, opencode, slate, cursor, openclaw, myhost };
 ```
 
-### 3. Add to .gitignore
+### 3. 添加到 .gitignore
 
-Add `.myhost/` to `.gitignore` (generated skill docs are gitignored).
+把 `.myhost/` 添加到 `.gitignore`（generated skill docs 会被 gitignored）。
 
-### 4. Generate and verify
+### 4. 生成并验证
 
 ```bash
-# Generate skill docs for the new host
+# 为 new host 生成 skill docs
 bun run gen:skill-docs --host myhost
 
-# Verify output exists and has no .claude/skills leakage
+# 验证 output 存在且没有 .claude/skills leakage
 ls .myhost/skills/gstack-*/SKILL.md
 grep -r ".claude/skills" .myhost/skills/ | head -5
-# (should be empty)
+# （应为空）
 
-# Generate for all hosts (includes the new one)
+# 为所有 hosts 生成（包含 new one）
 bun run gen:skill-docs --host all
 
-# Health dashboard shows the new host
+# Health dashboard 显示 new host
 bun run skill:check
 ```
 
@@ -133,50 +133,48 @@ bun test test/gen-skill-docs.test.ts
 bun test test/host-config.test.ts
 ```
 
-The parameterized smoke tests automatically pick up the new host. Zero test
-code to write. They verify: output exists, no path leakage, valid frontmatter,
-freshness check passes, codex skill excluded.
+Parameterized smoke tests 会自动 pick up new host。无需写 test code。它们会验证：
+output exists、no path leakage、valid frontmatter、freshness check passes、codex skill excluded。
 
-### 6. Update README.md
+### 6. 更新 README.md
 
-Add install instructions for the new host in the appropriate section.
+在相应 section 为 new host 添加 install instructions。
 
-## Config field reference
+## Config field reference（配置字段参考）
 
-See `scripts/host-config.ts` for the full `HostConfig` interface with JSDoc
-comments on every field.
+完整 `HostConfig` interface 见 `scripts/host-config.ts`，其中每个 field 都有 JSDoc comments。
 
-Key fields:
+Key fields（关键字段）：
 
-| Field | Purpose |
+| Field（字段） | 用途 |
 |-------|---------|
-| `frontmatter.mode` | `allowlist` (keep only listed) or `denylist` (strip listed) |
-| `frontmatter.descriptionLimit` | Max chars, `null` for no limit |
-| `frontmatter.descriptionLimitBehavior` | `error` (fail build), `truncate`, `warn` |
-| `frontmatter.conditionalFields` | Add fields based on template values (e.g., sensitive → disable-model-invocation) |
-| `frontmatter.renameFields` | Rename template fields (e.g., voice-triggers → triggers) |
-| `pathRewrites` | Literal replaceAll on content. Order matters. |
-| `toolRewrites` | Rewrite Claude tool names (e.g., "use the Bash tool" → "run this command") |
-| `suppressedResolvers` | Resolver functions that return empty for this host |
-| `coAuthorTrailer` | Git co-author string for commits |
-| `boundaryInstruction` | Anti-prompt-injection warning for cross-model invocations |
-| `adapter` | Path to adapter module for complex transformations |
+| `frontmatter.mode` | `allowlist`（只保留 listed）或 `denylist`（strip listed） |
+| `frontmatter.descriptionLimit` | Max chars，`null` 表示 no limit |
+| `frontmatter.descriptionLimitBehavior` | `error`（fail build）、`truncate`、`warn` |
+| `frontmatter.conditionalFields` | 根据 template values 添加 fields（例如 sensitive -> disable-model-invocation） |
+| `frontmatter.renameFields` | Rename template fields（例如 voice-triggers -> triggers） |
+| `pathRewrites` | 对 content 做 literal replaceAll。Order matters。 |
+| `toolRewrites` | Rewrite Claude tool names（例如 "use the Bash tool" -> "run this command"） |
+| `suppressedResolvers` | 对该 host 返回 empty 的 resolver functions |
+| `coAuthorTrailer` | Commits 使用的 Git co-author string |
+| `boundaryInstruction` | Cross-model invocations 的 anti-prompt-injection warning |
+| `adapter` | Complex transformations 的 adapter module path |
 
-## Adapter pattern (for hosts with different tool models)
+## Adapter pattern（用于不同 tool models 的 hosts）
 
-If string-replace tool rewrites aren't enough (the host has fundamentally
-different tool semantics), use the adapter pattern. See `hosts/openclaw.ts`
-and `scripts/host-adapters/openclaw-adapter.ts`.
+如果 string-replace tool rewrites 不够用（host 有 fundamentally different tool semantics），
+使用 adapter pattern。见 `hosts/openclaw.ts` 和
+`scripts/host-adapters/openclaw-adapter.ts`。
 
-The adapter runs as a post-processing step after all generic rewrites. It
-exports `transform(content: string, config: HostConfig): string`.
+Adapter 会在所有 generic rewrites 之后作为 post-processing step 运行。它 export
+`transform(content: string, config: HostConfig): string`。
 
-## Validation
+## Validation（验证）
 
-The `validateHostConfig()` function in `scripts/host-config.ts` checks:
-- Name: lowercase alphanumeric with hyphens
-- CLI command: alphanumeric with hyphens/underscores
-- Paths: safe characters only (alphanumeric, `.`, `/`, `$`, `{}`, `~`, `-`, `_`)
-- No duplicate names, hostSubdirs, or globalRoots across configs
+`scripts/host-config.ts` 中的 `validateHostConfig()` function 会检查：
+- Name：lowercase alphanumeric with hyphens
+- CLI command：alphanumeric with hyphens/underscores
+- Paths：仅 safe characters（alphanumeric、`.`、`/`、`$`、`{}`、`~`、`-`、`_`）
+- Configs 之间没有 duplicate names、hostSubdirs 或 globalRoots
 
-Run `bun run scripts/host-config-export.ts validate` to check all configs.
+运行 `bun run scripts/host-config-export.ts validate` 检查所有 configs。

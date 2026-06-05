@@ -1,24 +1,24 @@
 /**
- * redact-doc — resolvers for the shared redaction docs + invocation bash.
+ * redact-doc — shared redaction docs + invocation bash 的 resolvers。
  *
  *   {{REDACT_TAXONOMY_TABLE}}            → markdown table of the 3-tier taxonomy,
- *                                          derived from lib/redact-patterns so /spec
- *                                          and /cso never drift from the engine.
+ *                                          从 lib/redact-patterns 派生，因此 /spec
+ *                                          和 /cso 永远不会与 engine drift。
  *   {{REDACT_INVOCATION_BLOCK:<sink>}}   → the canonical scan-at-sink bash + prose
- *                                          for one enforcement point. <sink> is a
- *                                          hyphenated label: pre-codex, pre-issue,
- *                                          pre-archive, pre-pr-body, pre-pr-title,
- *                                          pre-commit.
+ *                                          for one enforcement point。<sink> 是
+ *                                          hyphenated label：pre-codex、pre-issue、
+ *                                          pre-archive、pre-pr-body、pre-pr-title、
+ *                                          pre-commit。
  *
- * DRY: every skill writes one placeholder per enforcement point; UX/threshold
- * changes land here once. test/redact-doc-resolver.test.ts golden-pins the output.
+ * DRY：每个 skill 针对每个 enforcement point 写一个 placeholder；UX/threshold
+ * changes 只在这里落一次。test/redact-doc-resolver.test.ts golden-pins output。
  */
 import type { TemplateContext } from './types';
 import { PATTERNS, type Tier } from '../../lib/redact-patterns';
 
-// Representative example/prefix per pattern for the human-readable table. Keeps
-// lib/redact-patterns clean (no doc strings) while ensuring the recognizable
-// prefixes (AKIA, ghp_, sk-ant-, sk-, BEGIN) appear in the generated docs.
+// human-readable table 中每个 pattern 的 representative example/prefix。这样可保持
+// lib/redact-patterns clean（无 doc strings），同时确保 recognizable prefixes
+//（AKIA、ghp_、sk-ant-、sk-、BEGIN）出现在 generated docs 中。
 const EXAMPLE: Record<string, string> = {
   'aws.access_key': 'AKIA…',
   'aws.secret_key': '40-char base64 near aws_secret_access_key',
@@ -56,18 +56,18 @@ const EXAMPLE: Record<string, string> = {
 };
 
 const TIER_BLURB: Record<Tier, string> = {
-  HIGH: 'HIGH — genuinely-secret credentials. Blocks dispatch/file/edit/commit.',
+  HIGH: 'HIGH — 真正的 secret credentials。会 block dispatch/file/edit/commit。',
   MEDIUM:
-    'MEDIUM — PII, legal/damaging, internal-leak, and high-FP credential-shaped ' +
-    'patterns. AskUserQuestion to confirm (sterner on public repos); never auto-blocked.',
-  LOW: 'LOW — surfaced as an FYI, never blocks.',
+    'MEDIUM — PII、legal/damaging、internal-leak 和 high-FP credential-shaped ' +
+    'patterns。通过 AskUserQuestion 确认（public repos 更严厉）；永不 auto-block。',
+  LOW: 'LOW — 作为 FYI surfaced，永不 block。',
 };
 
 export function generateRedactTaxonomyTable(_ctx: TemplateContext, args?: string[]): string {
-  // Compact mode: HIGH-tier rows only (the credentials that BLOCK), one line of
-  // prose for MEDIUM/LOW. For skills that RUN redaction (e.g. /spec) but aren't
-  // the security catalog — they need to know what blocks + where the full list
-  // is, not inline all ~30 patterns. /cso renders the full table.
+  // Compact mode：仅 HIGH-tier rows（会 BLOCK 的 credentials），MEDIUM/LOW 使用一行
+  // prose。用于那些会 RUN redaction（例如 /spec）但不是 security catalog 的 skills；
+  // 它们需要知道什么会 block + full list 在哪里，而不是 inline 全部约 30 个 patterns。
+  // /cso 渲染 full table。
   const compact = args?.[0] === 'compact';
   const out: string[] = [];
 
@@ -84,16 +84,16 @@ export function generateRedactTaxonomyTable(_ctx: TemplateContext, args?: string
 
   if (compact) {
     out.push(
-      'MEDIUM (PII / legal / internal + high-FP credential shapes like ' +
-        '`pk_live_`/`AIza`/JWT/`*_KEY=`) confirms via AskUserQuestion; LOW surfaces ' +
-        'as an FYI. Full taxonomy: `lib/redact-patterns.ts` (or `/cso`).',
+      'MEDIUM（PII / legal / internal + high-FP credential shapes，如 ' +
+        '`pk_live_`/`AIza`/JWT/`*_KEY=`）通过 AskUserQuestion 确认；LOW 作为 FYI surfaced。' +
+        'Full taxonomy：`lib/redact-patterns.ts`（或 `/cso`）。',
     );
   } else {
     out.push(
-      'Calibration: a gate that cries wolf gets ignored, so context-variable / ' +
-        'high-FP credential shapes (Stripe publishable `pk_live_`, Google `AIza`, ' +
-        'JWTs, env-style `*_KEY=`) sit at MEDIUM, not HIGH. The full taxonomy lives ' +
-        'in `lib/redact-patterns.ts` and this table is generated from it.',
+      'Calibration：经常误报的 gate 会被忽略，因此 context-variable / ' +
+        'high-FP credential shapes（Stripe publishable `pk_live_`、Google `AIza`、' +
+        'JWTs、env-style `*_KEY=`）属于 MEDIUM，而不是 HIGH。Full taxonomy 位于 ' +
+        '`lib/redact-patterns.ts`，此 table 从它生成。',
     );
   }
   return out.join('\n');
@@ -102,19 +102,19 @@ export function generateRedactTaxonomyTable(_ctx: TemplateContext, args?: string
 // ── Invocation block (scan-at-sink) ──────────────────────────────────────────
 
 interface SinkSpec {
-  /** What is being scanned, for the prose. */
+  /** prose 中描述的被扫描对象。 */
   noun: string;
-  /** What HIGH blocks, in this skill's verbs. */
+  /** HIGH 会 block 什么，用该 skill 的 verbs 表达。 */
   blockVerb: string;
 }
 
 const SINKS: Record<string, SinkSpec> = {
-  'pre-codex': { noun: 'the spec body', blockVerb: 'dispatch to codex' },
-  'pre-issue': { noun: "the issue body you're about to file", blockVerb: 'file the issue' },
-  'pre-archive': { noun: 'the body about to be archived', blockVerb: 'write the archive' },
-  'pre-pr-body': { noun: 'the composed PR body', blockVerb: 'create/edit the PR' },
-  'pre-pr-title': { noun: 'the PR title', blockVerb: 'set the PR title' },
-  'pre-commit': { noun: 'the generated docs about to be committed', blockVerb: 'commit' },
+  'pre-codex': { noun: '即将发送给 Codex 的 spec body', blockVerb: 'dispatch to codex' },
+  'pre-issue': { noun: '你即将提交的 issue body', blockVerb: 'file the issue' },
+  'pre-archive': { noun: '即将 archived 的 body', blockVerb: 'write the archive' },
+  'pre-pr-body': { noun: 'composed PR body', blockVerb: 'create/edit the PR' },
+  'pre-pr-title': { noun: 'PR title', blockVerb: 'set the PR title' },
+  'pre-commit': { noun: '即将 committed 的 generated docs', blockVerb: 'commit' },
 };
 
 export function generateRedactInvocationBlock(ctx: TemplateContext, args?: string[]): string {
@@ -123,27 +123,27 @@ export function generateRedactInvocationBlock(ctx: TemplateContext, args?: strin
   const sink = SINKS[sinkLabel] ?? SINKS['pre-issue'];
   const bin = `${ctx.paths.binDir}/gstack-redact`;
 
-  // Brief variant: a compact pointer for repeat sinks, so the full ~40-line
-  // procedure ships once per skill, not once per enforcement point.
+  // Brief variant：repeat sinks 的 compact pointer，让完整约 40 行 procedure
+  // 每个 skill 只 ship 一次，而不是每个 enforcement point 一次。
   if (brief) {
     return `#### Redaction scan — ${sinkLabel} (${sink.noun})
 
-Run the SAME scan-at-sink procedure shown above (resolve \`$REDACT_VIS\` once and
-reuse it; write the exact bytes to \`$REDACT_FILE\`; \`${bin} --from-file "$REDACT_FILE"
---repo-visibility "$REDACT_VIS" --json\`), now on ${sink.noun}. Apply the same
-exit-3/2/0 handling. On exit 3, do NOT ${sink.blockVerb}; HIGH has no skip. Pass the
-same \`$REDACT_FILE\` downstream so the bytes scanned are the bytes sent.`;
+对 ${sink.noun} 运行上方相同的 scan-at-sink procedure（resolve 一次 \`$REDACT_VIS\`
+并复用；把 exact bytes 写入 \`$REDACT_FILE\`；运行 \`${bin} --from-file "$REDACT_FILE"
+--repo-visibility "$REDACT_VIS" --json\`）。应用同样的 exit-3/2/0 handling。
+exit 3 时不要 ${sink.blockVerb}；HIGH 没有 skip。把同一个 \`$REDACT_FILE\`
+向下游传递，确保 scanned bytes 就是 sent bytes。`;
   }
 
   return `#### Redaction scan — ${sinkLabel} (${sink.noun})
 
-Scan-at-sink on the EXACT bytes that will be sent: write to a temp file, scan that
-file, pass the SAME file downstream. Never scan a string then re-render it.
+对即将发送的 EXACT bytes 做 scan-at-sink：写入 temp file，扫描该 file，
+再把 SAME file 传给下游。Never scan a string then re-render it.
 
 \`\`\`bash
 command -v bun >/dev/null 2>&1 || echo "redaction scan skipped — bun not on PATH"
-# Resolve visibility once; cache + reuse. Order: local config (~/.gstack, never
-# committed) → gh → glab → unknown(=public-strict).
+# Resolve visibility 一次；cache + reuse。顺序：local config（~/.gstack，never
+# committed）→ gh → glab → unknown（=public-strict）。
 REDACT_VIS=$(~/.claude/skills/gstack/bin/gstack-config get redact_repo_visibility 2>/dev/null)
 [ -z "$REDACT_VIS" ] && REDACT_VIS=$(gh repo view --json visibility -q .visibility 2>/dev/null | tr 'A-Z' 'a-z')
 [ -z "$REDACT_VIS" ] && REDACT_VIS=$(glab repo view -F json 2>/dev/null | grep -o '"visibility":"[^"]*"' | head -1 | sed 's/.*:"//;s/"//' | tr 'A-Z' 'a-z')
@@ -158,20 +158,20 @@ REDACT_CODE=$?
 
 Branch on \`$REDACT_CODE\`:
 
-1. **Exit 3 (HIGH)** — print findings; do NOT ${sink.blockVerb}; tell the user to
-   rotate + redact at source, then re-run. No skip flag for HIGH. Do not persist
-   ${sink.noun} anywhere.
-2. **Exit 2 (MEDIUM)** — AskUserQuestion per finding (cluster identical ids; PUBLIC
-   repos get sterner wording, no batch-acknowledge, no silent-proceed). PII subset
-   (\`pii.email\`/\`pii.phone.e164\`/\`pii.ssn\`/\`pii.cc\`) gets **Auto-redact** (re-run
-   with \`--auto-redact <ids>\` → use the printed sanitized body) / **Edit** / **Cancel**;
-   non-PII MEDIUM gets **Proceed (acknowledged)** / **Edit** / **Cancel** (no auto-redact).
-3. **Exit 0 (clean)** — proceed; surface \`WARN\` (tool-fence degrades) + \`LOW\` as a
-   one-line FYI (never blocks).
+1. **Exit 3 (HIGH)** — print findings；不要 ${sink.blockVerb}；告诉用户
+   rotate + redact at source，然后 re-run。HIGH 没有 skip flag。不要在任何地方 persist
+   ${sink.noun}。
+2. **Exit 2 (MEDIUM)** — 每个 finding AskUserQuestion（cluster identical ids；PUBLIC
+   repos 使用更严厉措辞，不 batch-acknowledge，不 silent-proceed）。PII subset
+   （\`pii.email\`/\`pii.phone.e164\`/\`pii.ssn\`/\`pii.cc\`）提供 **Auto-redact**（用
+   \`--auto-redact <ids>\` re-run → 使用打印出的 sanitized body）/ **Edit** / **Cancel**；
+   non-PII MEDIUM 提供 **Proceed (acknowledged)** / **Edit** / **Cancel**（无 auto-redact）。
+3. **Exit 0 (clean)** — proceed；将 \`WARN\`（tool-fence degrades）+ \`LOW\` surfaced 为
+   一行 FYI（never blocks）。
 
 \`\`\`bash
 rm -f "$REDACT_FILE"
 \`\`\`
 
-Guardrail, not airtight enforcement — direct \`gh\`/\`git\` bypass it; it catches accidents.`;
+这是 guardrail，不是 airtight enforcement；直接 \`gh\`/\`git\` 会绕过它。它用于捕捉 accidents。`;
 }

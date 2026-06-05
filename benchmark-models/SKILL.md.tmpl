@@ -3,12 +3,12 @@ name: benchmark-models
 preamble-tier: 1
 version: 1.0.0
 description: |
-  Cross-model benchmark for gstack skills. Runs the same prompt through Claude,
-  GPT (via Codex CLI), and Gemini side-by-side — compares latency, tokens, cost,
-  and optionally quality via LLM judge. Answers "which model is actually best
-  for this skill?" with data instead of vibes. Separate from /benchmark, which
-  measures web page performance. Use when: "benchmark models", "compare models",
-  "which model is best for X", "cross-model comparison", "model shootout". (gstack)
+  gstack skills 的 cross-model benchmark。将同一个 prompt 并排跑过 Claude、
+  GPT（通过 Codex CLI）和 Gemini，对比 latency、tokens、cost，并可选通过 LLM judge
+  评估 quality。用数据而不是 vibes 回答 "which model is actually best for this skill?"。
+  与测量 web page performance 的 /benchmark 分开。适用于："benchmark models"、
+  "compare models"、"which model is best for X"、"cross-model comparison"、
+  "model shootout"。（gstack）
 voice-triggers:
   - "compare models"
   - "model shootout"
@@ -26,15 +26,17 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# /benchmark-models — Cross-Model Skill Benchmark
+# /benchmark-models — Cross-Model Skill Benchmark（跨模型 skill 基准测试）
 
-You are running the `/benchmark-models` workflow. Wraps the `gstack-model-benchmark` binary with an interactive flow that picks a prompt, confirms providers, previews auth, and runs the benchmark.
+你正在运行 `/benchmark-models` workflow。它用 interactive flow 包装
+`gstack-model-benchmark` binary：选择 prompt、确认 providers、预览 auth，然后运行 benchmark。
 
-Different from `/benchmark` — that skill measures web page performance (Core Web Vitals, load times). This skill measures AI model performance on gstack skills or arbitrary prompts.
+它不同于 `/benchmark`：那个 skill 测量 web page performance（Core Web Vitals、load times）。
+此 skill 测量 gstack skills 或 arbitrary prompts 上的 AI model performance。
 
 ---
 
-## Step 0: Locate the binary
+## Step 0：Locate the binary（定位 binary）
 
 ```bash
 BIN="$HOME/.claude/skills/gstack/bin/gstack-model-benchmark"
@@ -43,109 +45,115 @@ BIN="$HOME/.claude/skills/gstack/bin/gstack-model-benchmark"
 echo "BIN: $BIN"
 ```
 
-If not found, stop and tell the user to reinstall gstack.
+如果找不到，停止并告诉用户重新安装 gstack。
 
 ---
 
-## Step 1: Choose a prompt
+## Step 1：选择 prompt
 
-Use AskUserQuestion with the preamble format:
-- **Re-ground:** current project + branch.
-- **Simplify:** "A cross-model benchmark runs the same prompt through 2-3 AI models and shows you how they compare on speed, cost, and output quality. What prompt should we use?"
-- **RECOMMENDATION:** A because benchmarking against a real skill exposes tool-use differences, not just raw generation.
-- **Options:**
-  - A) Benchmark one of my gstack skills (we'll pick which skill next). Completeness: 10/10.
-  - B) Use an inline prompt — type it on the next turn. Completeness: 8/10.
-  - C) Point at a prompt file on disk — specify path on the next turn. Completeness: 8/10.
+使用带 preamble format 的 AskUserQuestion：
+- **Re-ground：** current project + branch。
+- **Simplify：** "cross-model benchmark 会把同一个 prompt 跑过 2-3 个 AI models，并展示它们在 speed、cost 和 output quality 上的对比。我们应该用哪个 prompt？"
+- **RECOMMENDATION：** 选择 A，因为用真实 skill benchmark 能暴露 tool-use differences，而不只是 raw generation。
+- **选项：**
+  - A) Benchmark 我的一个 gstack skill（下一步选择哪个 skill）。Completeness: 10/10.
+  - B) 使用 inline prompt；下一轮输入。Completeness: 8/10.
+  - C) 指向磁盘上的 prompt file；下一轮指定 path。Completeness: 8/10.
 
-If A: list top-level gstack skills that have SKILL.md files (from `find . -maxdepth 2 -name SKILL.md -not -path './.*'`), ask the user to pick one via a second AskUserQuestion. Use the picked SKILL.md path as the prompt file.
+如果 A：列出有 SKILL.md files 的 top-level gstack skills（来自
+`find . -maxdepth 2 -name SKILL.md -not -path './.*'`），通过第二个 AskUserQuestion
+让用户选择。使用选中的 SKILL.md path 作为 prompt file。
 
-If B: ask the user for the inline prompt. Use it verbatim via `--prompt "<text>"`.
+如果 B：向用户索要 inline prompt。通过 `--prompt "<text>"` 原样使用。
 
-If C: ask for the path. Verify it exists. Use as positional argument.
+如果 C：索要 path。验证它存在。作为 positional argument 使用。
 
 ---
 
-## Step 2: Choose providers
+## Step 2：选择 providers
 
 ```bash
 "$BIN" --prompt "unused, dry-run" --models claude,gpt,gemini --dry-run
 ```
 
-Show the dry-run output. The "Adapter availability" section tells the user which providers will actually run (OK) vs skip (NOT READY — remediation hint included).
+展示 dry-run output。"Adapter availability" section 会告诉用户哪些 providers 会实际运行（OK），
+哪些会 skip（NOT READY，含 remediation hint）。
 
-If ALL three show NOT READY: stop with a clear message — benchmark can't run without at least one authed provider. Suggest `claude login`, `codex login`, or `gemini login` / `export GOOGLE_API_KEY`.
+如果三个都显示 NOT READY：用清楚消息停止；没有至少一个 authed provider，benchmark 无法运行。
+建议 `claude login`、`codex login`，或 `gemini login` / `export GOOGLE_API_KEY`。
 
-If at least one is OK: AskUserQuestion:
-- **Simplify:** "Which models should we include? The dry-run above showed which are authed. Unauthed ones will be skipped cleanly — they won't abort the batch."
-- **RECOMMENDATION:** A (all authed providers) because running as many as possible gives the richest comparison.
-- **Options:**
-  - A) All authed providers. Completeness: 10/10.
-  - B) Only Claude. Completeness: 6/10 (no cross-model signal — use /ship's review for solo claude benchmarks instead).
-  - C) Pick two — specify on next turn. Completeness: 8/10.
+如果至少一个 OK：AskUserQuestion：
+- **Simplify：** "应该包含哪些 models？上面的 dry-run 已显示哪些已 authed。未 authed 的会 cleanly skip，不会 abort batch。"
+- **RECOMMENDATION：** A（所有 authed providers），因为尽可能多跑能得到最丰富的 comparison。
+- **选项：**
+  - A) 所有 authed providers。Completeness: 10/10.
+  - B) 只跑 Claude。Completeness: 6/10（没有 cross-model signal；solo claude benchmarks 请改用 /ship 的 review）。
+  - C) 选两个；下一轮指定。Completeness: 8/10.
 
 ---
 
-## Step 3: Decide on judge
+## Step 3：Decide on judge（决定是否启用 judge）
 
 ```bash
 [ -n "$ANTHROPIC_API_KEY" ] || grep -q 'ANTHROPIC' "$HOME/.claude/.credentials.json" 2>/dev/null && echo "JUDGE_AVAILABLE" || echo "JUDGE_UNAVAILABLE"
 ```
 
-If judge is available, AskUserQuestion:
-- **Simplify:** "The quality judge scores each model's output on a 0-10 scale using Anthropic's Claude as a tiebreaker. Adds ~$0.05/run. Recommended if you care about output quality, not just latency and cost."
-- **RECOMMENDATION:** A — the whole point is comparing quality, not just speed.
-- **Options:**
-  - A) Enable judge (adds ~$0.05). Completeness: 10/10.
-  - B) Skip judge — speed/cost/tokens only. Completeness: 7/10.
+如果 judge 可用，AskUserQuestion：
+- **Simplify：** "quality judge 使用 Anthropic 的 Claude 作为 tiebreaker，按 0-10 分给每个 model output 评分。每次约增加 $0.05。如果你关心 output quality，而不只是 latency 和 cost，推荐开启。"
+- **RECOMMENDATION：** A；重点是比较 quality，而不只是 speed。
+- **选项：**
+  - A) 启用 judge（增加约 $0.05）。Completeness: 10/10.
+  - B) 跳过 judge；只看 speed/cost/tokens。Completeness: 7/10.
 
-If judge is NOT available, skip this question and omit the `--judge` flag.
+如果 judge 不可用，跳过此问题并省略 `--judge` flag。
 
 ---
 
-## Step 4: Run the benchmark
+## Step 4：Run the benchmark（运行 benchmark）
 
-Construct the command from Step 1, 2, 3 decisions:
+根据 Step 1、2、3 的 decisions 构造 command：
 
 ```bash
 "$BIN" <prompt-spec> --models <picked-models> [--judge] --output table
 ```
 
-Where `<prompt-spec>` is either `--prompt "<text>"` (Step 1B), a file path (Step 1A or 1C), and `<picked-models>` is the comma-separated list from Step 2.
+其中 `<prompt-spec>` 可以是 `--prompt "<text>"`（Step 1B），也可以是 file path
+（Step 1A 或 1C）；`<picked-models>` 是 Step 2 得到的 comma-separated list。
 
-Stream the output as it arrives. This is slow — each provider runs the prompt fully. Expect 30s-5min depending on prompt complexity and whether `--judge` is on.
-
----
-
-## Step 5: Interpret results
-
-After the table prints, summarize for the user:
-- **Fastest** — provider with lowest latency.
-- **Cheapest** — provider with lowest cost.
-- **Highest quality** (if `--judge` ran) — provider with highest score.
-- **Best overall** — use judgment. If judge ran: quality-weighted. Otherwise: note the tradeoff the user needs to make.
-
-If any provider hit an error (auth/timeout/rate_limit), call it out with the remediation path.
+随着 output 到达进行 stream。这会比较慢；每个 provider 都会完整运行 prompt。
+根据 prompt complexity 和是否开启 `--judge`，预计 30s-5min。
 
 ---
 
-## Step 6: Offer to save results
+## Step 5：Interpret results（解读结果）
+
+table 打印后，为用户 summarize：
+- **Fastest** — latency 最低的 provider。
+- **Cheapest** — cost 最低的 provider。
+- **Highest quality**（如果运行了 `--judge`）— score 最高的 provider。
+- **Best overall** — 使用 judgment。如果运行了 judge：quality-weighted。否则：说明用户需要取舍的 tradeoff。
+
+如果任何 provider 遇到 error（auth/timeout/rate_limit），指出它并给出 remediation path。
+
+---
+
+## Step 6：提供保存结果
 
 AskUserQuestion:
-- **Simplify:** "Save this benchmark as JSON so you can compare future runs against it?"
-- **RECOMMENDATION:** A — skill performance drifts as providers update their models; a saved baseline catches quality regressions.
-- **Options:**
-  - A) Save to `~/.gstack/benchmarks/<date>-<skill-or-prompt-slug>.json`. Completeness: 10/10.
-  - B) Just print, don't save. Completeness: 5/10 (loses trend data).
+- **Simplify：** "要将这个 benchmark 保存为 JSON，方便未来 runs 与它对比吗？"
+- **RECOMMENDATION：** A；providers 更新模型时，skill performance 会漂移，saved baseline 能捕捉 quality regressions。
+- **选项：**
+  - A) 保存到 `~/.gstack/benchmarks/<date>-<skill-or-prompt-slug>.json`。Completeness: 10/10.
+  - B) 只打印，不保存。Completeness: 5/10（丢失 trend data）。
 
-If A: re-run with `--output json` and tee to the dated file. Print the path so the user can diff future runs against it.
+如果 A：用 `--output json` 重新运行，并 tee 到 dated file。打印 path，方便用户将 future runs 与它 diff。
 
 ---
 
-## Important Rules
+## Important Rules（重要规则）
 
-- **Never run a real benchmark without Step 2's dry-run first.** Users need to see auth status before spending API calls.
-- **Never hardcode model names.** Always pass providers from user's Step 2 choice — the binary handles the rest.
-- **Never auto-include `--judge`.** It adds real cost; user must opt in.
-- **If zero providers are authed, STOP.** Don't attempt the benchmark — it produces no useful output.
-- **Cost is visible.** Every run shows per-provider cost in the table. Users should see it before the next run.
+- **先 Step 2 dry-run，再 real benchmark。** 花费 API calls 前，用户需要看到 auth status。
+- **Never hardcode model names。** 始终传入用户在 Step 2 选择的 providers；其余交给 binary 处理。
+- **Never auto-include `--judge`。** 它会产生真实 cost；用户必须 opt in。
+- **如果零 providers authed，STOP。** 不要尝试 benchmark；它不会产出有用 output。
+- **Cost is visible。** 每次 run 都在 table 中显示 per-provider cost。用户应在下一次 run 前看到它。

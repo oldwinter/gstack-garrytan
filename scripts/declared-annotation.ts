@@ -1,24 +1,22 @@
 /**
- * Declared-profile annotation helper (plan-tune cathedral T7).
+ * Declared-profile annotation helper（plan-tune cathedral T7）。
  *
- * Given a kebab signal_key from scripts/question-registry.ts, returns a
- * one-line plain-English annotation when the user's declared profile is in
- * a strong band on the matching dimension, else null. Read-only — never
- * mutates the profile.
+ * 给定来自 scripts/question-registry.ts 的 kebab signal_key，当 user 的 declared
+ * profile 在匹配 dimension 上落入 strong band 时，返回一行 plain-English
+ * annotation；否则返回 null。只读，永远不 mutation profile。
  *
- * Signature uses kebab signal_key per D2/Codex correction. Internally maps
- * to the underscore Dimension key by consulting SIGNAL_MAP and picking the
- * dimension this signal influences most strongly.
+ * Signature 按 D2/Codex correction 使用 kebab signal_key。内部查询 SIGNAL_MAP，
+ * 选择这个 signal 影响最强的 dimension，并映射到 underscore Dimension key。
  *
  * Used by:
- *   - hosts/claude/hooks/question-preference-hook (Layer 3 injection path,
- *     when AUQ mutation lands)
- *   - scripts/resolvers/question-tuning.ts preamble (Layer 9 fallback,
- *     host-portable path on Codex / older Claude Code)
+ *   - hosts/claude/hooks/question-preference-hook（Layer 3 injection path，
+ *     AUQ mutation landing 后使用）
+ *   - scripts/resolvers/question-tuning.ts preamble（Layer 9 fallback，
+ *     Codex / older Claude Code 上的 host-portable path）
  *
- * NOT used for AUTO_DECIDE. Annotation is advisory only — declared-only
- * per TODOS.md E1 substrate-risk guidance. Inferred-driven AUTO_DECIDE
- * remains v2.
+ * 不用于 AUTO_DECIDE。Annotation 只做 advisory，且按 TODOS.md E1 substrate-risk
+ * guidance 仅基于 declared profile。由 inferred profile 驱动的 AUTO_DECIDE
+ * 仍属于 v2。
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -30,8 +28,8 @@ const STRONG_HIGH = 0.7;
 const STRONG_LOW = 0.3;
 
 /**
- * Plain-English phrasing per dimension + band. Keep one sentence each.
- * Used directly in question prose, so phrasing matters.
+ * 每个 dimension + band 的 plain-English phrasing。每条保持一句。
+ * 它会直接进入 question prose，所以措辞很重要。
  */
 const DIMENSION_PHRASING: Record<Dimension, { high: string; low: string }> = {
   scope_appetite: {
@@ -79,10 +77,9 @@ function readProfile(): DeveloperProfile | null {
 }
 
 /**
- * Determine which dimension a signal_key influences most strongly.
- * Sums |delta| across all user_choice → DimensionDelta[] entries for that
- * signal, returns the dimension with the largest total influence.
- * Returns null if the signal_key isn't in the map.
+ * 判断 signal_key 对哪个 dimension 的影响最强。
+ * 对该 signal 下所有 user_choice → DimensionDelta[] entries 累加 |delta|，
+ * 返回 total influence 最大的 dimension。如果 signal_key 不在 map 中，返回 null。
  */
 export function primaryDimensionFor(signalKey: string): Dimension | null {
   const entry = SIGNAL_MAP[signalKey];
@@ -106,9 +103,8 @@ export function primaryDimensionFor(signalKey: string): Dimension | null {
 }
 
 /**
- * Given a signal_key, return a one-line plain-English annotation when
- * the user's declared profile is in a strong band on the primary dim,
- * else null.
+ * 给定 signal_key，当 user 的 declared profile 在 primary dim 上落入 strong band
+ * 时返回一行 plain-English annotation；否则返回 null。
  */
 export function getDeclaredAnnotation(signalKey: string): string | null {
   if (!signalKey || typeof signalKey !== 'string') return null;

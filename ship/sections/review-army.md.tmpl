@@ -1,12 +1,12 @@
-## Step 9: Pre-Landing Review
+## Step 9：Pre-Landing Review（落地前审查）
 
-Review the diff for structural issues that tests don't catch.
+Review diff，查找 tests 捕捉不到的 structural issues。
 
-1. Read `.claude/skills/review/checklist.md`. If the file cannot be read, **STOP** and report the error.
+1. 读取 `.claude/skills/review/checklist.md`。如果无法读取该 file，**STOP** 并报告 error。
 
-2. Run `git diff origin/<base>` to get the full diff (scoped to feature changes against the freshly-fetched base branch).
+2. 运行 `git diff origin/<base>` 获取 full diff（相对 freshly-fetched base branch 的 feature changes）。
 
-3. Apply the review checklist in two passes:
+3. 分两轮应用 review checklist：
    - **Pass 1 (CRITICAL):** SQL & Data Safety, LLM Output Trust Boundary
    - **Pass 2 (INFORMATIONAL):** All remaining categories
 
@@ -14,42 +14,43 @@ Review the diff for structural issues that tests don't catch.
 
 {{DESIGN_REVIEW_LITE}}
 
-   Include any design findings alongside the code review findings. They follow the same Fix-First flow below.
+   将任何 design findings 与 code review findings 一起包含。它们遵循下面同样的 Fix-First flow。
 
 {{REVIEW_ARMY}}
 
 {{CROSS_REVIEW_DEDUP}}
 
-4. **Classify each finding from both the checklist pass and specialist review (Step 9.1-Step 9.2) as AUTO-FIX or ASK** per the Fix-First Heuristic in
-   checklist.md. Critical findings lean toward ASK; informational lean toward AUTO-FIX.
+4. **按 checklist.md 中的 Fix-First Heuristic，将 checklist pass 和 specialist review
+   （Step 9.1-Step 9.2）中的每条 finding 分类为 AUTO-FIX 或 ASK。**
+   Critical findings 倾向 ASK；informational 倾向 AUTO-FIX。
 
-5. **Auto-fix all AUTO-FIX items.** Apply each fix. Output one line per fix:
+5. **Auto-fix 所有 AUTO-FIX items。**应用每个 fix。每个 fix 输出一行：
    `[AUTO-FIXED] [file:line] Problem → what you did`
 
-6. **If ASK items remain,** present them in ONE AskUserQuestion:
-   - List each with number, severity, problem, recommended fix
-   - Per-item options: A) Fix  B) Skip
+6. **如果仍有 ASK items，**用一个 AskUserQuestion 呈现：
+   - 每项列出 number、severity、problem、recommended fix
+   - Per-item options（逐项选项）：A) Fix  B) Skip
    - Overall RECOMMENDATION
-   - If 3 or fewer ASK items, you may use individual AskUserQuestion calls instead
+   - 如果 ASK items 不超过 3 个，可以改用 individual AskUserQuestion calls
 
-7. **After all fixes (auto + user-approved):**
-   - If ANY fixes were applied: commit fixed files by name (`git add <fixed-files> && git commit -m "fix: pre-landing review fixes"`), then **STOP** and tell the user to run `/ship` again to re-test.
-   - If no fixes applied (all ASK items skipped, or no issues found): continue to Step 12.
+7. **所有 fixes（auto + user-approved）处理后：**
+   - 如果应用了任何 fixes：按名称 commit fixed files（`git add <fixed-files> && git commit -m "fix: pre-landing review fixes"`），然后 **STOP**，告诉用户重新运行 `/ship` 以 re-test。
+   - 如果没有应用 fixes（所有 ASK items skipped，或没有 issues found）：继续 Step 12。
 
-8. Output summary: `Pre-Landing Review: N issues — M auto-fixed, K asked (J fixed, L skipped)`
+8. 输出 summary：`Pre-Landing Review: N issues — M auto-fixed, K asked (J fixed, L skipped)`
 
-   If no issues found: `Pre-Landing Review: No issues found.`
+   如果没有 issues found：`Pre-Landing Review: No issues found.`（保留 exact output）
 
-9. Persist the review result to the review log:
+9. 将 review result 持久化到 review log：
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"'"$(git rev-parse --short HEAD)"'","via":"ship"}'
 ```
-Substitute TIMESTAMP (ISO 8601), STATUS ("clean" if no issues, "issues_found" otherwise),
-and N values from the summary counts above. The `via:"ship"` distinguishes from standalone `/review` runs.
-- `quality_score` = the PR Quality Score computed in Step 9.2 (e.g., 7.5). If specialists were skipped (small diff), use `10.0`
-- `specialists` = the per-specialist stats object compiled in Step 9.2. Each specialist that was considered gets an entry: `{"dispatched":true/false,"findings":N,"critical":N,"informational":N}` if dispatched, or `{"dispatched":false,"reason":"scope|gated"}` if skipped. Example: `{"testing":{"dispatched":true,"findings":2,"critical":0,"informational":2},"security":{"dispatched":false,"reason":"scope"}}`
-- `findings` = array of per-finding records. For each finding (from checklist pass and specialists), include: `{"fingerprint":"path:line:category","severity":"CRITICAL|INFORMATIONAL","action":"ACTION"}`. ACTION is `"auto-fixed"`, `"fixed"` (user approved), or `"skipped"` (user chose Skip).
+替换 TIMESTAMP（ISO 8601）、STATUS（无 issues 时为 "clean"，否则为 "issues_found"），
+以及上方 summary counts 中的 N values。`via:"ship"` 用于区别 standalone `/review` runs。
+- `quality_score` = Step 9.2 计算的 PR Quality Score（例如 7.5）。如果 specialists 被 skipped（small diff），使用 `10.0`
+- `specialists` = Step 9.2 编译的 per-specialist stats object。每个 considered specialist 都有一个 entry：如果 dispatched，则为 `{"dispatched":true/false,"findings":N,"critical":N,"informational":N}`；如果 skipped，则为 `{"dispatched":false,"reason":"scope|gated"}`。Example：`{"testing":{"dispatched":true,"findings":2,"critical":0,"informational":2},"security":{"dispatched":false,"reason":"scope"}}`
+- `findings` = per-finding records array。对每条 finding（来自 checklist pass 和 specialists），包含：`{"fingerprint":"path:line:category","severity":"CRITICAL|INFORMATIONAL","action":"ACTION"}`。ACTION 为 `"auto-fixed"`、`"fixed"`（user approved）或 `"skipped"`（user chose Skip）。
 
-Save the review output — it goes into the PR body in Step 19.
+保存 review output：它会进入 Step 19 的 PR body。
 
 ---

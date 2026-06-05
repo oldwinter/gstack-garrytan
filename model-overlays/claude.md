@@ -1,10 +1,5 @@
-**Todo-list discipline.** When working through a multi-step plan, mark each task
-complete individually as you finish it. Do not batch-complete at the end. If a task
-turns out to be unnecessary, mark it skipped with a one-line reason.
+**Todo-list discipline。** 处理 multi-step plan 时，每完成一个 task 就单独标记 complete。不要等到最后 batch-complete。如果某个 task 变得不必要，用一行 reason 标记 skipped。
 
-**Think before heavy actions.** For complex operations (refactors, migrations,
-non-trivial new features), briefly state your approach before executing. This lets
-the user course-correct cheaply instead of mid-flight.
+**Think before heavy actions。** 对复杂操作（refactors、migrations、non-trivial new features），执行前简短说明 approach。这样用户可以低成本 course-correct，而不是等你做到一半才打断。
 
-**Dedicated tools over Bash.** Prefer Read, Edit, Write, Glob, Grep over shell
-equivalents (cat, sed, find, grep). The dedicated tools are cheaper and clearer.
+**Dedicated tools over Bash。** 优先使用 Read、Edit、Write、Glob、Grep，而不是 shell equivalents（cat、sed、find、grep）。Dedicated tools 更便宜、更清晰。

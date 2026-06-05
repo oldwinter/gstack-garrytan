@@ -3,12 +3,12 @@ name: browse
 preamble-tier: 1
 version: 1.1.0
 description: |
-  Fast headless browser for QA testing and site dogfooding. Navigate any URL, interact with
-  elements, verify page state, diff before/after actions, take annotated screenshots, check
-  responsive layouts, test forms and uploads, handle dialogs, and assert element states.
-  ~100ms per command. Use when you need to test a feature, verify a deployment, dogfood a
-  user flow, or file a bug with evidence. Use when asked to "open in browser", "test the
-  site", "take a screenshot", or "dogfood this". (gstack)
+  用于 QA testing 和 site dogfooding 的快速 headless browser。可 navigate 任意 URL、
+  interact with elements、verify page state、diff actions 前后变化、截图并标注、
+  检查 responsive layouts、测试 forms 和 uploads、处理 dialogs，并 assert element states。
+  每条 command 约 100ms。当你需要测试 feature、验证 deployment、dogfood user flow，
+  或带 evidence 提交 bug 时使用。当用户要求 "open in browser"、"test the site"、
+  "take a screenshot" 或 "dogfood this" 时使用。（gstack）
 triggers:
   - browse a page
   - headless browser
@@ -22,53 +22,53 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# browse: QA Testing & Dogfooding
+# browse：QA Testing & Dogfooding
 
-Persistent headless Chromium. First call auto-starts (~3s), then ~100ms per command.
-State persists between calls (cookies, tabs, login sessions).
+Persistent headless Chromium。首次调用会 auto-start（约 3s），之后每条 command 约 100ms。
+State 会在调用间保持（cookies、tabs、login sessions）。
 
 {{BROWSE_SETUP}}
 
-## Core QA Patterns
+## Core QA Patterns（核心 QA 模式）
 
-### 1. Verify a page loads correctly
+### 1. 验证 page 是否正确加载
 ```bash
 $B goto https://yourapp.com
-$B text                          # content loads?
-$B console                       # JS errors?
-$B network                       # failed requests?
-$B is visible ".main-content"    # key elements present?
+$B text                          # content 是否加载？
+$B console                       # 是否有 JS errors？
+$B network                       # 是否有 failed requests？
+$B is visible ".main-content"    # key elements 是否存在？
 ```
 
-### 2. Test a user flow
+### 2. 测试 user flow
 ```bash
 $B goto https://app.com/login
 $B snapshot -i                   # see all interactive elements
 $B fill @e3 "user@test.com"
 $B fill @e4 "password"
 $B click @e5                     # submit
-$B snapshot -D                   # diff: what changed after submit?
-$B is visible ".dashboard"       # success state present?
+$B snapshot -D                   # diff：submit 后发生了什么变化？
+$B is visible ".dashboard"       # success state 是否存在？
 ```
 
-### 3. Verify an action worked
+### 3. 验证 action 是否生效
 ```bash
 $B snapshot                      # baseline
-$B click @e3                     # do something
-$B snapshot -D                   # unified diff shows exactly what changed
+$B click @e3                     # 执行动作
+$B snapshot -D                   # unified diff 精确显示变化
 ```
 
-### 4. Visual evidence for bug reports
+### 4. 为 bug reports 提供 visual evidence
 ```bash
 $B snapshot -i -a -o /tmp/annotated.png   # labeled screenshot
 $B screenshot /tmp/bug.png                # plain screenshot
 $B console                                # error log
 ```
 
-### 5. Find all clickable elements (including non-ARIA)
+### 5. 查找所有 clickable elements（包括 non-ARIA）
 ```bash
-$B snapshot -C                   # finds divs with cursor:pointer, onclick, tabindex
-$B click @c1                     # interact with them
+$B snapshot -C                   # 查找带 cursor:pointer、onclick、tabindex 的 divs
+$B click @c1                     # 与它们交互
 ```
 
 ### 6. Assert element states
@@ -82,62 +82,66 @@ $B is focused "#search-input"
 $B js "document.body.textContent.includes('Success')"
 ```
 
-### 7. Test responsive layouts
+### 7. 测试 responsive layouts
 ```bash
 $B responsive /tmp/layout        # mobile + tablet + desktop screenshots
-$B viewport 375x812              # or set specific viewport
+$B viewport 375x812              # 或设置 specific viewport
 $B screenshot /tmp/mobile.png
 ```
 
-### 8. Test file uploads
+### 8. 测试 file uploads
 ```bash
 $B upload "#file-input" /path/to/file.pdf
 $B is visible ".upload-success"
 ```
 
-### 9. Test dialogs
+### 9. 测试 dialogs
 ```bash
-$B dialog-accept "yes"           # set up handler
-$B click "#delete-button"        # trigger dialog
-$B dialog                        # see what appeared
-$B snapshot -D                   # verify deletion happened
+$B dialog-accept "yes"           # 设置 handler
+$B click "#delete-button"        # 触发 dialog
+$B dialog                        # 查看出现了什么
+$B snapshot -D                   # 验证 deletion 已发生
 ```
 
-### 10. Compare environments
+### 10. 对比 environments
 ```bash
 $B diff https://staging.app.com https://prod.app.com
 ```
 
-### 11. Show screenshots to the user
-After `$B screenshot`, `$B snapshot -a -o`, or `$B responsive`, always use the Read tool on the output PNG(s) so the user can see them. Without this, screenshots are invisible.
+### 11. 向用户展示 screenshots
+在 `$B screenshot`、`$B snapshot -a -o` 或 `$B responsive` 之后，始终对 output PNG(s)
+使用 Read tool，让用户能看到它们。否则 screenshots 对用户不可见。
 
-### 12. Render local HTML (no HTTP server needed)
-Two paths, pick the cleaner one:
+### 12. Render local HTML（无需 HTTP server）
+两条路径，选择更干净的一条：
 ```bash
-# HTML file on disk → goto file:// (absolute, or cwd-relative)
+# 磁盘上的 HTML file -> goto file://（absolute，或 cwd-relative）
 $B goto file:///tmp/report.html
 $B goto file://./docs/page.html        # cwd-relative
 $B goto file://~/Documents/page.html   # home-relative
 
-# HTML generated in memory → load-html reads the file into setContent
+# 内存中生成的 HTML -> load-html 将 file 读入 setContent
 echo '<div class="tweet">hello</div>' > /tmp/tweet.html
 $B load-html /tmp/tweet.html
 ```
 
-`goto file://...` is usually cleaner (URL is saved in state, relative asset URLs resolve against the file's dir, scale changes replay naturally). `load-html` uses `page.setContent()` — URL stays `about:blank`, but the content survives `viewport --scale` via in-memory replay. Both are scoped to files under cwd or `$TMPDIR`.
+`goto file://...` 通常更干净（URL 会保存在 state 中，relative asset URLs 会相对 file dir resolve，
+scale changes 可自然 replay）。`load-html` 使用 `page.setContent()`：URL 保持 `about:blank`，
+但 content 会通过 in-memory replay 在 `viewport --scale` 后保留。两者都限制在 cwd 或 `$TMPDIR` 下的 files。
 
-### 13. Retina screenshots (deviceScaleFactor)
+### 13. Retina screenshots（deviceScaleFactor）
 ```bash
 $B viewport 480x600 --scale 2       # 2x deviceScaleFactor
 $B load-html /tmp/tweet.html        # or: $B goto file://./tweet.html
 $B screenshot /tmp/out.png --selector .tweet-card
-# → /tmp/out.png is 2x the pixel dimensions of the element
+# -> /tmp/out.png 是该 element pixel dimensions 的 2x
 ```
-Scale must be 1-3 (gstack policy cap). Changing `--scale` recreates the browser context; refs from `snapshot` are invalidated (rerun `snapshot`), but `load-html` content is replayed automatically. Not supported in headed mode.
+Scale 必须是 1-3（gstack policy cap）。改变 `--scale` 会重建 browser context；来自 `snapshot`
+的 refs 会失效（重新运行 `snapshot`），但 `load-html` content 会自动 replay。Headed mode 不支持。
 
-## Puppeteer → browse cheatsheet
+## Puppeteer -> browse cheatsheet
 
-Migrating from Puppeteer? Here's the 1:1 mapping for the core workflow:
+从 Puppeteer 迁移？这里是 core workflow 的 1:1 mapping：
 
 | Puppeteer | browse |
 |---|---|
@@ -149,88 +153,104 @@ Migrating from Puppeteer? Here's the 1:1 mapping for the core workflow:
 | `await page.screenshot({fullPage: true, path})` | `$B screenshot <path>` (full page default) |
 | `await page.screenshot({clip: {x, y, w, h}, path})` | `$B screenshot <path> --clip x,y,w,h` |
 
-Worked example (the tweet-renderer flow — Puppeteer → browse):
+Worked example（tweet-renderer flow：Puppeteer -> browse）：
 
 ```bash
-# Generate HTML in memory, render at 2x scale, screenshot the tweet card.
+# 在内存中生成 HTML，以 2x scale render，并截图 tweet card。
 echo '<div class="tweet-card" style="width:400px;height:200px;background:#1da1f2;color:white;padding:20px">hello</div>' > /tmp/tweet.html
 $B viewport 480x600 --scale 2
 $B load-html /tmp/tweet.html
 $B screenshot /tmp/out.png --selector .tweet-card
-# /tmp/out.png is 800x400 px, crisp (2x deviceScaleFactor).
+# /tmp/out.png 是 800x400 px，清晰（2x deviceScaleFactor）。
 ```
 
-Aliases: typing `setcontent` or `set-content` routes to `load-html` automatically. Typing a typo (`load-htm`) returns `Did you mean 'load-html'?`.
+Aliases：输入 `setcontent` 或 `set-content` 会自动路由到 `load-html`。输入 typo（`load-htm`）
+会返回 `Did you mean 'load-html'?`。
 
-## User Handoff
+## User Handoff（用户接管）
 
-When you hit something you can't handle in headless mode (CAPTCHA, complex auth, multi-factor
-login), hand off to the user:
+当遇到 headless mode 无法处理的内容（CAPTCHA、complex auth、multi-factor login）时，
+handoff 给用户：
 
 ```bash
-# 1. Open a visible Chrome at the current page
+# 1. 在当前 page 打开 visible Chrome
 $B handoff "Stuck on CAPTCHA at login page"
 
-# 2. Tell the user what happened (via AskUserQuestion)
+# 2. 告诉用户发生了什么（通过 AskUserQuestion）
 #    "I've opened Chrome at the login page. Please solve the CAPTCHA
 #     and let me know when you're done."
 
-# 3. When user says "done", re-snapshot and continue
+# 3. 当用户说 "done" 后，重新 snapshot 并继续
 $B resume
 ```
 
-**When to use handoff:**
-- CAPTCHAs or bot detection
-- Multi-factor authentication (SMS, authenticator app)
-- OAuth flows that require user interaction
-- Complex interactions the AI can't handle after 3 attempts
+**何时使用 handoff：**
+- CAPTCHAs 或 bot detection
+- Multi-factor authentication（SMS、authenticator app）
+- 需要 user interaction 的 OAuth flows
+- AI 尝试 3 次后仍无法处理的 complex interactions
 
-The browser preserves all state (cookies, localStorage, tabs) across the handoff.
-After `resume`, you get a fresh snapshot of wherever the user left off.
+Browser 会在 handoff 期间保留所有 state（cookies、localStorage、tabs）。
+`resume` 后，你会得到用户停留位置的 fresh snapshot。
 
-## Headed Mode + Proxy + Anti-Bot Sites
+## Headed Mode + Proxy + Anti-Bot Sites（可见模式、代理与反 bot 网站）
 
-For sites that block headless browsers, fingerprint Playwright defaults, or require routing through an authenticated SOCKS5 proxy (residential VPN, etc.), browse exposes three coordinated flags:
+对于会 block headless browsers、fingerprint Playwright defaults，或需要通过 authenticated
+SOCKS5 proxy（residential VPN 等）routing 的 sites，browse 暴露三个协同 flags：
 
 ```bash
-# Headed mode — visible Chromium window. Auto-spawns Xvfb on Linux
-# containers without DISPLAY (no extra setup needed on Debian/Ubuntu).
+# Headed mode：visible Chromium window。在没有 DISPLAY 的 Linux containers 上
+# auto-spawn Xvfb（Debian/Ubuntu 无需额外 setup）。
 browse --headed goto https://example.com
 
-# SOCKS5 with auth (Chromium can't prompt for SOCKS5 creds itself —
-# browse runs a local 127.0.0.1 bridge that handles the auth handshake).
+# 带 auth 的 SOCKS5（Chromium 无法自行 prompt SOCKS5 creds；
+# browse 运行 local 127.0.0.1 bridge 来处理 auth handshake）。
 browse --proxy socks5://user:pass@residential.proxy.host:1080 goto https://example.com
 
-# HTTP/HTTPS proxy (passes through to Chromium directly):
+# HTTP/HTTPS proxy（直接 pass through 给 Chromium）：
 browse --proxy http://corp-proxy:3128 goto https://example.com
 
-# Browser-triggered file download (Content-Disposition, redirect chain,
-# anti-bot CDN — falls back from page.request.fetch() to browser native
-# download handler):
+# Browser-triggered file download（Content-Disposition、redirect chain、
+# anti-bot CDN：从 page.request.fetch() fallback 到 browser native download handler）：
 browse download "https://protected.example.com/file" /tmp/file.bin --navigate
 
-# Combined: headed + proxy + navigate-download
+# Combined：headed + proxy + navigate-download
 browse --headed --proxy socks5://user:pass@host:1080 \
   download "https://protected.example.com/file" /tmp/file.bin --navigate
 ```
 
-**Credential policy.** Pass creds via either the URL (`socks5://user:pass@host`) OR the env vars `BROWSE_PROXY_USER` and `BROWSE_PROXY_PASS` — never both. Browse refuses with a clear hint when both are set, because silent override creates "works on my machine" debugging traps.
+**Credential policy。**通过 URL（`socks5://user:pass@host`）或 env vars
+`BROWSE_PROXY_USER` 和 `BROWSE_PROXY_PASS` 传 creds：绝不要两者同时用。两者都设置时，
+Browse 会拒绝并给出清晰 hint，因为 silent override 会制造 "works on my machine" debugging traps。
 
-**Daemon discipline.** Browse runs as a long-lived daemon. `--proxy` and `--headed` change daemon-startup config, so they only apply on a fresh daemon. If a daemon is already running with different config, browse refuses and tells you to `browse disconnect` first. No silent restart that would drop tab state, cookies, or logged-in sessions.
+**Daemon discipline。**Browse 以 long-lived daemon 运行。`--proxy` 和 `--headed` 会改变
+daemon-startup config，因此只在 fresh daemon 上生效。如果已有 daemon 使用不同 config 运行，
+browse 会拒绝，并提示你先 `browse disconnect`。不会 silent restart，避免丢失 tab state、cookies 或 logged-in sessions。
 
-**Stealth.** When `--headed` or `--proxy` are set, browse masks `navigator.webdriver` (the obvious automation tell) via Chromium's `--disable-blink-features=AutomationControlled` plus a small init script. We do NOT fake `navigator.plugins`, `navigator.languages`, or `window.chrome` — modern fingerprinters check those for consistency, and synthesizing fixed values can flag MORE bot-like, not less.
+**Stealth。**设置 `--headed` 或 `--proxy` 时，browse 会通过 Chromium 的
+`--disable-blink-features=AutomationControlled` 加一个小 init script 来 mask
+`navigator.webdriver`（明显的 automation tell）。我们不 fake `navigator.plugins`、
+`navigator.languages` 或 `window.chrome`：modern fingerprinters 会检查这些值的一致性，
+合成固定值反而可能更像 bot。
 
-**Container support.** `--headed` on Linux without `DISPLAY` automatically picks a free X display (`:99`, `:100`, ...) and spawns Xvfb. Cleanup on `browse disconnect` validates the recorded PID's `/proc/<pid>/cmdline` matches `Xvfb` AND start-time matches before sending any signal — no PID-reuse footguns. Standard Debian/Ubuntu containers work out of the box; minimal images (alpine, distroless) may also need fonts/dbus/gtk libs for headed Chromium to render.
+**Container support。**Linux 上没有 `DISPLAY` 时，`--headed` 会自动选择空闲 X display
+（`:99`、`:100` 等）并 spawn Xvfb。`browse disconnect` cleanup 在发送任何 signal 前，
+会验证 recorded PID 的 `/proc/<pid>/cmdline` 匹配 `Xvfb` 且 start-time 匹配：避免 PID-reuse footguns。
+标准 Debian/Ubuntu containers 可开箱即用；minimal images（alpine、distroless）可能还需要
+fonts/dbus/gtk libs 才能让 headed Chromium render。
 
-**Failure modes.** SOCKS5 upstream rejected or unreachable → fail-fast at startup with a redacted error after 3 retries (5s budget). Mid-stream upstream drop → browse kills the affected client connection only; no transport retries (which could corrupt browser traffic). Mismatched daemon config → exit 1 with a `browse disconnect` hint.
+**Failure modes。**SOCKS5 upstream rejected 或 unreachable -> startup 时 3 次 retries
+（5s budget）后 fail-fast，并给出 redacted error。Mid-stream upstream drop -> browse 只 kill
+受影响的 client connection；不做 transport retries（可能 corrupt browser traffic）。
+Mismatched daemon config -> exit 1，并给出 `browse disconnect` hint。
 
-## Snapshot Flags
+## Snapshot Flags（snapshot flags）
 
 {{SNAPSHOT_FLAGS}}
 
-## CSS Inspector & Style Modification
+## CSS Inspector & Style Modification（CSS 检查器与样式修改）
 
-### Inspect element CSS
+### Inspect element CSS（检查 element CSS）
 ```bash
 $B inspect .header              # full CSS cascade for selector
 $B inspect                      # latest picked element from sidebar
@@ -238,20 +258,20 @@ $B inspect --all                # include user-agent stylesheet rules
 $B inspect --history            # show modification history
 ```
 
-### Modify styles live
+### Live 修改 styles
 ```bash
 $B style .header background-color #1a1a1a   # modify CSS property
 $B style --undo                              # revert last change
 $B style --undo 2                            # revert specific change
 ```
 
-### Clean screenshots
+### Clean screenshots（干净截图）
 ```bash
 $B cleanup --all                 # remove ads, cookies, sticky, social
 $B cleanup --ads --cookies       # selective cleanup
 $B prettyscreenshot --cleanup --scroll-to ".pricing" --width 1440 ~/Desktop/hero.png
 ```
 
-## Full Command List
+## Full Command List（完整命令列表）
 
 {{COMMAND_REFERENCE}}

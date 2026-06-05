@@ -2,11 +2,11 @@
 name: open-gstack-browser
 version: 0.2.0
 description: |
-  Launch GStack Browser — AI-controlled Chromium with the sidebar extension baked in.
-  Opens a visible browser window where you can watch every action in real time.
-  The sidebar shows a live activity feed and chat. Anti-bot stealth built in.
-  Use when asked to "open gstack browser", "launch browser", "connect chrome",
-  "open chrome", "real browser", "launch chrome", "side panel", or "control my browser".
+  启动 GStack Browser：内置 sidebar extension、由 AI 控制的 Chromium。
+  打开 visible browser window，让你可以实时观看每个 action。
+  Sidebar 显示 live activity feed 和 chat。内置 anti-bot stealth。
+  当用户要求 "open gstack browser"、"launch browser"、"connect chrome"、
+  "open chrome"、"real browser"、"launch chrome"、"side panel" 或 "control my browser" 时使用。
 voice-triggers:
   - "show me the browser"
 triggers:
@@ -22,21 +22,20 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# /open-gstack-browser — Launch GStack Browser
+# /open-gstack-browser — 启动 GStack Browser
 
-Launch GStack Browser — AI-controlled Chromium with the sidebar extension,
-anti-bot stealth, and custom branding. You see every action in real time.
+启动 GStack Browser：带 sidebar extension、anti-bot stealth 和 custom branding 的 AI-controlled Chromium。
+你可以实时看到每个 action。
 
 {{BROWSE_SETUP}}
 
-## Step 0: Pre-flight cleanup
+## Step 0：Pre-flight cleanup
 
-Before connecting, kill any stale browse servers and clean up lock files that
-may have persisted from a crash. This prevents "already connected" false
-positives and Chromium profile lock conflicts.
+连接前，kill stale browse servers，并清理 crash 后可能残留的 lock files。
+这可防止 "already connected" false positives 和 Chromium profile lock conflicts。
 
 ```bash
-# Kill any existing browse server
+# Kill 已存在的 browse server
 if [ -f "$(git rev-parse --show-toplevel 2>/dev/null)/.gstack/browse.json" ]; then
   _OLD_PID=$(cat "$(git rev-parse --show-toplevel)/.gstack/browse.json" 2>/dev/null | grep -o '"pid":[0-9]*' | grep -o '[0-9]*')
   [ -n "$_OLD_PID" ] && kill "$_OLD_PID" 2>/dev/null || true
@@ -44,7 +43,7 @@ if [ -f "$(git rev-parse --show-toplevel 2>/dev/null)/.gstack/browse.json" ]; th
   [ -n "$_OLD_PID" ] && kill -9 "$_OLD_PID" 2>/dev/null || true
   rm -f "$(git rev-parse --show-toplevel)/.gstack/browse.json"
 fi
-# Clean Chromium profile locks (can persist after crashes)
+# 清理 Chromium profile locks（crash 后可能残留）
 _PROFILE_DIR="$HOME/.gstack/chromium-profile"
 for _LF in SingletonLock SingletonSocket SingletonCookie; do
   rm -f "$_PROFILE_DIR/$_LF" 2>/dev/null || true
@@ -52,44 +51,41 @@ done
 echo "Pre-flight cleanup done"
 ```
 
-## Step 1: Connect
+## Step 1：Connect
 
 ```bash
 $B connect
 ```
 
-This launches GStack Browser (rebranded Chromium) in headed mode with:
-- A visible window you can watch (not your regular Chrome — it stays untouched)
-- The gstack sidebar extension auto-loaded via `launchPersistentContext`
-- Anti-bot stealth patches (sites like Google and NYTimes work without captchas)
-- Custom user agent and GStack Browser branding in Dock/menu bar
-- A sidebar agent process for chat commands
+这会以 headed mode 启动 GStack Browser（rebranded Chromium），包含：
+- 你可以观看的 visible window（不是你的 regular Chrome；它不会被触碰）
+- 通过 `launchPersistentContext` auto-loaded 的 gstack sidebar extension
+- Anti-bot stealth patches（Google、NYTimes 等 sites 无需 captchas 即可工作）
+- Dock/menu bar 中的 custom user agent 和 GStack Browser branding
+- 用于 chat commands 的 sidebar agent process
 
-The `connect` command auto-discovers the extension from the gstack install
-directory. It always uses port **34567** so the extension can auto-connect.
+`connect` command 会从 gstack install directory auto-discover extension。
+它始终使用 port **34567**，以便 extension auto-connect。
 
-After connecting, print the full output to the user. Confirm you see
-`Mode: headed` in the output.
+连接后，将完整 output 打印给用户。确认 output 中出现 `Mode: headed`。
 
-If the output shows an error or the mode is not `headed`, run `$B status` and
-share the output with the user before proceeding.
+如果 output 显示 error，或 mode 不是 `headed`，运行 `$B status`，并在继续前将 output 分享给用户。
 
-## Step 2: Verify
+## Step 2：Verify
 
 ```bash
 $B status
 ```
 
-Confirm the output shows `Mode: headed`. Read the port from the state file:
+确认 output 显示 `Mode: headed`。从 state file 读取 port：
 
 ```bash
 cat "$(git rev-parse --show-toplevel 2>/dev/null)/.gstack/browse.json" 2>/dev/null | grep -o '"port":[0-9]*' | grep -o '[0-9]*'
 ```
 
-The port should be **34567**. If it's different, note it — the user may need it
-for the Side Panel.
+Port 应为 **34567**。如果不同，记下它：用户可能需要它来连接 Side Panel。
 
-Also find the extension path so you can help the user if they need to load it manually:
+同时找到 extension path，这样如果用户需要手动 load，你可以帮他们：
 
 ```bash
 _EXT_PATH=""
@@ -99,111 +95,102 @@ _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 echo "EXTENSION_PATH: ${_EXT_PATH:-NOT FOUND}"
 ```
 
-## Step 3: Guide the user to the Side Panel
+## Step 3：引导用户打开 Side Panel
 
 Use AskUserQuestion:
 
-> Chrome is launched with gstack control. You should see Playwright's Chromium
-> (not your regular Chrome) with a golden shimmer line at the top of the page.
+> Chrome 已用 gstack control 启动。你应该会看到 Playwright's Chromium
+>（不是你的 regular Chrome），page 顶部有一条 golden shimmer line。
 >
-> The Side Panel extension should be auto-loaded. To open it:
-> 1. Look for the **puzzle piece icon** (Extensions) in the toolbar — it may
->    already show the gstack icon if the extension loaded successfully
-> 2. Click the **puzzle piece** → find **gstack browse** → click the **pin icon**
-> 3. Click the pinned **gstack icon** in the toolbar
-> 4. The Side Panel should open on the right showing a live activity feed
+> Side Panel extension 应该已 auto-loaded。打开方式：
+> 1. 在 toolbar 中找到 **puzzle piece icon**（Extensions）：如果 extension 成功加载，
+>    可能已经显示 gstack icon
+> 2. 点击 **puzzle piece** -> 找到 **gstack browse** -> 点击 **pin icon**
+> 3. 点击 toolbar 中 pinned **gstack icon**
+> 4. Side Panel 应该会在右侧打开，显示 live activity feed
 >
-> **Port:** 34567 (auto-detected — the extension connects automatically in the
-> Playwright-controlled Chrome).
+> **Port:** 34567（auto-detected：extension 会在 Playwright-controlled Chrome 中自动连接）。
 
-Options:
-- A) I can see the Side Panel — let's go!
-- B) I can see Chrome but can't find the extension
-- C) Something went wrong
+选项：
+- A) 我能看到 Side Panel，可以继续！
+- B) 我能看到 Chrome，但找不到 extension
+- C) 出问题了
 
-If B: Tell the user:
+如果选择 B：告诉用户：
 
-> The extension is loaded into Playwright's Chromium at launch time, but
-> sometimes it doesn't appear immediately. Try these steps:
+> Extension 会在 launch time loaded into Playwright's Chromium，但有时不会立刻出现。尝试这些步骤：
 >
-> 1. Type `chrome://extensions` in the address bar
-> 2. Look for **"gstack browse"** — it should be listed and enabled
-> 3. If it's there but not pinned, go back to any page, click the puzzle piece
->    icon, and pin it
-> 4. If it's NOT listed at all, click **"Load unpacked"** and navigate to:
->    - Press **Cmd+Shift+G** in the file picker dialog
->    - Paste this path: `{EXTENSION_PATH}` (use the path from Step 2)
->    - Click **Select**
+> 1. 在 address bar 输入 `chrome://extensions`
+> 2. 查找 **"gstack browse"**：它应该已 listed 并 enabled
+> 3. 如果它在列表中但未 pinned，回到任意 page，点击 puzzle piece icon，并 pin 它
+> 4. 如果完全没列出，点击 **"Load unpacked"** 并 navigate 到：
+>    - 在 file picker dialog 中按 **Cmd+Shift+G**
+>    - 粘贴此 path：`{EXTENSION_PATH}`（使用 Step 2 中的 path）
+>    - 点击 **Select**
 >
-> After loading, pin it and click the icon to open the Side Panel.
+> Loading 后，pin 它并点击 icon 打开 Side Panel。
 >
-> If the Side Panel badge stays gray (disconnected), click the gstack icon
-> and enter port **34567** manually.
+> 如果 Side Panel badge 保持 gray（disconnected），点击 gstack icon，并手动输入 port **34567**。
 
-If C:
+如果选择 C：
 
-1. Run `$B status` and show the output
-2. If the server is not healthy, re-run Step 0 cleanup + Step 1 connect
-3. If the server IS healthy but the browser isn't visible, try `$B focus`
-4. If that fails, ask the user what they see (error message, blank screen, etc.)
+1. 运行 `$B status` 并展示 output
+2. 如果 server 不 healthy，重新运行 Step 0 cleanup + Step 1 connect
+3. 如果 server healthy 但 browser 不可见，尝试 `$B focus`
+4. 如果仍失败，询问用户看到什么（error message、blank screen 等）
 
-## Step 4: Demo
+## Step 4：Demo（演示）
 
-After the user confirms the Side Panel is working, run a quick demo:
+用户确认 Side Panel 工作后，运行 quick demo：
 
 ```bash
 $B goto https://news.ycombinator.com
 ```
 
-Wait 2 seconds, then:
+等待 2 秒，然后：
 
 ```bash
 $B snapshot -i
 ```
 
-Tell the user: "Check the Side Panel — you should see the `goto` and `snapshot`
-commands appear in the activity feed. Every command Claude runs shows up here
-in real time."
+告诉用户："检查 Side Panel：你应该会在 activity feed 中看到 `goto` 和 `snapshot`
+commands。Claude 运行的每个 command 都会实时显示在这里。"
 
-## Step 5: Sidebar chat
+## Step 5：Sidebar chat
 
-After the activity feed demo, tell the user about the sidebar chat:
+Activity feed demo 后，告诉用户 sidebar chat：
 
-> The Side Panel also has a **chat tab**. Try typing a message like "take a
-> snapshot and describe this page." A sidebar agent (a child Claude instance)
-> executes your request in the browser — you'll see the commands appear in
-> the activity feed as they happen.
+> Side Panel 也有一个 **chat tab**。可以尝试输入类似 "take a snapshot and describe this page."
+> 的 message。Sidebar agent（一个 child Claude instance）会在 browser 中执行你的请求：
+> 你会看到 commands 随执行出现在 activity feed 中。
 >
-> The sidebar agent can navigate pages, click buttons, fill forms, and read
-> content. Each task gets up to 5 minutes. It runs in an isolated session, so
-> it won't interfere with this Claude Code window.
+> Sidebar agent 可以 navigate pages、click buttons、fill forms、read content。
+> 每个 task 最多 5 分钟。它运行在 isolated session 中，所以不会干扰这个 Claude Code window。
 
-## Step 6: What's next
+## Step 6：下一步
 
-Tell the user:
+告诉用户：
 
-> You're all set! Here's what you can do with the connected Chrome:
+> 已经准备好了！这是你可以用 connected Chrome 做的事：
 >
-> **Watch Claude work in real time:**
-> - Run any gstack skill (`/qa`, `/design-review`, `/benchmark`) and watch
->   every action happen in the visible Chrome window + Side Panel feed
-> - No cookie import needed — the Playwright browser shares its own session
+> **实时观看 Claude 工作：**
+> - 运行任意 gstack skill（`/qa`、`/design-review`、`/benchmark`），并在 visible Chrome window
+>   + Side Panel feed 中观看每个 action
+> - 不需要 cookie import：Playwright browser 共享自己的 session
 >
-> **Control the browser directly:**
-> - **Sidebar chat** — type natural language in the Side Panel and the sidebar
->   agent executes it (e.g., "fill in the login form and submit")
-> - **Browse commands** — `$B goto <url>`, `$B click <sel>`, `$B fill <sel> <val>`,
->   `$B snapshot -i` — all visible in Chrome + Side Panel
+> **直接控制 browser：**
+> - **Sidebar chat**：在 Side Panel 中输入 natural language，sidebar agent 会执行它
+>   （例如 "fill in the login form and submit"）
+> - **Browse commands**：`$B goto <url>`、`$B click <sel>`、`$B fill <sel> <val>`、
+>   `$B snapshot -i`：全部会在 Chrome + Side Panel 中可见
 >
-> **Window management:**
-> - `$B focus` — bring Chrome to the foreground anytime
-> - `$B disconnect` — close headed Chrome and return to headless mode
+> **Window management：**
+> - `$B focus`：随时将 Chrome bring to foreground
+> - `$B disconnect`：关闭 headed Chrome 并返回 headless mode
 >
-> **What skills look like in headed mode:**
-> - `/qa` runs its full test suite in the visible browser — you see every page
->   load, every click, every assertion
-> - `/design-review` takes screenshots in the real browser — same pixels you see
-> - `/benchmark` measures performance in the headed browser
+> **Skills 在 headed mode 中是什么样：**
+> - `/qa` 在 visible browser 中运行 full test suite：你会看到每个 page load、每次 click、每个 assertion
+> - `/design-review` 在 real browser 中截图：与你看到的是同一批 pixels
+> - `/benchmark` 在 headed browser 中测量 performance
 
-Then proceed with whatever the user asked to do. If they didn't specify a task,
-ask what they'd like to test or browse.
+然后继续用户要求的任务。如果他们没有指定 task，询问他们想 test 或 browse 什么。

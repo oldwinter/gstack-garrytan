@@ -1,56 +1,56 @@
-# Tutorial: generate docs for a feature in 90 seconds
+# Tutorial：90 秒为 feature 生成 docs
 
-You'll run `/document-generate` against a project you already have, watch it write tutorial / how-to / reference / explanation docs in the right places, and end with a coverage map you can drop into a PR. By the end, you'll know the four moves: scope, archaeology, partition, write.
+你会在已有 project 中运行 `/document-generate`，观察它把 tutorial / how-to / reference / explanation docs 写到正确位置，并最终得到可以放进 PR 的 coverage map。结束时，你会知道四个动作：scope、archaeology、partition、write。
 
-## What you'll need
+## 你需要准备什么
 
-- gstack installed (`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`)
-- Claude Code running in any project that has at least one piece of public surface (a CLI command, an exported function, a config option, a skill, an API endpoint)
-- About 90 seconds
+- 已安装 gstack（`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`）
+- Claude Code 正在任意 project 中运行，该 project 至少有一个 public surface（CLI command、exported function、config option、skill、API endpoint）
+- 大约 90 秒
 
-You do not need a `docs/` directory in advance — the skill creates one if it's missing. You do not need to know Diataxis terminology — the skill labels the output for you.
+你不需要提前有 `docs/` directory，skill 会在缺失时创建。你也不需要知道 Diataxis terminology，skill 会为你 label output。
 
-## Step 1: Invoke the skill in any project
+## Step 1：在任意 project 中 invoke skill
 
-Open Claude Code in the project you want to document. Type:
+在想 document 的 project 中打开 Claude Code。输入：
 
 ```
 /document-generate
 ```
 
-You'll see the skill ask one question about output target:
+Skill 会询问一个 output target 问题：
 
 ```
 A) Write documentation inline in existing files (README, ARCHITECTURE, etc.)
 B) Create standalone documentation files (e.g., docs/ directory)
 C) Both — inline summaries in existing files + deep docs in standalone files
 
-RECOMMENDATION: Choose C because it maximizes both discoverability and depth.
+RECOMMENDATION: Choose C because it maximizes both discoverability and depth.（推荐 C，因为它同时最大化 discoverability 和 depth。）
 ```
 
-Pick C. You'll get a README pointer plus a full set of standalone docs.
+选择 C。你会得到 README pointer 和一整套 standalone docs。
 
-## Step 2: Watch the archaeology run
+## Step 2：观察 archaeology 运行
 
-The skill goes silent for ~30 seconds while it reads the codebase. This is intentional — the Step 1 "Codebase Archaeology" phase is the most important step in the workflow. The skill is reading:
+Skill 会安静约 30 秒，读取 codebase。这是 intentional：Step 1 "Codebase Archaeology" phase 是整个 workflow 最重要的一步。Skill 会读取：
 
-- The full repository structure
-- README, ARCHITECTURE, CONTRIBUTING, CLAUDE.md (the entry points)
-- The implementation files for whatever you're documenting (full file, not just signatures)
-- The tests (which reveal edge cases and intended behavior)
-- Inline comments tagged `// NOTE:`, `// DESIGN:`, `// WHY:`
+- 完整 repository structure
+- README、ARCHITECTURE、CONTRIBUTING、CLAUDE.md（entry points）
+- 你要 document 的实现 files（full file，不只是 signatures）
+- Tests（揭示 edge cases 和 intended behavior）
+- Tagged inline comments：`// NOTE:`、`// DESIGN:`、`// WHY:`
 
-When it finishes, you'll see a line like:
+完成后，你会看到类似：
 
 ```
 Researched 47 files, identified 12 public surface items, 8 concepts, and 4 design decisions.
 ```
 
-That number tells you the skill actually read the code rather than guessing from filenames.
+这个数字说明 skill 确实读取了 code，而不是从 filenames 猜。
 
-## Step 3: See the Diataxis partition plan
+## Step 3：查看 Diataxis partition plan
 
-The skill prints a partition plan showing which quadrants it'll write for which entity:
+Skill 会打印 partition plan，展示会为哪些 entity 写哪些 quadrants：
 
 ```
 Documentation plan:
@@ -60,25 +60,25 @@ Documentation plan:
   Bayesian scheduler    ❌        ❌       ✅ new      ✅ new
 ```
 
-Not every entity needs all four quadrants. CLI flags get reference + how-to. Internal modules get reference + explanation. User-facing features get all four. The skill picks based on entity type.
+不是每个 entity 都需要所有四个 quadrants。CLI flags 得到 reference + how-to。Internal modules 得到 reference + explanation。User-facing features 得到 all four。Skill 会根据 entity type 选择。
 
-If the plan has more than 5 documents, the skill asks you to confirm before proceeding. Otherwise it goes.
+如果 plan 超过 5 个 documents，skill 会在 proceeding 前请求你确认。否则它会继续。
 
-## Step 4: Read the first doc that lands
+## Step 4：阅读第一个落地的 doc
 
-Reference docs land first because they fix the vocabulary. You'll see lines like:
+Reference docs 最先落地，因为它们固定 vocabulary。你会看到：
 
 ```
 GENERATED: docs/reference-widget-service.md
 ```
 
-Open that file. It has a strict structure: one-paragraph intro, complete API listing with types and defaults, 2-3 runnable examples, and a Related section linking to the how-to and tutorial that will land next.
+打开该 file。它有严格结构：一段式 intro、带 types 和 defaults 的完整 API listing、2-3 个可运行 examples，以及链接到后续 how-to 和 tutorial 的相关 section。
 
-This is what reference docs look like in Diataxis: factual, exhaustive, no narrative. If you find yourself wanting to explain *why* an option exists, that belongs in the explanation doc the skill will write next.
+这就是 Diataxis 中 reference docs 的样子：factual、exhaustive、no narrative。如果你想解释某个 option 为什么存在，那属于 skill 接下来会写的 explanation doc。
 
-## Step 5: See the explanation, how-to, and tutorial appear
+## Step 5：查看 explanation、how-to 和 tutorial 出现
 
-In quick succession (each ~5-10 seconds), the skill writes the remaining quadrants:
+接下来会快速连续写入 remaining quadrants（每个约 5-10 秒）：
 
 ```
 GENERATED: docs/explanation-widget-architecture.md
@@ -86,32 +86,32 @@ GENERATED: docs/howto-create-a-custom-widget.md
 GENERATED: docs/tutorial-build-your-first-widget.md
 ```
 
-Open each one. Notice they don't repeat each other:
+逐个打开。注意它们不会互相重复：
 
-- **Explanation** leads with the problem, then the approach, then trade-offs and alternatives considered
-- **How-to** has prerequisites, numbered steps with exact commands, a verification section, and a troubleshooting section
-- **Tutorial** gets you to a working result in under 3 steps, ends with "What you built"
+- **Explanation** 先讲 problem，再讲 approach，然后讲 trade-offs 和 considered alternatives
+- **How-to** 包含 prerequisites、带 exact commands 的 numbered steps、verification section 和 troubleshooting section
+- **Tutorial** 让你在 3 steps 内得到 working result，并以 "What you built" 结束
 
-The skill enforces these structures. If a how-to was missing a verification section, the Step 8 Quality Self-Review caught it before commit.
+Skill 会 enforce 这些 structures。如果 how-to 缺失 verification section，Step 8 Quality Self-Review 会在 commit 前捕捉。
 
-## Step 6: Check cross-linking
+## Step 6：检查 cross-linking
 
-Every doc links to the others. Reference doc Related section: links to how-to and tutorial. How-to Related section: links to reference. Tutorial "What you built" section: links to reference for deeper exploration.
+每个 doc 都会 link 到其他 docs。Reference doc 的相关 section 会 link 到 how-to 和 tutorial；how-to 的相关 section 会 link 到 reference；tutorial 的 "What you built" section 会 link 到 reference，供进一步探索。
 
-Run a grep to verify no broken links:
+运行 grep 验证没有 broken links：
 
 ```bash
 grep -rE '\]\([^)]*\.md\)' docs/ | head -10
 ```
 
-Every linked file should exist. The skill's Step 7 "Cross-Document Linking & Discoverability" checks this before commit.
+每个 linked file 都应存在。Skill 的 Step 7 "Cross-Document Linking & Discoverability" 会在 commit 前检查这一点。
 
-## Step 7: See the coverage summary in the PR body
+## Step 7：在 PR body 中查看 coverage summary
 
-If you're on a feature branch with an open PR, the skill updates the PR body with a `## Documentation Generated` table:
+如果你在有 open PR 的 feature branch 上，skill 会用 `## Documentation Generated` table 更新 PR body：
 
 ```
-## Documentation Generated
+## Documentation Generated（已生成文档）
 
 | File | Quadrant | Description |
 |------|----------|-------------|
@@ -121,22 +121,22 @@ If you're on a feature branch with an open PR, the skill updates the PR body wit
 | docs/howto-create-a-custom-widget.md | How-to | Creating and registering custom widgets |
 ```
 
-A reviewer opening the PR sees the table and knows immediately what kind of coverage shipped.
+Reviewer 打开 PR 后，会立即知道 shipped 了哪种 coverage。
 
-## What you built
+## 你构建了什么
 
-You now have four documents that serve four different readers:
+现在你有四份服务于四类 reader 的 documents：
 
-- A newcomer to your project can read `tutorial-*.md` and get something working
-- An experienced user can read `howto-*.md` to accomplish a specific task
-- An API caller can read `reference-*.md` for exact signatures
-- A code reviewer can read `explanation-*.md` to understand the design
+- Project newcomer 可以读 `tutorial-*.md` 并做出能工作的东西
+- Experienced user 可以读 `howto-*.md` 完成 specific task
+- API caller 可以读 `reference-*.md` 获得 exact signatures
+- Code reviewer 可以读 `explanation-*.md` 理解 design
 
-Each one is short enough to maintain. Each one has a single job. The PR body shows which quadrants were covered. If you run `/document-release` later, the Diataxis coverage map will report this entity as fully covered (4/4 quadrants).
+每份都足够短，易于维护。每份都有 single job。PR body 展示覆盖了哪些 quadrants。如果之后运行 `/document-release`，Diataxis coverage map 会报告该 entity fully covered（4/4 quadrants）。
 
-## What to do next
+## 下一步做什么
 
-- **If you have gaps** /document-release flagged but didn't fill: run `/document-generate` again, scoped to those entities specifically.
-- **If you want to understand why the four quadrants exist:** read [explanation-diataxis-in-gstack.md](./explanation-diataxis-in-gstack.md).
-- **If you want to document one specific shipped feature** (not the whole project): read [howto-document-a-shipped-feature.md](./howto-document-a-shipped-feature.md).
-- **Reference for the skill itself:** [`document-generate/SKILL.md`](../document-generate/SKILL.md).
+- **如果你有 `/document-release` flagged 但未填补的 gaps**：再次运行 `/document-generate`，scope 到那些 specific entities。
+- **如果你想理解为什么存在四个 quadrants：**阅读 [explanation-diataxis-in-gstack.md](./explanation-diataxis-in-gstack.md)。
+- **如果你想 document 一个 specific shipped feature**（而不是整个 project）：阅读 [howto-document-a-shipped-feature.md](./howto-document-a-shipped-feature.md)。
+- **Skill 本身的 reference：**[`document-generate/SKILL.md`](../document-generate/SKILL.md)。

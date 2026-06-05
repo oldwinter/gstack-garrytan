@@ -37,12 +37,12 @@ export function generateInvokeSkill(ctx: TemplateContext, args?: string[]): stri
 
   const allSkips = [...DEFAULT_SKIPS, ...extraSkips];
 
-  return `Read the \`/${skillName}\` skill file at \`${ctx.paths.skillRoot}/${skillName}/SKILL.md\` using the Read tool.
+  return `使用 Read 工具读取 \`/${skillName}\` skill 文件：\`${ctx.paths.skillRoot}/${skillName}/SKILL.md\`。
 
-**If unreadable:** Skip with "Could not load /${skillName} — skipping." and continue.
+**如果无法读取：**用 "Could not load /${skillName} — skipping." 跳过并继续。
 
-Follow its instructions from top to bottom, **skipping these sections** (already handled by the parent skill):
+从上到下执行其中的说明，**跳过以下 sections**（父级 skill 已处理）：
 ${allSkips.map(s => `- ${s}`).join('\n')}
 
-Execute every other section at full depth. When the loaded skill's instructions are complete, continue with the next step below.`;
+其他 section 都要完整执行。加载的 skill 说明执行完后，继续下面的下一步。`;
 }

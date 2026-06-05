@@ -1,58 +1,58 @@
-# Chrome vs Chromium: Why We Use Playwright's Bundled Chromium
+# Chrome vs Chromium：为什么使用 Playwright bundled Chromium
 
-## The Original Vision
+## Original Vision（原始设想）
 
-When we built `$B connect`, the plan was to connect to the user's **real Chrome browser** — the one with their cookies, sessions, extensions, and open tabs. No more cookie import. The design called for:
+构建 `$B connect` 时，plan 是连接到用户的**真实 Chrome browser**，也就是带着他们 cookies、sessions、extensions 和 open tabs 的那个。不再需要 cookie import。设计要求：
 
-1. `chromium.connectOverCDP(wsUrl)` connecting to a running Chrome via CDP
-2. Quit Chrome gracefully, relaunch with `--remote-debugging-port=9222`
-3. Access the user's real browsing context
+1. `chromium.connectOverCDP(wsUrl)` 通过 CDP 连接到 running Chrome
+2. Gracefully quit Chrome，并用 `--remote-debugging-port=9222` relaunch
+3. 访问用户的真实 browsing context
 
-This is why `chrome-launcher.ts` existed (361 LOC of browser binary discovery, CDP port probing, and runtime detection) and why the method was called `connectCDP()`.
+这就是为什么 `chrome-launcher.ts` 曾存在（361 LOC browser binary discovery、CDP port probing、runtime detection），也是为什么 method 叫 `connectCDP()`。
 
-## What Actually Happened
+## 实际发生了什么
 
-Real Chrome silently blocks `--load-extension` when launched via Playwright's `channel: 'chrome'`. The extension wouldn't load. We needed the extension for the side panel (activity feed, refs, chat).
+通过 Playwright 的 `channel: 'chrome'` launch 时，real Chrome 会 silent block `--load-extension`。Extension 无法 load。我们需要 extension 提供 side panel（activity feed、refs、chat）。
 
-The implementation fell back to `chromium.launchPersistentContext()` with Playwright's bundled Chromium — which reliably loads extensions via `--load-extension` and `--disable-extensions-except`. But the naming stayed: `connectCDP()`, `connectionMode: 'cdp'`, `BROWSE_CDP_URL`, `chrome-launcher.ts`.
+Implementation fallback 到 `chromium.launchPersistentContext()` + Playwright bundled Chromium。它可以可靠地通过 `--load-extension` 和 `--disable-extensions-except` load extensions。但 naming 留了下来：`connectCDP()`、`connectionMode: 'cdp'`、`BROWSE_CDP_URL`、`chrome-launcher.ts`。
 
-The original vision (access user's real browser state) was never implemented. We launched a fresh browser every time — functionally identical to Playwright's Chromium, but with 361 lines of dead code and misleading names.
+Original vision（访问用户真实 browser state）从未实现。我们每次都 launch fresh browser，functionally identical to Playwright's Chromium，却带着 361 行 dead code 和 misleading names。
 
-## The Discovery (2026-03-22)
+## Discovery（2026-03-22）
 
-During a `/office-hours` design session, we traced the architecture and discovered:
+在一次 `/office-hours` design session 中，我们 trace architecture 并发现：
 
-1. `connectCDP()` doesn't use CDP — it calls `launchPersistentContext()`
-2. `connectionMode: 'cdp'` is misleading — it's just "headed mode"
-3. `chrome-launcher.ts` is dead code — its only import was in an unreachable `attemptReconnect()` method
-4. `preExistingTabIds` was designed for protecting real Chrome tabs we never connect to
-5. `$B handoff` (headless → headed) used a different API (`launch()` + `newContext()`) that couldn't load extensions, creating two different "headed" experiences
+1. `connectCDP()` 不使用 CDP，而是调用 `launchPersistentContext()`
+2. `connectionMode: 'cdp'` misleading，它只是 “headed mode”
+3. `chrome-launcher.ts` 是 dead code，唯一 import 位于 unreachable `attemptReconnect()` method
+4. `preExistingTabIds` 是为了保护我们从未连接过的 real Chrome tabs 而设计
+5. `$B handoff`（headless -> headed）使用不同 API（`launch()` + `newContext()`），无法 load extensions，造成两种不同的 “headed” experiences
 
-## The Fix
+## 修复
 
-### Renamed
-- `connectCDP()` → `launchHeaded()`
-- `connectionMode: 'cdp'` → `connectionMode: 'headed'`
-- `BROWSE_CDP_URL` → `BROWSE_HEADED`
+### 重命名
+- `connectCDP()` -> `launchHeaded()`
+- `connectionMode: 'cdp'` -> `connectionMode: 'headed'`
+- `BROWSE_CDP_URL` -> `BROWSE_HEADED`
 
-### Deleted
-- `chrome-launcher.ts` (361 LOC)
-- `attemptReconnect()` (dead method)
-- `preExistingTabIds` (dead concept)
-- `reconnecting` field (dead state)
-- `cdp-connect.test.ts` (tests for deleted code)
+### Deleted（删除）
+- `chrome-launcher.ts`（361 LOC）
+- `attemptReconnect()`（dead method）
+- `preExistingTabIds`（dead concept）
+- `reconnecting` field（dead state）
+- `cdp-connect.test.ts`（deleted code 的 tests）
 
-### Converged
-- `$B handoff` now uses `launchPersistentContext()` + extension loading (same as `$B connect`)
-- One headed mode, not two
-- Handoff gives you the extension + side panel for free
+### Converged（收敛）
+- `$B handoff` 现在使用 `launchPersistentContext()` + extension loading（与 `$B connect` 相同）
+- One headed mode，不是 two
+- Handoff 免费得到 extension + side panel
 
-### Gated
-- Sidebar chat behind `--chat` flag
-- `$B connect` (default): activity feed + refs only
-- `$B connect --chat`: + experimental standalone chat agent
+### Gated（受 flag 控制）
+- Sidebar chat 放在 `--chat` flag 后
+- `$B connect`（default）：只有 activity feed + refs
+- `$B connect --chat`：再加 experimental standalone chat agent
 
-## Architecture (after)
+## 架构（after，修复后）
 
 ```
 Browser States:
@@ -71,14 +71,14 @@ Data Bridge (sidebar → workspace):
   Workspace reads via $B inbox
 ```
 
-## Why Not Real Chrome?
+## 为什么不是 Real Chrome？
 
-Real Chrome blocks `--load-extension` when launched by Playwright. This is a Chrome security feature — extensions loaded via command-line args are restricted in Chromium-based browsers to prevent malicious extension injection.
+Playwright launch real Chrome 时，Chrome 会 block `--load-extension`。这是 Chrome security feature：通过 command-line args load 的 extensions 会在 Chromium-based browsers 中受限，以防 malicious extension injection。
 
-Playwright's bundled Chromium doesn't have this restriction because it's designed for testing and automation. The `ignoreDefaultArgs` option lets us bypass Playwright's own extension-blocking flags.
+Playwright bundled Chromium 没有这个限制，因为它是为 testing 和 automation 设计的。`ignoreDefaultArgs` option 让我们绕过 Playwright 自己的 extension-blocking flags。
 
-If we ever want to access the user's real cookies/sessions, the path is:
-1. Cookie import (already works via `$B cookie-import`)
-2. Conductor session injection (future — sidebar sends messages to workspace agent)
+如果未来想访问用户真实 cookies/sessions，路径是：
+1. Cookie import（已经通过 `$B cookie-import` 可用）
+2. Conductor session injection（future，sidebar sends messages to workspace agent）
 
-Not reconnecting to real Chrome.
+不是 reconnecting to real Chrome。

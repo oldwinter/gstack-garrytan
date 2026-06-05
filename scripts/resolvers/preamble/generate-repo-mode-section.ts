@@ -1,12 +1,11 @@
 
 
 export function generateRepoModeSection(): string {
-  return `## Repo Ownership — See Something, Say Something
+  return `## Repo Ownership — See Something, Say Something（看到问题就指出）
 
-\`REPO_MODE\` controls how to handle issues outside your branch:
-- **\`solo\`** — You own everything. Investigate and offer to fix proactively.
-- **\`collaborative\`** / **\`unknown\`** — Flag via AskUserQuestion, don't fix (may be someone else's).
+\`REPO_MODE\` 控制如何处理 branch 外的问题：
+- **\`solo\`** — 你拥有所有内容。主动 investigate，并提出修复。
+- **\`collaborative\`** / **\`unknown\`** — 通过 AskUserQuestion flag，不要直接修复（可能属于别人）。
 
-Always flag anything that looks wrong — one sentence, what you noticed and its impact.`;
+始终 flag 看起来不对的东西：一句话说明你注意到了什么，以及它的影响。`;
 }
-

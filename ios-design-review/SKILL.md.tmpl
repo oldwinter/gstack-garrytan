@@ -3,15 +3,14 @@ name: ios-design-review
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Visual design audit for iOS apps on real hardware. Connects to a real
-  iPhone via the same StateServer as /ios-qa, screenshots every screen,
-  evaluates against Apple HIG, DESIGN.md, and design best practices. Scores
-  each dimension 0-10 with "what would make it a 10" framing — mirrors
-  /plan-design-review for browser. For plan-stage design review (before
-  implementation), use /plan-design-review. For live web visual audits, use
-  /design-review.
-  Use when asked to "review the iOS design", "audit the iPhone app's
-  visuals", or "design QA the iOS app". (gstack)
+  在真实硬件上对 iOS apps 做 visual design audit。通过与 /ios-qa 相同的
+  StateServer 连接真实 iPhone，截图每个 screen，并根据 Apple HIG、DESIGN.md
+  和 design best practices 评估。每个 dimension 0-10 评分，并用
+  "what would make it a 10" framing：对应 browser 版 /plan-design-review。
+  Plan-stage design review（implementation 前）使用 /plan-design-review；
+  live web visual audits 使用 /design-review。
+  当用户要求 "review the iOS design"、"audit the iPhone app's visuals" 或
+  "design QA the iOS app" 时使用。（gstack）
 voice-triggers:
   - "review the iOS design"
   - "audit the iPhone app's visuals"
@@ -30,75 +29,62 @@ triggers:
 
 {{PREAMBLE}}
 
-# iOS Design Review
+# iOS Design Review（iOS 设计审查）
 
-Designer's-eye QA on a real iOS device. Finds visual inconsistency, spacing
-issues, hierarchy problems, AI-slop patterns, and accessibility gaps. Rates
-each dimension 0-10. Mirrors `/plan-design-review`'s scoring rubric ported
-to iOS idioms.
+在真实 iOS device 上进行 designer's-eye QA。发现 visual inconsistency、spacing issues、
+hierarchy problems、AI-slop patterns 和 accessibility gaps。每个 dimension 0-10 评分。
+Mirror `/plan-design-review` 的 scoring rubric，并 port 到 iOS idioms。
 
-## Connection
+## Connection（连接）
 
-Uses the running `gstack-ios-qa-daemon`. If no daemon is running, spawn one
-via the same flow as `/ios-qa` (Phase 0-2). Read-only by default — no
-mutating calls.
+使用正在运行的 `gstack-ios-qa-daemon`。如果没有 daemon 在运行，通过与 `/ios-qa`
+相同的 flow（Phase 0-2）spawn 一个。默认 read-only：无 mutating calls。
 
-## Dimensions + scoring
+## Dimensions + scoring（维度与评分）
 
-For each screen in the app, score 0-10 and explain what would push it to 10:
+对 app 中每个 screen，评分 0-10，并解释怎样能推到 10：
 
-1. **Typography hierarchy.** Display vs body vs caption sizes consistent
-   with Apple HIG. SF Pro at correct dynamic-type scale. Line-height matches
-   font size. No 12pt body anywhere.
-2. **Spacing rhythm.** 4pt or 8pt grid used consistently. No magic
-   17/23/31pt paddings. Safe-area insets respected.
-3. **Color hierarchy.** Primary action highest contrast; secondary muted;
-   destructive distinct. Dark mode renders correctly. Contrast ratios meet
-   WCAG AA for body text (4.5:1) and large text (3:1).
-4. **Touch targets.** Every interactive element >= 44x44pt. No "tappable
-   text" smaller than 24pt.
-5. **Loading + empty + error states.** Each present and intentional. No
-   blank screens during async work. Empty states explain what to do next.
-6. **Accessibility.** VoiceOver labels on every interactive element.
-   Dynamic Type cap at XXL doesn't break layouts. Reduce Motion respected.
-   Color-blindness palette tested (deuteranopia is most common).
-7. **Animation discipline.** No more than 2 simultaneous animations.
-   Duration 200-300ms for UI feedback. Spring damping correct (not bouncy
-   for serious flows).
-8. **iOS idiom alignment.** Uses native components (`NavigationStack`,
-   `List`, `Form`, system sheets) where appropriate. No re-invented
-   navigation. No web-style hamburger menus on phone.
-9. **Information density.** Per-screen content fits without horizontal
-   scroll. Long screens have section anchors. Lists use real iOS list
-   patterns (swipe-to-delete, contextual menus).
-10. **AI-slop check.** Generic stock layouts, "lorem ipsum" data left in,
-    cargo-cult Material Design imported from Android, gradients that smell
-    AI-generated.
+1. **Typography hierarchy。**Display vs body vs caption sizes 与 Apple HIG 一致。
+   SF Pro 使用正确 dynamic-type scale。Line-height 匹配 font size。任何地方都不能有 12pt body。
+2. **Spacing rhythm。**一致使用 4pt 或 8pt grid。没有 magic 17/23/31pt paddings。
+   Respect safe-area insets。
+3. **Color hierarchy。**Primary action 最高 contrast；secondary muted；destructive distinct。
+   Dark mode 正确 render。Contrast ratios 满足 body text 的 WCAG AA（4.5:1）和 large text（3:1）。
+4. **Touch targets。**每个 interactive element >= 44x44pt。没有小于 24pt 的 "tappable text"。
+5. **Loading + empty + error states。**每种 state 都存在且 intentional。Async work 期间无 blank screens。
+   Empty states 说明下一步该做什么。
+6. **Accessibility。**每个 interactive element 都有 VoiceOver labels。Dynamic Type cap 到 XXL 不会破坏 layouts。
+   Respect Reduce Motion。测试 color-blindness palette（deuteranopia 最常见）。
+7. **Animation discipline。**同时 animations 不超过 2 个。UI feedback duration 为 200-300ms。
+   Spring damping 正确（serious flows 不应 bouncy）。
+8. **iOS idiom alignment。**在适当位置使用 native components（`NavigationStack`、`List`、`Form`、system sheets）。
+   不 reinvent navigation。Phone 上没有 web-style hamburger menus。
+9. **Information density。**Per-screen content 无 horizontal scroll 即可 fit。Long screens 有 section anchors。
+   Lists 使用真实 iOS list patterns（swipe-to-delete、contextual menus）。
+10. **AI-slop check。**Generic stock layouts、残留 "lorem ipsum" data、从 Android cargo-cult 过来的 Material Design、
+    闻起来像 AI-generated 的 gradients。
 
-## Loop
+## Loop（循环）
 
 1. `POST /session/acquire` with capability `observe` (read-only).
-2. For each major screen (driven from a screen list the user provides, or
-   auto-discovered via the accessibility tree):
+2. 对每个 major screen（来自用户提供的 screen list，或通过 accessibility tree auto-discovered）：
    - `GET /screenshot`
    - `GET /elements`
-   - Apply the 10-dimension rubric.
-   - Record findings.
-3. Produce a markdown report with screenshots, scores per screen, and a
-   "biggest leverage fix" suggestion per dimension.
-4. Use AskUserQuestion for any score < 7 — present the issue with
-   recommended fix + tradeoff so the user can decide whether to address.
+   - 应用 10-dimension rubric。
+   - 记录 findings。
+3. 产出 markdown report，包含 screenshots、每屏 scores，以及每个 dimension 的
+   "biggest leverage fix" suggestion。
+4. 对任何 score < 7 的项使用 AskUserQuestion：呈现 issue、recommended fix + tradeoff，
+   让用户决定是否处理。
 
-## Output
+## Output（输出）
 
-Write a markdown report to
-`~/.gstack/projects/<slug>/ios-design-review-<date>.md`. Include the
-screenshots inline. The CEO/eng review skills can reference this report
-when planning UI changes.
+将 markdown report 写入 `~/.gstack/projects/<slug>/ios-design-review-<date>.md`。
+Inline 包含 screenshots。CEO/eng review skills 在规划 UI changes 时可以 reference 此 report。
 
-## Failure modes
+## Failure modes（失败模式）
 
-| Symptom | Action |
+| Symptom（现象） | Action（处理） |
 |---|---|
 | `403 capability_insufficient` from /screenshot | Daemon is in tailnet mode and token is below `observe` tier — owner must mint with `--capability observe` |
 | Screenshot is black/blank | App may be in foreground but not rendering; AskUserQuestion to confirm the app is in the expected state |

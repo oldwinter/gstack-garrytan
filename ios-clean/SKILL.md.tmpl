@@ -3,13 +3,12 @@ name: ios-clean
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Remove the DebugBridge SPM package and all #if DEBUG wiring from an iOS
-  app. Cleans up StateServer, DebugOverlay, accessor codegen output, and
-  app-side hooks installed by /ios-qa. This is a convenience wrapper —
-  the structural Release-build guard (Package.swift conditional + CI
-  swift build -c release check) is the safety-critical path.
-  Use when asked to "clean the iOS debug bridge", "remove DebugBridge",
-  or "strip the gstack iOS instrumentation". (gstack)
+  从 iOS app 中移除 DebugBridge SPM package 和所有 #if DEBUG wiring。
+  清理 StateServer、DebugOverlay、accessor codegen output，以及 /ios-qa 安装的
+  app-side hooks。这是 convenience wrapper；structural Release-build guard
+  （Package.swift conditional + CI swift build -c release check）才是 safety-critical path。
+  当用户要求 "clean the iOS debug bridge"、"remove DebugBridge" 或
+  "strip the gstack iOS instrumentation" 时使用。（gstack）
 voice-triggers:
   - "clean the iOS debug bridge"
   - "remove DebugBridge"
@@ -29,23 +28,22 @@ triggers:
 
 {{PREAMBLE}}
 
-# Strip the DebugBridge from an iOS app
+# 从 iOS app 中移除 DebugBridge
 
-This skill is a **convenience flow**, not a safety mechanism. The structural
-guard against shipping DebugBridge in Release is in `Package.swift.template`
-(`.when(configuration: .debug)`) plus the CI invariant test that runs
-`swift build -c release` and asserts the DebugBridge symbol is absent. Both
-ship as part of `/ios-qa`'s template installation.
+此 skill 是 **convenience flow**，不是 safety mechanism。防止在 Release 中 ship DebugBridge
+的 structural guard 位于 `Package.swift.template`（`.when(configuration: .debug)`），
+以及运行 `swift build -c release` 并 assert DebugBridge symbol absent 的 CI invariant test。
+两者都会作为 `/ios-qa` template installation 的一部分 ship。
 
-This skill exists for developers who:
+此 skill 服务于这些 developers：
 
-- Manually copied DebugBridge files (without using `/ios-qa`'s SPM install).
-- Want a guided, reversible removal flow before a security audit.
-- Are migrating away from gstack and want a clean exit.
+- 手动复制了 DebugBridge files（没有使用 `/ios-qa` 的 SPM install）。
+- 希望在 security audit 前有 guided、reversible removal flow。
+- 正在迁出 gstack，并希望 clean exit。
 
-## What it removes
+## 它会移除什么
 
-Each item is reverted only after AskUserQuestion confirmation:
+每个 item 都只在 AskUserQuestion confirmation 后 revert：
 
 1. The `DebugBridge` SPM target from `Package.swift`.
 2. The `#if DEBUG` block in the app's `@main` entry that calls
@@ -58,47 +56,43 @@ Each item is reverted only after AskUserQuestion confirmation:
    device (best-effort — only works if device is connected when /ios-clean
    runs).
 
-## What it does NOT touch
+## 它不会触碰什么
 
-- App business logic, view models, view code.
-- Anything outside `#if DEBUG` blocks.
-- Other test or QA infrastructure.
+- App business logic、view models、view code。
+- `#if DEBUG` blocks 之外的任何内容。
+- 其他 test 或 QA infrastructure。
 
-## Phase 1: Inventory
+## Phase 1：Inventory
 
-1. Glob for `import DebugBridge` across the app source.
-2. Glob for `#if DEBUG ... DebugBridgeManager` blocks.
-3. Glob for `// Auto-generated state accessor` headers in
-   `StateAccessor.swift` files.
-4. Parse `Package.swift` for the DebugBridge dependency entry.
-5. Show the user what's about to be removed (file list + line counts).
+1. 在 app source 中 glob `import DebugBridge`。
+2. Glob `#if DEBUG ... DebugBridgeManager` blocks。
+3. 在 `StateAccessor.swift` files 中 glob `// Auto-generated state accessor` headers。
+4. Parse `Package.swift` 中的 DebugBridge dependency entry。
+5. 向用户展示将要移除的内容（file list + line counts）。
    AskUserQuestion: proceed, dry-run, or abort.
 
-## Phase 2: Remove
+## Phase 2：Remove
 
-For each item the user approved:
+对用户 approved 的每个 item：
 
-1. Use Edit tool to strip the import + the `#if DEBUG` block (keep the
-   surrounding code intact).
-2. Use Edit tool to remove the `.package(url:...DebugBridge...)` entry
-   from `Package.swift` and any `targets` referencing `"DebugBridge"`.
-3. Delete generated `StateAccessor.swift` files.
-4. Run `xcodebuild -scheme <SchemeName> -destination 'platform=iOS,id=<UDID>'
-   build install -configuration Release` to verify Release builds without
-   the bridge. If it fails on a missing DebugBridge symbol, the removal
-   was incomplete — STOP and report.
+1. 使用 Edit tool 移除 import + `#if DEBUG` block（保持 surrounding code intact）。
+2. 使用 Edit tool 从 `Package.swift` 中移除 `.package(url:...DebugBridge...)` entry，
+   以及任何 referencing `"DebugBridge"` 的 `targets`。
+3. 删除 generated `StateAccessor.swift` files。
+4. 运行 `xcodebuild -scheme <SchemeName> -destination 'platform=iOS,id=<UDID>'
+   build install -configuration Release`，验证 Release 能在无 bridge 下 build。
+   如果因 missing DebugBridge symbol 失败，说明 removal incomplete：STOP 并 report。
 
-## Phase 3: Verify
+## Phase 3：Verify
 
 1. `! grep -r "DebugBridge" <app-source-dir>` (no matches).
 2. `! grep -r "@Snapshotable" <app-source-dir>` (no matches).
 3. `swift build -c release` succeeds.
 4. `nm -j` on the built binary doesn't show DebugBridge symbols.
 
-Report the cleanup result + a one-line summary of what got removed.
+报告 cleanup result + 被移除内容的一行 summary。
 
-## Reversibility
+## Reversibility（可逆性）
 
-Every Edit + delete is a git operation; the user can `git restore` to undo.
-This skill never force-pushes, never amends, never deletes the SPM cache —
-those are user choices.
+每个 Edit + delete 都是 git operation；用户可以 `git restore` 来 undo。
+此 skill 绝不 force-push，绝不 amend，绝不删除 SPM cache：这些都由用户选择。

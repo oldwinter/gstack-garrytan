@@ -154,13 +154,13 @@ export async function generateLlmsTxt(opts: GenerateOptions = {}): Promise<Gener
   const lines: string[] = [];
   lines.push('# gstack');
   lines.push('');
-  lines.push("> gstack is Garry's Stack: AI coding skills + a fast headless browser binary + a design CLI. This file indexes every capability so agents can discover and invoke them without crawling individual SKILL.md files.");
+  lines.push("> gstack 是 Garry's Stack：AI coding skills + 快速 headless browser binary + design CLI。本文件索引每项能力，让 agents 无需逐个爬取 SKILL.md files 就能 discover 和 invoke。");
   lines.push('');
-  lines.push('Conventions:');
-  lines.push('- Skills are invoked by name (e.g. `/ship`, `/plan-ceo-review`).');
-  lines.push('- Browse commands run as `browse <command> [args]` (or `$B` shorthand).');
-  lines.push('- Design commands run as `design <command> [args]` (or `$D`).');
-  lines.push('- Project-specific config lives in `CLAUDE.md`. Always read it first.');
+  lines.push('Conventions（约定）：');
+  lines.push('- Skills 通过名称调用（例如 `/ship`、`/plan-ceo-review`）。');
+  lines.push('- Browse commands 以 `browse <command> [args]` 运行（或使用 `$B` shorthand）。');
+  lines.push('- Design commands 以 `design <command> [args]` 运行（或使用 `$D`）。');
+  lines.push('- Project-specific config 位于 `CLAUDE.md`。始终先阅读它。');
   lines.push('');
 
   lines.push('## Skills');

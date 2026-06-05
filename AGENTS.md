@@ -1,135 +1,128 @@
-# gstack — AI Engineering Workflow
+# gstack — AI 工程工作流
 
-gstack is a collection of SKILL.md files that give AI agents structured roles for
-software development. Each skill is a specialist: CEO reviewer, eng manager,
-designer, QA lead, release engineer, debugger, and more.
+gstack 是一组 `SKILL.md` 文件，用来给 AI agents 赋予结构化的软件开发角色。每个 skill 都是一位专家：CEO reviewer、eng manager、designer、QA lead、release engineer、debugger，等等。
 
-## Available skills
+## 可用 skills
 
-Skills live in `.agents/skills/` (or `~/.claude/skills/gstack/` on Claude Code).
-Invoke them by name (e.g., `/office-hours`).
+skills 位于 `.agents/skills/`（在 Claude Code 中也可能位于 `~/.claude/skills/gstack/`）。按名称调用它们，例如 `/office-hours`。
 
-### Plan-mode reviews
+### Plan-mode reviews（Plan mode 审查）
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `/office-hours` | Start here. Reframes your product idea before you write code. |
-| `/plan-ceo-review` | CEO-level review: find the 10-star product in the request. |
-| `/plan-eng-review` | Lock architecture, data flow, edge cases, and tests. |
-| `/plan-design-review` | Rate each design dimension 0-10, explain what a 10 looks like. |
-| `/plan-devex-review` | DX-mode review: TTHW, magical moments, friction points, persona traces. |
-| `/plan-tune` | Self-tune AskUserQuestion sensitivity per question. |
-| `/autoplan` | One command runs CEO → design → eng → DX review. |
-| `/design-consultation` | Build a complete design system from scratch. |
-| `/spec` | Turn vague intent into a precise, executable spec in five phases. Files a GitHub issue, optionally spawns a Claude Code agent in a fresh worktree, and lets `/ship` close the source issue on merge. |
+| `/office-hours` | 从这里开始。在写代码前重新框定你的产品想法。 |
+| `/plan-ceo-review` | CEO 级 review：从需求中找出 10-star product。 |
+| `/plan-eng-review` | 锁定架构、数据流、边界情况和测试。 |
+| `/plan-design-review` | 对每个设计维度按 0-10 评分，并说明 10 分是什么样。 |
+| `/plan-devex-review` | DX-mode review：TTHW、magical moments、摩擦点、persona traces。 |
+| `/plan-tune` | 按问题自调 AskUserQuestion 灵敏度。 |
+| `/autoplan` | 一个命令运行 CEO → design → eng → DX review。 |
+| `/design-consultation` | 从零构建完整设计系统。 |
+| `/spec` | 将模糊意图转成五阶段的精确可执行 spec。创建 GitHub issue，可选在新 worktree 中生成 Claude Code agent，并允许 `/ship` 在 merge 后关闭源 issue。 |
 
-### Implementation + review
+### 实现 + review
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `/review` | Pre-landing PR review. Finds bugs that pass CI but break in prod. |
-| `/codex` | Second opinion via OpenAI Codex. Review, challenge, or consult modes. |
-| `/investigate` | Systematic root-cause debugging. No fixes without investigation. |
-| `/design-review` | Live-site visual audit + fix loop with atomic commits. |
-| `/design-shotgun` | Generate multiple AI design variants, comparison board, iterate. |
-| `/design-html` | Generate production-quality Pretext-native HTML/CSS. |
-| `/devex-review` | Live developer experience audit (TTHW measured against the real flow). |
-| `/qa` | Open a real browser, find bugs, fix them, re-verify. |
-| `/qa-only` | Same methodology as /qa but report only — no code changes. |
-| `/scrape` | Pull data from a web page. First call prototypes; codified call runs in ~200ms. |
-| `/skillify` | Codify the most recent successful `/scrape` flow into a permanent browser-skill. |
+| `/review` | 落地前 PR review。寻找能通过 CI 但会在 production 中出问题的 bug。 |
+| `/codex` | 通过 OpenAI Codex 获取 second opinion。支持 review、challenge 或 consult 模式。 |
+| `/investigate` | 系统化 root-cause debugging。没有调查就不修复。 |
+| `/design-review` | 对 live site 做视觉 audit，并用原子提交修复。 |
+| `/design-shotgun` | 生成多个 AI 设计方案、对比板并迭代。 |
+| `/design-html` | 生成 production-quality、Pretext-native 的 HTML/CSS。 |
+| `/devex-review` | live developer experience audit（按真实流程测量 TTHW）。 |
+| `/qa` | 打开真实浏览器，发现 bug，修复并重新验证。 |
+| `/qa-only` | 与 `/qa` 方法相同，但只报告，不改代码。 |
+| `/scrape` | 从网页抽取数据。第一次调用做原型；固化后的调用约 200ms 完成。 |
+| `/skillify` | 将最近一次成功的 `/scrape` 流程固化成永久 browser-skill。 |
 
-### Release + deploy
+### 发布 + 部署
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `/ship` | Run tests, review, push, open PR. Workspace-aware version queue. |
-| `/land-and-deploy` | Merge the PR, wait for CI and deploy, verify production health. |
-| `/canary` | Post-deploy monitoring loop using the browse daemon. |
-| `/landing-report` | Read-only dashboard for the workspace-aware ship queue. |
-| `/document-release` | Update all docs to match what you just shipped. |
-| `/document-generate` | Generate Diataxis docs (tutorial / how-to / reference / explanation) from code. |
-| `/setup-deploy` | One-time deploy config detection (Fly.io, Render, Vercel, etc.). |
-| `/gstack-upgrade` | Update gstack to the latest version. |
+| `/ship` | 运行测试、review、push、打开 PR。支持 workspace-aware version queue。 |
+| `/land-and-deploy` | merge PR，等待 CI 和部署，验证 production health。 |
+| `/canary` | 使用 browse daemon 的部署后监控循环。 |
+| `/landing-report` | workspace-aware ship queue 的只读 dashboard。 |
+| `/document-release` | 更新所有文档，使其匹配刚刚发布的内容。 |
+| `/document-generate` | 从代码生成 Diataxis 文档（tutorial / how-to / reference / explanation）。 |
+| `/setup-deploy` | 一次性部署配置检测（Fly.io、Render、Vercel 等）。 |
+| `/gstack-upgrade` | 将 gstack 更新到最新版本。 |
 
-### Operational + memory
+### 运营 + memory
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `/context-save` | Save working context (git state, decisions, remaining work). |
-| `/context-restore` | Resume from a saved context, even across Conductor workspaces. |
-| `/learn` | Manage what gstack learned across sessions. |
-| `/retro` | Weekly retro with per-person breakdowns and shipping streaks. |
-| `/health` | Code quality dashboard (type checker, linter, tests, dead code). |
-| `/benchmark` | Performance regression detection (page load, Core Web Vitals). |
-| `/benchmark-models` | Cross-model benchmark for skills (Claude, GPT, Gemini side-by-side). |
-| `/cso` | OWASP Top 10 + STRIDE security audit. |
-| `/setup-gbrain` | Set up gbrain for cross-machine session memory sync. |
-| `/sync-gbrain` | Keep gbrain current with this repo's code; refresh agent search guidance in CLAUDE.md. |
+| `/context-save` | 保存工作上下文（git state、决策、剩余工作）。 |
+| `/context-restore` | 从保存的上下文恢复，即使跨 Conductor workspaces 也可以。 |
+| `/learn` | 管理 gstack 跨会话学到的内容。 |
+| `/retro` | 每周 retro，包含按人拆分和 shipping streaks。 |
+| `/health` | 代码质量 dashboard（type checker、linter、tests、dead code）。 |
+| `/benchmark` | 性能回归检测（page load、Core Web Vitals）。 |
+| `/benchmark-models` | skills 的跨模型 benchmark（Claude、GPT、Gemini 并排）。 |
+| `/cso` | OWASP Top 10 + STRIDE security audit。 |
+| `/setup-gbrain` | 设置 gbrain，用于跨机器 session memory sync。 |
+| `/sync-gbrain` | 让 gbrain 与本 repo 代码保持最新；刷新 CLAUDE.md 中的 agent search guidance。 |
 
-### Browser + agent integration
+### 浏览器 + agent 集成
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `/browse` | Headless browser — real Chromium, real clicks, ~100ms/command. |
-| `/open-gstack-browser` | Launch the visible GStack Browser with sidebar + stealth. |
-| `/setup-browser-cookies` | Import cookies from your real browser for authenticated testing. |
-| `/pair-agent` | Pair a remote AI agent (OpenClaw, Codex, etc.) with your browser. |
+| `/browse` | Headless browser：真实 Chromium、真实点击、约 100ms/command。 |
+| `/open-gstack-browser` | 启动带 sidebar + stealth 的可见 GStack Browser。 |
+| `/setup-browser-cookies` | 从真实浏览器导入 cookies，用于 authenticated testing。 |
+| `/pair-agent` | 将远程 AI agent（OpenClaw、Codex 等）与你的浏览器配对。 |
 
-### iOS QA — drive real iPhones over USB or Tailscale (v1.43.0.0+)
+### iOS QA — 通过 USB 或 Tailscale 驱动真实 iPhone（v1.43.0.0+）
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `/ios-qa` | Live-device iOS QA via USB CoreDevice tunnel + embedded StateServer. Optionally exposes the device over Tailscale so remote agents can drive it. |
-| `/ios-fix` | Autonomous iOS bug fixer with regression snapshot capture. |
-| `/ios-design-review` | Designer's-eye QA on a real iPhone — 10-dimension Apple HIG rubric. |
-| `/ios-clean` | Convenience: strip DebugBridge + #if DEBUG wiring before a Release build. |
-| `/ios-sync` | Regenerate the iOS debug bridge against the latest upstream templates. |
+| `/ios-qa` | 通过 USB CoreDevice tunnel + embedded StateServer 做 live-device iOS QA。可选通过 Tailscale 暴露设备，让远程 agents 驱动。 |
+| `/ios-fix` | 自主 iOS bug fixer，带 regression snapshot capture。 |
+| `/ios-design-review` | 在真实 iPhone 上做 designer's-eye QA，使用 10 维 Apple HIG rubric。 |
+| `/ios-clean` | 便利工具：在 Release build 前剥离 DebugBridge + #if DEBUG wiring。 |
+| `/ios-sync` | 根据最新 upstream templates 重新生成 iOS debug bridge。 |
 
-Companion CLIs (run on the Mac that's plugged into the device):
+配套 CLIs（在连接设备的 Mac 上运行）：
 
-| Command | What it does |
+| Command | 作用 |
 |---------|-------------|
-| `gstack-ios-qa-daemon` | Mac-side broker. Loopback by default; `--tailnet` adds a Tailscale-facing listener with capability tiers and audit logging. |
-| `gstack-ios-qa-mint` | Owner-grant CLI for the tailnet allowlist (`grant`/`revoke`/`list`). |
+| `gstack-ios-qa-daemon` | Mac-side broker。默认 loopback；`--tailnet` 增加面向 Tailscale 的 listener，带 capability tiers 和 audit logging。 |
+| `gstack-ios-qa-mint` | tailnet allowlist 的 owner-grant CLI（`grant`/`revoke`/`list`）。 |
 
-End-to-end walkthrough: [docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md).
+端到端 walkthrough：[docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md)。
 
-### Safety + scoping
+### 安全 + 范围
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `/careful` | Warn before destructive commands (rm -rf, DROP TABLE, force-push). |
-| `/freeze` | Lock edits to one directory. Hard block, not just a warning. |
-| `/guard` | Activate both careful + freeze at once. |
-| `/unfreeze` | Remove directory edit restrictions. |
-| `/make-pdf` | Turn any markdown file into a publication-quality PDF. |
+| `/careful` | 在破坏性命令前警告（rm -rf、DROP TABLE、force-push）。 |
+| `/freeze` | 将编辑锁定在一个目录。硬阻止，不只是警告。 |
+| `/guard` | 同时激活 careful + freeze。 |
+| `/unfreeze` | 移除目录编辑限制。 |
+| `/make-pdf` | 将任意 Markdown 文件转成 publication-quality PDF。 |
 
-## Build commands
+## 构建命令
 
 ```bash
-bun install              # install dependencies
-bun test                 # run free tests (no API spend)
-bun run test:windows     # curated Windows-safe subset (runs on windows-latest)
-bun run build            # generate docs + compile binaries
-bun run gen:skill-docs   # regenerate SKILL.md files from templates
-bun run skill:check      # health dashboard for all skills
+bun install              # 安装依赖
+bun test                 # 运行免费测试（无 API 花费）
+bun run test:windows     # 精选 Windows-safe 子集（在 windows-latest 上运行）
+bun run build            # 生成文档并编译 binaries
+bun run gen:skill-docs   # 从模板重新生成 SKILL.md 文件
+bun run skill:check      # 所有 skills 的 health dashboard
 ```
 
-## Platform support
+## 平台支持
 
-- **macOS** + **Linux**: full test suite supported.
-- **Windows**: curated Windows-safe subset runs on `windows-latest` via the
-  `windows-free-tests` CI job. Setup script (`./setup`) requires Git Bash or
-  MSYS today; native PowerShell support is a future expansion. The `bin/gstack-paths`
-  helper resolves state roots through `CLAUDE_PLUGIN_DATA` / `GSTACK_HOME` so plugin
-  installs work on every platform.
+- **macOS** + **Linux**：支持完整测试套件。
+- **Windows**：精选 Windows-safe 子集通过 `windows-free-tests` CI job 在 `windows-latest` 上运行。当前 setup script（`./setup`）需要 Git Bash 或 MSYS；原生 PowerShell 支持是未来扩展。`bin/gstack-paths` helper 通过 `CLAUDE_PLUGIN_DATA` / `GSTACK_HOME` 解析 state roots，因此 plugin install 可在每个平台工作。
 
-## Key conventions
+## 关键约定
 
-- SKILL.md files are **generated** from `.tmpl` templates. Edit the template, not the output.
-- Run `bun run gen:skill-docs --host codex` to regenerate Codex-specific output.
-- The browse binary provides headless browser access. Use `$B <command>` in skills.
-- Safety skills (careful, freeze, guard) use inline advisory prose — always confirm before destructive operations.
-- State paths resolve via `bin/gstack-paths` (sourced via `eval "$(...)"`). Honors `GSTACK_HOME`, `CLAUDE_PLUGIN_DATA`, `CLAUDE_PLANS_DIR`.
-- The `claude` CLI binary resolves via `browse/src/claude-bin.ts` (`Bun.which()` + `GSTACK_CLAUDE_BIN` override). Set `GSTACK_CLAUDE_BIN=wsl` plus `GSTACK_CLAUDE_BIN_ARGS='["claude"]'` to run Claude through WSL on Windows.
+- `SKILL.md` 文件由 `.tmpl` 模板**生成**。编辑模板，不要编辑输出。
+- 运行 `bun run gen:skill-docs --host codex` 可重新生成 Codex-specific 输出。
+- browse binary 提供 headless browser 访问。在 skills 中使用 `$B <command>`。
+- Safety skills（careful、freeze、guard）使用 inline advisory prose；执行破坏性操作前始终确认。
+- State paths 通过 `bin/gstack-paths` 解析（用 `eval "$(...)"` source）。遵循 `GSTACK_HOME`、`CLAUDE_PLUGIN_DATA`、`CLAUDE_PLANS_DIR`。
+- `claude` CLI binary 通过 `browse/src/claude-bin.ts` 解析（`Bun.which()` + `GSTACK_CLAUDE_BIN` override）。在 Windows 上设置 `GSTACK_CLAUDE_BIN=wsl` 加 `GSTACK_CLAUDE_BIN_ARGS='["claude"]'`，可通过 WSL 运行 Claude。

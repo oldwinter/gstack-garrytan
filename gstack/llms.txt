@@ -1,69 +1,69 @@
 # gstack
 
-> gstack is Garry's Stack: AI coding skills + a fast headless browser binary + a design CLI. This file indexes every capability so agents can discover and invoke them without crawling individual SKILL.md files.
+> gstack 是 Garry's Stack：AI coding skills + 快速 headless browser binary + design CLI。本文件索引每项能力，让 agents 无需逐个爬取 SKILL.md files 就能 discover 和 invoke。
 
-Conventions:
-- Skills are invoked by name (e.g. `/ship`, `/plan-ceo-review`).
-- Browse commands run as `browse <command> [args]` (or `$B` shorthand).
-- Design commands run as `design <command> [args]` (or `$D`).
-- Project-specific config lives in `CLAUDE.md`. Always read it first.
+Conventions（约定）：
+- Skills 通过名称调用（例如 `/ship`、`/plan-ceo-review`）。
+- Browse commands 以 `browse <command> [args]` 运行（或使用 `$B` shorthand）。
+- Design commands 以 `design <command> [args]` 运行（或使用 `$D`）。
+- Project-specific config 位于 `CLAUDE.md`。始终先阅读它。
 
 ## Skills
 
-- [/autoplan](autoplan/SKILL.md): Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk and runs them sequentially with auto-decisions using 6 decision principles.
-- [/benchmark](benchmark/SKILL.md): Performance regression detection using the browse daemon.
-- [/benchmark-models](benchmark-models/SKILL.md): Cross-model benchmark for gstack skills.
-- [/browse](browse/SKILL.md): Fast headless browser for QA testing and site dogfooding.
-- [/canary](canary/SKILL.md): Post-deploy canary monitoring.
-- [/careful](careful/SKILL.md): Safety guardrails for destructive commands.
-- [/claude](claude/SKILL.md): Claude Code CLI wrapper for non-Claude hosts - three modes.
-- [/codex](codex/SKILL.md): OpenAI Codex CLI wrapper — three modes.
-- [/context-restore](context-restore/SKILL.md): Restore working context saved earlier by /context-save.
-- [/context-save](context-save/SKILL.md): Save working context.
-- [/cso](cso/SKILL.md): Chief Security Officer mode.
-- [/design-consultation](design-consultation/SKILL.md): Design consultation: understands your product, researches the landscape, proposes a complete design system (aesthetic, typography, color, layout, spacing, motion), and generates font+color preview pages.
-- [/design-html](design-html/SKILL.md): Design finalization: generates production-quality Pretext-native HTML/CSS.
-- [/design-review](design-review/SKILL.md): Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems, AI slop patterns, and slow interactions — then fixes them.
-- [/design-shotgun](design-shotgun/SKILL.md): Design shotgun: generate multiple AI design variants, open a comparison board, collect structured feedback, and iterate.
-- [/devex-review](devex-review/SKILL.md): Live developer experience audit.
-- [/document-generate](document-generate/SKILL.md): Generate missing documentation from scratch for a feature, module, or entire project.
-- [/document-release](document-release/SKILL.md): Post-ship documentation update.
-- [/freeze](freeze/SKILL.md): Restrict file edits to a specific directory for the session.
-- [/gstack](gstack/SKILL.md): Fast headless browser for QA testing and site dogfooding.
-- [/gstack-upgrade](gstack-upgrade/SKILL.md): Upgrade gstack to the latest version.
-- [/guard](guard/SKILL.md): Full safety mode: destructive command warnings + directory-scoped edits.
-- [/health](health/SKILL.md): Code quality dashboard.
-- [/investigate](investigate/SKILL.md): Systematic debugging with root cause investigation.
-- [/ios-clean](ios-clean/SKILL.md): Remove the DebugBridge SPM package and all #if DEBUG wiring from an iOS app.
-- [/ios-design-review](ios-design-review/SKILL.md): Visual design audit for iOS apps on real hardware.
-- [/ios-fix](ios-fix/SKILL.md): Autonomous iOS bug fixer.
-- [/ios-qa](ios-qa/SKILL.md): Live-device iOS QA for SwiftUI apps.
-- [/ios-sync](ios-sync/SKILL.md): Regenerate the iOS debug bridge against the latest upstream gstack templates.
-- [/land-and-deploy](land-and-deploy/SKILL.md): Land and deploy workflow.
-- [/landing-report](landing-report/SKILL.md): Read-only queue dashboard for workspace-aware ship.
-- [/learn](learn/SKILL.md): Manage project learnings.
-- [/make-pdf](make-pdf/SKILL.md): Turn any markdown file into a publication-quality PDF.
-- [/office-hours](office-hours/SKILL.md): YC Office Hours — two modes.
-- [/open-gstack-browser](open-gstack-browser/SKILL.md): Launch GStack Browser — AI-controlled Chromium with the sidebar extension baked in.
-- [/pair-agent](pair-agent/SKILL.md): Pair a remote AI agent with your browser.
+- [/autoplan](autoplan/SKILL.md): Auto-review pipeline：从磁盘读取完整 CEO、design、eng 和 DX review skills， 并用 6 条 decision principles 顺序运行、自动决策。在 final approval gate 呈现 taste decisions（close approaches、borderline scope、codex disagreements）。 一条命令输入 rough plan，输出 fully reviewed plan。 适用于用户要求 "auto review"、"autoplan"、"run all reviews"、 "review this plan automatically" 或 "make the decisions for me"。 当用户有 plan file，并希望跑完整 review gauntlet、但不想回答 15-30 个中间问题时， 主动建议使用。（gstack）
+- [/benchmark](benchmark/SKILL.md): 使用 browse daemon 做 Performance regression detection。为 page load times、 Core Web Vitals 和 resource sizes 建立 baselines。每个 PR 都做 before/after 对比。 追踪 performance trends。适用于："performance"、"benchmark"、"page speed"、 "lighthouse"、"web vitals"、"bundle size"、"load time"。（gstack）
+- [/benchmark-models](benchmark-models/SKILL.md): gstack skills 的 cross-model benchmark。将同一个 prompt 并排跑过 Claude、 GPT（通过 Codex CLI）和 Gemini，对比 latency、tokens、cost，并可选通过 LLM judge 评估 quality。用数据而不是 vibes 回答 "which model is actually best for this skill?"。 与测量 web page performance 的 /benchmark 分开。适用于："benchmark models"、 "compare models"、"which model is best for X"、"cross-model comparison"、 "model shootout"。（gstack）
+- [/browse](browse/SKILL.md): 用于 QA testing 和 site dogfooding 的快速 headless browser。可 navigate 任意 URL、 interact with elements、verify page state、diff actions 前后变化、截图并标注、 检查 responsive layouts、测试 forms 和 uploads、处理 dialogs，并 assert element states。 每条 command 约 100ms。当你需要测试 feature、验证 deployment、dogfood user flow， 或带 evidence 提交 bug 时使用。当用户要求 "open in browser"、"test the site"、 "take a screenshot" 或 "dogfood this" 时使用。（gstack）
+- [/canary](canary/SKILL.md): Post-deploy canary monitoring。使用 browse daemon 监控 live app 的 console errors、 performance regressions 和 page failures。定期截图，与 pre-deploy baselines 对比， 并在 anomalies 上 alert。适用于："monitor deploy"、"canary"、"post-deploy check"、 "watch production"、"verify deploy"。（gstack）
+- [/careful](careful/SKILL.md): 破坏性命令的安全护栏.
+- [/claude](claude/SKILL.md): 面向 non-Claude hosts 的 Claude Code CLI wrapper - 三种模式。Review：通过 claude -p 做 independent diff review。Challenge：adversarial failure-mode review。Consult：用 read-only file tools 询问 Claude 关于 repo 的问题。 当用户要求 "claude review"、"claude challenge"、"ask claude"、 "second opinion from claude" 或 "outside voice" 时使用。(gstack)
+- [/codex](codex/SKILL.md): OpenAI Codex CLI wrapper - 三种模式。Code review：通过 codex review 做独立 diff review， 带 pass/fail gate。Challenge：尝试打破你代码的 adversarial mode。Consult：向 codex 提问， 并为 follow-ups 保持 session continuity。 "200 IQ autistic developer" second opinion。当用户要求 "codex review"、 "codex challenge"、"ask codex"、"second opinion" 或 "consult codex" 时使用。 (gstack)
+- [/context-restore](context-restore/SKILL.md): 恢复先前由 /context-save 保存的工作上下文。默认加载所有 branches 中最近保存的 state，让你可以从中断处继续，甚至跨 Conductor workspace handoffs 也可以。 当用户要求 "resume"、"restore context"、"where was I" 或 "pick up where I left off" 时使用。与 /context-save 配套使用。 以前叫 /checkpoint resume；因为当前环境中 Claude Code 会把 /checkpoint 当作 native rewind alias，所以已重命名。（gstack）
+- [/context-save](context-save/SKILL.md): 保存工作上下文。捕获 git state、已做决策和 remaining work，让未来任意 session 都能不中断节奏地接上。 当用户要求 "save progress"、"save state"、"context save" 或 "save my work" 时使用。与 /context-restore 配套，用于之后恢复。 以前叫 /checkpoint；因为当前环境中 Claude Code 会把 /checkpoint 当作 native rewind alias，遮蔽了这个 skill，所以已重命名。（gstack）
+- [/cso](cso/SKILL.md): Chief Security Officer mode。Infrastructure-first security audit：secrets archaeology、 dependency supply chain、CI/CD pipeline security、LLM/AI security、skill supply chain scanning，外加 OWASP Top 10、STRIDE threat modeling 和 active verification。 两种模式：daily（zero-noise，8/10 confidence gate）和 comprehensive（monthly deep scan，2/10 bar）。跨 audit runs 做 trend tracking。 当用户要求 "security audit"、"threat model"、"pentest review"、"OWASP"、"CSO review" 时使用。 (gstack)
+- [/design-consultation](design-consultation/SKILL.md): Design consultation：理解你的产品，研究 landscape，提出完整 design system （aesthetic、typography、color、layout、spacing、motion），并生成 font+color preview pages。 创建 DESIGN.md 作为项目的 design source of truth。对现有站点，请改用 /plan-design-review 推断系统。 当用户要求 "design system"、"brand guidelines" 或 "create DESIGN.md" 时使用。 当新项目 UI 尚无现有 design system 或 DESIGN.md 时，主动建议使用。 (gstack)
+- [/design-html](design-html/SKILL.md): Design finalization：生成 production-quality Pretext-native HTML/CSS。可使用 /design-shotgun 的 approved mockups、/plan-ceo-review 的 CEO plans、 /plan-design-review 的 design review context，或从用户 description 从零开始。 Text 会真正 reflow，heights 会计算，layouts 是 dynamic。30KB overhead，zero deps。 Smart API routing：为每种 design type 选择正确的 Pretext patterns。当用户说 "finalize this design"、"turn this into HTML"、"build me a page"、 "implement this design"，或任何 planning skill 之后使用。 当用户已 approve design 或已有 plan ready 时主动建议使用。(gstack)
+- [/design-review](design-review/SKILL.md): Designer's eye QA：发现 visual inconsistency、spacing issues、hierarchy problems、 AI slop patterns 和 slow interactions，然后修复它们。在 source code 中迭代修复 issues， 每个 fix 都 atomic commit，并用 before/after screenshots 重新验证。Plan-mode design review （implementation 前）请使用 /plan-design-review。 当用户要求 "audit the design"、"visual QA"、"check if it looks good" 或 "design polish" 时使用。 当用户提到 visual inconsistencies，或想 polish live site 的外观时，主动建议使用。 (gstack)
+- [/design-shotgun](design-shotgun/SKILL.md): Design shotgun：生成多个 AI design variants，打开 comparison board，收集 structured feedback，并迭代。可随时运行的 standalone design exploration。当用户说 "explore designs"、"show me options"、"design variants"、"visual brainstorm" 或 "I don't like how this looks" 时使用。 当用户描述 UI feature 但还没看到它可能长什么样时，主动建议使用。(gstack)
+- [/devex-review](devex-review/SKILL.md): Live developer experience audit。使用 browse tool 实际 TEST developer experience： navigate docs、尝试 getting started flow、计时 TTHW、截图 error messages、 评估 CLI help text。产出带 evidence 的 DX scorecard。如果存在 /plan-devex-review scores，则进行对比（boomerang：plan 说 3 分钟，reality 是 8 分钟）。 当用户要求 "test the DX"、"DX audit"、"developer experience test" 或 "try the onboarding" 时使用。Shipping developer-facing feature 后主动建议。（gstack）
+- [/document-generate](document-generate/SKILL.md): 为 feature、module 或整个 project 从零生成缺失文档。使用 Diataxis framework （tutorial / how-to / reference / explanation）产出完整、结构化 documentation。 可 standalone 调用，也可在 /document-release 发现 coverage gaps 时由它调用。 当用户要求 "write docs"、"generate documentation"、"document this feature"、 "create a tutorial" 或 "explain this module" 时使用。（gstack）
+- [/document-release](document-release/SKILL.md): Post-ship documentation update。读取所有 project docs，与 diff 交叉核对， 构建 Diataxis coverage map（reference/how-to/tutorial/explanation），更新 README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md 以匹配已 shipped 内容，检测 architecture diagram drift，用 sell-test rubric polish CHANGELOG voice， 清理 TODOS，并可选 bump VERSION。在 PR body 中呈现 documentation debt。 适用于用户要求 "update the docs"、"sync documentation" 或 "post-ship docs"。 PR merged 或 code shipped 后主动建议使用。（gstack）
+- [/freeze](freeze/SKILL.md): 将本 session 的文件编辑限制在指定目录内.
+- [/gstack](gstack/SKILL.md): 用于 QA testing 和 site dogfooding 的快速 headless browser.
+- [/gstack-upgrade](gstack-upgrade/SKILL.md): 将 gstack 升级到最新版本。检测 global vs vendored install，执行 upgrade， 并展示 what's new。当用户要求 "upgrade gstack"、"update gstack" 或 "get latest version" 时使用。
+- [/guard](guard/SKILL.md): 完整 safety mode：破坏性命令警告 + 目录范围内编辑.
+- [/health](health/SKILL.md): Code quality dashboard。包装 existing project tools（type checker、linter、 test runner、dead code detector、shell linter），计算 weighted composite 0-10 分， 并追踪长期趋势。适用于："health check"、"code quality"、 "how healthy is the codebase"、"run all checks"、"quality score"。（gstack）
+- [/investigate](investigate/SKILL.md): 带 root cause investigation 的系统化 debugging。四个阶段：investigate、 analyze、hypothesize、implement。Iron Law：没有 root cause 就不修。 当用户要求 "debug this"、"fix this bug"、"why is this broken"、 "investigate this error" 或 "root cause analysis" 时使用。 当用户报告 errors、500 errors、stack traces、unexpected behavior、 "it was working yesterday"，或正在排查某物为何停止工作时，主动调用此 skill （不要直接 debug）。（gstack）
+- [/ios-clean](ios-clean/SKILL.md): 从 iOS app 中移除 DebugBridge SPM package 和所有 #if DEBUG wiring。 清理 StateServer、DebugOverlay、accessor codegen output，以及 /ios-qa 安装的 app-side hooks。这是 convenience wrapper；structural Release-build guard （Package.swift conditional + CI swift build -c release check）才是 safety-critical path。 当用户要求 "clean the iOS debug bridge"、"remove DebugBridge" 或 "strip the gstack iOS instrumentation" 时使用。（gstack）
+- [/ios-design-review](ios-design-review/SKILL.md): 在真实硬件上对 iOS apps 做 visual design audit。通过与 /ios-qa 相同的 StateServer 连接真实 iPhone，截图每个 screen，并根据 Apple HIG、DESIGN.md 和 design best practices 评估。每个 dimension 0-10 评分，并用 "what would make it a 10" framing：对应 browser 版 /plan-design-review。 Plan-stage design review（implementation 前）使用 /plan-design-review； live web visual audits 使用 /design-review。 当用户要求 "review the iOS design"、"audit the iPhone app's visuals" 或 "design QA the iOS app" 时使用。（gstack）
+- [/ios-fix](ios-fix/SKILL.md): Autonomous iOS bug fixer。接收 /ios-qa 发现的 bug，读取 source、写入 fix、 rebuild、redeploy，并在真实 device 上验证 fix。闭环：find bug -> fix bug -> confirm fix， 零 human intervention。捕获 pre-bug state snapshot 作为 regression test fixture， 让 bug 不能 silent recur。当 /ios-qa 报告 bug 且你希望自动修复，或用户要求 "fix this iOS bug"、"patch the iPhone app"、"auto-fix the iOS issue" 时使用。（gstack）
+- [/ios-qa](ios-qa/SKILL.md): 面向 SwiftUI app 的真机 iOS QA。通过 USB CoreDevice IPv6 tunnel 连接 真实 iPhone，读取 Swift source 以理解每个 screen，然后运行 vision-driven agent loop：screenshot → analyze → decide → act → verify → repeat。 所有交互都通过 HTTP 发送到被测 app 内嵌的 StateServer。可选通过 Tailscale 暴露设备，让 remote agents（OpenClaw、Codex、任何支持 HTTP 的 agent）无需接触硬件，也能从任意位置运行 iOS QA。 当用户要求 "ios qa"、"test my iPhone app"、"find bugs on the device" 或 "qa the iOS app" 时使用。 (gstack)
+- [/ios-sync](ios-sync/SKILL.md): 基于最新 upstream gstack templates 重新生成 iOS debug bridge。更新 StateServer.swift、DebugOverlay.swift、Package.swift，以及 typed @Observable state accessors。在升级 gstack 后，或添加需要 accessor coverage 的新 ViewModels/properties 后使用。当用户要求 "resync the iOS debug bridge"、 "regenerate iOS accessors" 或 "update the gstack iOS instrumentation" 时使用。（gstack）
+- [/land-and-deploy](land-and-deploy/SKILL.md): Land and deploy workflow。Merge PR，等待 CI 和 deploy， 通过 canary checks 验证 production health。接手 /ship 创建 PR 之后的流程。 当用户要求 "merge", "land", "deploy", "merge and verify", "land it", "ship it to production".
+- [/landing-report](landing-report/SKILL.md): workspace-aware ship 的 read-only queue dashboard。展示当前哪些 VERSION slots 已被 open PRs claim、哪些 sibling Conductor workspaces 有可能即将 ship 的 WIP work， 以及 /ship 下一步会选择哪个 slot。无 mutations：只是 snapshot。 当用户要求 "landing report"、"what's in the queue"、"show me open PRs" 或 "which version do I claim next" 时使用。（gstack）
+- [/learn](learn/SKILL.md): 管理 project learnings。Review、search、prune 并 export gstack 跨 sessions 学到的内容。当用户要求 "what have we learned"、"show learnings"、 "prune stale learnings" 或 "export learnings" 时使用。 当用户询问 past patterns，或疑惑 "didn't we fix this before?" 时主动建议。
+- [/make-pdf](make-pdf/SKILL.md): 将任意 markdown file 转成 publication-quality PDF。包含正确的 1in margins、 智能 page breaks、page numbers、cover pages、running headers、curly quotes 和 em dashes、clickable TOC、diagonal DRAFT watermark。不是 draft artifact， 而是 finished artifact。当用户要求 "make a PDF"、"export to PDF"、 "turn this markdown into a PDF" 或 "generate a document" 时使用。（gstack）
+- [/office-hours](office-hours/SKILL.md): YC Office Hours - 两种模式.
+- [/open-gstack-browser](open-gstack-browser/SKILL.md): 启动 GStack Browser：内置 sidebar extension、由 AI 控制的 Chromium。 打开 visible browser window，让你可以实时观看每个 action。 Sidebar 显示 live activity feed 和 chat。内置 anti-bot stealth。 当用户要求 "open gstack browser"、"launch browser"、"connect chrome"、 "open chrome"、"real browser"、"launch chrome"、"side panel" 或 "control my browser" 时使用。
+- [/pair-agent](pair-agent/SKILL.md): 将 remote AI agent 与你的 browser 配对。一个 command 会生成 setup key，并打印 另一个 agent 可遵循的连接 instructions。适用于 OpenClaw、Hermes、Codex、Cursor， 或任何能发 HTTP requests 的 agent。Remote agent 会获得自己的 tab 和 scoped access （默认 read+write，可按需 admin）。当用户要求 "pair agent"、"connect agent"、 "share browser"、"remote browser"、"let another agent use my browser" 或 "give browser access" 时使用。（gstack）
 - [/plan-ceo-review](plan-ceo-review/SKILL.md): CEO/founder-mode plan review.
-- [/plan-design-review](plan-design-review/SKILL.md): Designer's eye plan review — interactive, like CEO and Eng review.
-- [/plan-devex-review](plan-devex-review/SKILL.md): Interactive developer experience plan review.
-- [/plan-eng-review](plan-eng-review/SKILL.md): Eng manager-mode plan review.
-- [/plan-tune](plan-tune/SKILL.md): Self-tuning question sensitivity + developer psychographic for gstack (v1: observational).
-- [/qa](qa/SKILL.md): Systematically QA test a web application and fix bugs found.
-- [/qa-only](qa-only/SKILL.md): Report-only QA testing.
-- [/retro](retro/SKILL.md): Weekly engineering retrospective.
+- [/plan-design-review](plan-design-review/SKILL.md): Designer's eye plan review - 交互式，类似 CEO 和 Eng review。 对每个 design dimension 按 0-10 评分，解释怎样才能到 10 分， 然后修正 plan 让它到达那里。适用于 plan mode。Live site visual audits 请使用 /design-review。当用户要求 "review the design plan" 或 "design critique" 时使用。 当用户的 plan 包含应在 implementation 前 review 的 UI/UX components 时，主动建议使用。 (gstack)
+- [/plan-devex-review](plan-devex-review/SKILL.md): 交互式 developer experience plan review。评分前先探索 developer personas、 与竞品 benchmark、设计 magical moments，并追踪 friction points。三种模式： DX EXPANSION（competitive advantage）、DX POLISH（让每个 touchpoint bulletproof）、 DX TRIAGE（只看 critical gaps）。 当用户要求 "DX review"、"developer experience audit"、"devex review" 或 "API design review" 时使用。 当用户有面向开发者产品（APIs、CLIs、SDKs、libraries、platforms、docs）的 plan 时， 主动建议使用。(gstack)
+- [/plan-eng-review](plan-eng-review/SKILL.md): Eng manager-mode plan review。锁定执行计划：architecture、data flow、diagrams、 edge cases、test coverage、performance.
+- [/plan-tune](plan-tune/SKILL.md): 面向 gstack 的 self-tuning question sensitivity + developer psychographic（v1: observational）。 审查哪些 AskUserQuestion prompts 会在 gstack skills 中触发，设置 per-question preferences（never-ask / always-ask / ask-only-for-one-way），检查 dual-track profile（你声明的偏好 vs 行为暗示的偏好），并启用/禁用 question tuning。 Conversational interface，不要求 CLI syntax。 当用户要求 "tune questions"、"stop asking me that"、"too many questions"、 "show my profile"、"what questions have I been asked"、"show my vibe"、 "developer profile" 或 "turn off question tuning" 时使用。(gstack) 当用户说同一个 gstack question 之前已经出现过，或第 N 次明确 override recommendation 时，主动建议使用。
+- [/qa](qa/SKILL.md): 系统化 QA test 一个 web application，并修复发现的 bugs.
+- [/qa-only](qa-only/SKILL.md): Report-only QA testing。系统化测试 web application，并产出包含 health score、 screenshots 和 repro steps 的 structured report，但绝不修复任何东西。 当用户要求 "just report bugs"、"qa report only" 或 "test but don't fix" 时使用。 完整 test-fix-verify loop 请改用 /qa。当用户想要 bug report 且不希望有任何代码变更时主动建议。（gstack）
+- [/retro](retro/SKILL.md): 每周 engineering retrospective。分析 commit history、work patterns 和 code quality metrics，并带有 persistent history 与 trend tracking。 Team-aware：按成员拆解 contributions、praise 和 growth areas。 当用户要求 "weekly retro"、"what did we ship" 或 "engineering retrospective" 时使用。在 work week 或 sprint 结束时主动建议使用。 (gstack)
 - [/review](review/SKILL.md): Pre-landing PR review.
-- [/scrape](scrape/SKILL.md): Pull data from a web page.
-- [/setup-browser-cookies](setup-browser-cookies/SKILL.md): Import cookies from your real Chromium browser into the headless browse session.
-- [/setup-deploy](setup-deploy/SKILL.md): Configure deployment settings for /land-and-deploy.
-- [/setup-gbrain](setup-gbrain/SKILL.md): Set up gbrain for this coding agent: install the CLI, initialize a local PGLite or Supabase brain, register MCP, capture per-remote trust policy.
-- [/ship](ship/SKILL.md): Ship workflow: detect + merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR.
-- [/skillify](skillify/SKILL.md): Codify the most recent successful /scrape flow into a permanent browser-skill on disk.
-- [/spec](spec/SKILL.md): Turn vague intent into a precise, executable spec in five phases.
-- [/sync-gbrain](sync-gbrain/SKILL.md): Keep gbrain current with this repo's code and refresh agent search guidance in CLAUDE.md.
-- [/unfreeze](unfreeze/SKILL.md): Clear the freeze boundary set by /freeze, allowing edits to all directories again.
+- [/scrape](scrape/SKILL.md): 从 web page 拉取数据。对新 intent 的首次调用会通过 $B primitives prototype flow， 并返回 JSON。后续匹配同一 intent 的调用会 route 到 codified browser-skill， 约 200ms 返回。Read-only：mutating flows（form fills、clicks、submissions） 请使用 /automate。当用户要求 "scrape"、"get data from"、"pull"、 "extract from" 或 "what's on" 某 page 时使用。（gstack）
+- [/setup-browser-cookies](setup-browser-cookies/SKILL.md): 将你真实 Chromium browser 中的 cookies 导入 headless browse session。 打开 interactive picker UI，让你选择要导入哪些 cookie domains。 在 QA testing authenticated pages 前使用。当用户要求 "import cookies"、 "login to the site" 或 "authenticate the browser" 时使用。（gstack）
+- [/setup-deploy](setup-deploy/SKILL.md): 为 /land-and-deploy 配置部署设置。检测你的 deploy platform（Fly.io、Render、 Vercel、Netlify、Heroku、GitHub Actions、custom）、production URL、 health check endpoints 和 deploy status commands。将配置写入 CLAUDE.md， 让后续 deploy 自动化。 当用户说 "setup deploy"、"configure deployment"、"set up land-and-deploy"、 "how do I deploy with gstack"、"add deploy config" 时使用。
+- [/setup-gbrain](setup-gbrain/SKILL.md): 为这个 coding agent 设置 gbrain：安装 CLI、初始化 local PGLite 或 Supabase brain、注册 MCP，并记录 per-remote trust policy。一条命令从零到 "gbrain 正在运行，并且这个 agent 可以调用它"。适用于："setup gbrain"、 "connect gbrain"、"start gbrain"、"install gbrain"、 "configure gbrain for this machine"。（gstack）
+- [/ship](ship/SKILL.md): Ship workflow.
+- [/skillify](skillify/SKILL.md): 将最近一次 successful /scrape flow codify 成磁盘上的 permanent browser-skill。 之后相同 intent 的 /scrape calls 会运行 codified script，约 200ms 返回， 而不是重新驱动 page。回溯 conversation，合成 script.ts + script.test.ts + fixture， 在 temp dir 中运行 test，并在 committing 前询问用户。 当用户要求 "skillify"、"codify"、"save this scrape" 或 "make this permanent" 时使用。（gstack）
+- [/spec](spec/SKILL.md): 用五个 phase 将模糊意图转成 precise、executable spec.
+- [/sync-gbrain](sync-gbrain/SKILL.md): 让 gbrain 与此 repo 的代码保持同步，并刷新 CLAUDE.md 中的 agent search guidance。 包装 gstack-gbrain-sync orchestrator，包含 state probing、native code-surface registration、capability checks 和 verdict block。可重复运行，idempotent。 当用户说 "sync gbrain"、"refresh gbrain"、"re-index this repo"、 "gbrain search isn't finding things" 时使用。（gstack）
+- [/unfreeze](unfreeze/SKILL.md): 清除 /freeze 设置的 freeze boundary.
 
 ## Browse Commands
 
@@ -71,24 +71,24 @@ Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 
 ### Extraction
 - `archive [path]`: Save complete page as MHTML via CDP
-- `download <url|@ref> [path] [--base64] [--navigate]`: Download URL or media element to disk using browser cookies.
+- `download <url|@ref> [path] [--base64] [--navigate]`: 使用 browser cookies 将 URL 或 media element 下载到 disk。对会触发 browser downloads 的 URLs 使用 --navigate（CDN redirects、Content-Disposition、anti-bot protected sites）
 - `scrape <images|videos|media> [--selector sel] [--dir path] [--limit N]`: Bulk download all media from page.
 
 ### Inspection
 - `attrs <sel|@ref>`: Element attributes as JSON
-- `cdp <Domain.method> [json-params]`: Raw Chrome DevTools Protocol method dispatch.
+- `cdp <Domain.method> [json-params]`: Raw Chrome DevTools Protocol method dispatch。Deny-default：只有 `browse/src/cdp-allowlist.ts`（CDP_ALLOWLIST const）列出的 methods 可访问；其他 method 都返回 403。每个 allowlist entry 声明 scope（tab vs browser）和 output（trusted vs untrusted）— untrusted methods（data-exfil-shaped，例如 Network.getResponseBody）会用 UNTRUSTED-envelope 包裹输出。要发现 allowed methods，请阅读 `browse/src/cdp-allowlist.ts`。Example: `$B cdp Page.getLayoutMetrics`。
 - `console [--clear|--errors]`: Console messages (--errors filters to error/warning)
 - `cookies`: All cookies as JSON
 - `css <sel> <prop>`: Computed CSS value
 - `dialog [--clear]`: Dialog messages
-- `eval <file>`: Run JavaScript from a file in the page context and return result as string.
+- `eval <file>`: 在 page context 中从 file 运行 JavaScript，并以 string 返回结果。Path 必须 resolve 到 /tmp 或 cwd 下（禁止 traversal）。multi-line scripts 用 eval；one-liners 用 js。
 - `inspect [selector] [--all] [--history]`: Deep CSS inspection via CDP — full rule cascade, box model, computed styles
 - `is <prop> <sel|@ref>`: State check on element.
-- `js <expr>`: Run inline JavaScript expression in the page context and return result as string.
+- `js <expr>`: 在 page context 中运行 inline JavaScript expression，并以 string 返回结果。与 eval 使用相同 JS sandbox；区别只是 js 接收 inline expr，而 eval 从 file 读取。
 - `network [--clear]`: Network requests
 - `perf`: Page load timings
 - `storage  |  storage set <key> <value>`: Read both localStorage and sessionStorage as JSON.
-- `ux-audit`: Extract page structure for UX behavioral analysis — site ID, nav, headings, text blocks, interactive elements.
+- `ux-audit`: 抽取 page structure 供 UX behavioral analysis 使用 — site ID、nav、headings、text blocks、interactive elements。返回 JSON 供 agent interpretation。
 
 ### Interaction
 - `cleanup [--ads] [--cookies] [--sticky] [--social] [--all]`: Remove page clutter (ads, cookie banners, sticky elements, social widgets)
@@ -96,13 +96,13 @@ Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 - `cookie <name>=<value>`: Set cookie on current page domain
 - `cookie-import <json>`: Import cookies from JSON file
 - `cookie-import-browser [browser] [--domain d]`: Import cookies from installed Chromium browsers (opens picker, or use --domain for direct import)
-- `dialog-accept [text]`: Auto-accept next alert/confirm/prompt.
+- `dialog-accept [text]`: 自动接受下一次 alert/confirm/prompt；可选 text 会作为 prompt response 发送
 - `dialog-dismiss`: Auto-dismiss next dialog
 - `fill <sel> <val>`: Fill input
 - `header <name>:<value>`: Set custom request header (colon-separated, sensitive values auto-redacted)
 - `hover <sel>`: Hover element
 - `press <key>`: Press a Playwright keyboard key against the focused element.
-- `scroll [sel|@ref]`: With a selector, smooth-scrolls the element into view.
+- `scroll [sel|@ref]`: 带 selector 时，将元素平滑滚入视图；不带 selector 时跳到页面底部。没有 --by/--to amount option；需要像素级精确滚动时使用 `js window.scrollTo(0, N)`。
 - `select <sel> <val>`: Select dropdown option by value, label, or visible text
 - `style <sel> <prop> <value> | style --undo [N]`: Modify CSS property on element (with undo support)
 - `type <text>`: Type into focused element
@@ -112,11 +112,11 @@ Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 - `wait <sel|--networkidle|--load>`: Wait for element, network idle, or page load (timeout: 15s)
 
 ### Meta
-- `chain  (JSON via stdin)`: Run a sequence of commands from JSON on stdin.
-- `domain-skill save|list|show|edit|promote-to-global|rollback|rm <host?>`: Per-site notes the agent writes for itself.
+- `chain  (JSON via stdin)`: 从 stdin 的 JSON 运行一串 commands。输入是一个 JSON array of arrays，每个 inner array 为 [cmd, ...args]。每个 command 输出一个 JSON result。将 JSON array（例如 `[["goto","https://example.com"],["text","h1"]]`）pipe 给 `$B chain`，它会依次运行 goto 和 text command。遇到第一个 error 即停止。
+- `domain-skill save|list|show|edit|promote-to-global|rollback|rm <host?>`: agent 写给自己的 per-site notes。Host 从 active tab 推导。Lifecycle：`save` 添加 quarantined note → N=3 次 successful uses 且未被 prompt-injection classifier 标记后，note 自动 promote 为 "active" → `promote-to-global` 提升到 global tier（machine-wide，all projects）。classifier flag 由 L4 prompt-injection scan 自动设置；agents 不手动设置。用 `list` / `show` inspect，`edit` revise，`rollback` demote，`rm` tombstone。
 - `frame <sel|@ref|--name n|--url pattern|main>`: Switch to iframe context (or main to return)
 - `inbox [--clear]`: List messages from sidebar scout inbox
-- `skill list|show|run|test|rm <name?> [--arg k=v]... [--timeout=Ns]`: Run a browser-skill: deterministic Playwright script that drives the daemon over loopback HTTP.
+- `skill list|show|run|test|rm <name?> [--arg k=v]... [--timeout=Ns]`: 运行 browser-skill：deterministic Playwright script，通过 loopback HTTP 驱动 daemon。3-tier lookup（project > global > bundled）。Spawned scripts 获得 per-spawn scoped token（仅 read+write），绝不会拿到 daemon root token。
 - `watch [stop]`: Passive observation — periodic snapshots while user browses
 
 ### Navigation
@@ -149,7 +149,7 @@ Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 - `stop`: Shutdown server
 
 ### Snapshot
-- `snapshot [flags]`: Accessibility tree with @e refs for element selection.
+- `snapshot [flags]`: Accessibility tree，带 @e refs 用于 element selection。Flags: -i interactive only, -c compact, -d N depth limit, -s sel scope, -D diff vs previous, -a annotated screenshot, -o path output, -C cursor-interactive @c refs
 
 ### Tabs
 - `closetab [id]`: Close tab
@@ -161,7 +161,7 @@ Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 ### Visual
 - `diff <url1> <url2>`: Text diff between pages
 - `pdf [path] [--format letter|a4|legal] [--width <dim> --height <dim>] [--margins <dim>] [--margin-top <dim> --margin-right <dim> --margin-bottom <dim> --margin-left <dim>] [--header-template <html>] [--footer-template <html>] [--page-numbers] [--tagged] [--outline] [--print-background] [--prefer-css-page-size] [--toc] [--tab-id <N>]  |  pdf --from-file <payload.json> [--tab-id <N>]`: Save the current page as PDF.
-- `prettyscreenshot [--scroll-to sel|text] [--cleanup] [--hide sel...] [--width px] [path]`: Clean screenshot with optional cleanup, scroll positioning, and element hiding
+- `prettyscreenshot [--scroll-to sel|text] [--cleanup] [--hide sel...] [--width px] [path]`: 生成 clean screenshot，可选 cleanup、scroll positioning 和 element hiding
 - `responsive [prefix]`: Screenshots at mobile (375x812), tablet (768x1024), desktop (1280x720).
 - `screenshot [--selector <css>] [--viewport] [--clip x,y,w,h] [--base64] [selector|@ref] [path]`: Save screenshot.
 

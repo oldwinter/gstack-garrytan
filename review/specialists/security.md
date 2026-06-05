@@ -1,61 +1,61 @@
-# Security Specialist Review Checklist
+# Security Specialist Review Checklist（安全专项审查清单）
 
-Scope: When SCOPE_AUTH=true OR (SCOPE_BACKEND=true AND diff > 100 lines)
-Output: JSON objects, one finding per line. Schema:
+Scope: 当 SCOPE_AUTH=true 或 (SCOPE_BACKEND=true AND diff > 100 lines)
+Output: JSON objects，每行一个 finding。Schema:
 {"severity":"CRITICAL|INFORMATIONAL","confidence":N,"path":"file","line":N,"category":"security","summary":"...","fix":"...","fingerprint":"path:line:security","specialist":"security"}
 Optional: line, fix, fingerprint, evidence, test_stub.
-If no findings: output `NO FINDINGS` and nothing else.
+If no findings: 只输出 `NO FINDINGS`，不要输出其他内容。
 
 ---
 
-This checklist goes deeper than the main CRITICAL pass. The main agent already checks SQL injection, race conditions, LLM trust, and enum completeness. This specialist focuses on auth/authz patterns, cryptographic misuse, and attack surface expansion.
+这份 checklist 比 main CRITICAL pass 更深入。Main agent 已经检查 SQL injection、race conditions、LLM trust 和 enum completeness。该 specialist 专注 auth/authz patterns、cryptographic misuse 和 attack surface expansion。
 
-## Categories
+## Categories（类别）
 
-### Input Validation at Trust Boundaries
-- User input accepted without validation at controller/handler level
-- Query parameters used directly in database queries or file paths
-- Request body fields accepted without type checking or schema validation
-- File uploads without type/size/content validation
-- Webhook payloads processed without signature verification
+### Input Validation at Trust Boundaries（信任边界输入验证）
+- 在 controller/handler 层接受 user input 但没有 validation
+- Query parameters 被直接用于 database queries 或 file paths
+- Request body fields 未经 type checking 或 schema validation 就被接受
+- File uploads 缺少 type/size/content validation
+- Webhook payloads 未经 signature verification 就被处理
 
-### Auth & Authorization Bypass
-- Endpoints missing authentication middleware (check route definitions)
-- Authorization checks that default to "allow" instead of "deny"
-- Role escalation paths (user can modify their own role/permissions)
-- Direct object reference vulnerabilities (user A accesses user B's data by changing an ID)
-- Session fixation or session hijacking opportunities
-- Token/API key validation that doesn't check expiration
+### Auth & Authorization Bypass（认证与授权绕过）
+- Endpoints 缺少 authentication middleware（检查 route definitions）
+- Authorization checks 默认 "allow" 而不是 "deny"
+- Role escalation paths（user 可以修改自己的 role/permissions）
+- Direct object reference vulnerabilities（user A 通过修改 ID 访问 user B 的 data）
+- Session fixation 或 session hijacking opportunities
+- Token/API key validation 未检查 expiration
 
-### Injection Vectors (beyond SQL)
-- Command injection via subprocess calls with user-controlled arguments
-- Template injection (Jinja2, ERB, Handlebars) with user input
-- LDAP injection in directory queries
-- SSRF via user-controlled URLs (fetch, redirect, webhook targets)
-- Path traversal via user-controlled file paths (../../etc/passwd)
-- Header injection via user-controlled values in HTTP headers
+### Injection Vectors（SQL 之外的注入向量）
+- 通过带 user-controlled arguments 的 subprocess calls 产生 command injection
+- 带 user input 的 template injection（Jinja2、ERB、Handlebars）
+- Directory queries 中的 LDAP injection
+- 通过 user-controlled URLs 产生 SSRF（fetch、redirect、webhook targets）
+- 通过 user-controlled file paths 产生 path traversal（../../etc/passwd）
+- 通过 HTTP headers 中的 user-controlled values 产生 header injection
 
-### Cryptographic Misuse
-- Weak hashing algorithms (MD5, SHA1) for security-sensitive operations
-- Predictable randomness (Math.random, rand()) for tokens or secrets
-- Non-constant-time comparisons (==) on secrets, tokens, or digests
-- Hardcoded encryption keys or IVs
-- Missing salt in password hashing
+### Cryptographic Misuse（加密误用）
+- Security-sensitive operations 使用 weak hashing algorithms（MD5、SHA1）
+- Tokens 或 secrets 使用 predictable randomness（Math.random、rand()）
+- Secrets、tokens 或 digests 上使用 non-constant-time comparisons（==）
+- Hardcoded encryption keys 或 IVs
+- Password hashing 缺少 salt
 
-### Secrets Exposure
-- API keys, tokens, or passwords in source code (even in comments)
-- Secrets logged in application logs or error messages
-- Credentials in URLs (query parameters or basic auth in URL)
-- Sensitive data in error responses returned to users
-- PII stored in plaintext when encryption is expected
+### Secrets Exposure（secrets 暴露）
+- Source code 中存在 API keys、tokens 或 passwords（即使在 comments 中）
+- Secrets 被记录到 application logs 或 error messages
+- URLs 中存在 credentials（query parameters 或 URL 中的 basic auth）
+- 返回给 users 的 error responses 中包含 sensitive data
+- 预期需要 encryption 时，PII 以 plaintext 存储
 
-### XSS via Escape Hatches
-- Rails: .html_safe, raw() on user-controlled data
-- React: dangerouslySetInnerHTML with user content
-- Vue: v-html with user content
-- Django: |safe, mark_safe() on user input
-- General: innerHTML assignment with unsanitized data
+### XSS via Escape Hatches（通过 escape hatches 产生 XSS）
+- Rails: 对 user-controlled data 使用 .html_safe、raw()
+- React: 对 user content 使用 dangerouslySetInnerHTML
+- Vue: 对 user content 使用 v-html
+- Django: 对 user input 使用 |safe、mark_safe()
+- General: 用 unsanitized data 赋值 innerHTML
 
-### Deserialization
-- Deserializing untrusted data (pickle, Marshal, YAML.load, JSON.parse of executable types)
-- Accepting serialized objects from user input or external APIs without schema validation
+### Deserialization（反序列化）
+- Deserializing untrusted data（pickle、Marshal、YAML.load、executable types 的 JSON.parse）
+- 未经 schema validation 就接受来自 user input 或 external APIs 的 serialized objects

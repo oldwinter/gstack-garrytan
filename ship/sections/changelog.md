@@ -2,20 +2,20 @@
 <!-- Regenerate: bun run gen:skill-docs -->
 ## Step 13: CHANGELOG (auto-generate)
 
-1. Read `CHANGELOG.md` header to know the format.
+1. 阅读 `CHANGELOG.md` header，了解 format。
 
-2. **First, enumerate every commit on the branch:**
+2. **首先，枚举 branch 上的每个 commit：**
    ```bash
    git log <base>..HEAD --oneline
    ```
-   Copy the full list. Count the commits. You will use this as a checklist.
+   复制完整列表。统计 commits 数量。你会把它当作 checklist。
 
-3. **Read the full diff** to understand what each commit actually changed:
+3. **阅读完整 diff**，理解每个 commit 实际改了什么：
    ```bash
    git diff <base>...HEAD
    ```
 
-4. **Group commits by theme** before writing anything. Common themes:
+4. 写任何内容前，**按 theme 对 commits 分组**。常见 themes：
    - New features / capabilities
    - Performance improvements
    - Bug fixes
@@ -23,23 +23,23 @@
    - Infrastructure / tooling / tests
    - Refactoring
 
-5. **Write the CHANGELOG entry** covering ALL groups:
-   - If existing CHANGELOG entries on the branch already cover some commits, replace them with one unified entry for the new version
-   - Categorize changes into applicable sections:
+5. **编写覆盖所有 groups 的 CHANGELOG entry：**
+   - 如果 branch 上已有 CHANGELOG entries 覆盖了部分 commits，用一个统一的新版本 entry 替换它们
+   - 将 changes 分类到适用 sections：
      - `### Added` — new features
      - `### Changed` — changes to existing functionality
      - `### Fixed` — bug fixes
      - `### Removed` — removed features
-   - Write concise, descriptive bullet points
-   - Insert after the file header (line 5), dated today
-   - Format: `## [X.Y.Z.W] - YYYY-MM-DD`
-   - **Voice:** Lead with what the user can now **do** that they couldn't before. Use plain language, not implementation details. Never mention TODOS.md, internal tracking, or contributor-facing details.
+   - 编写 concise、descriptive bullet points
+   - 插入到 file header 之后（line 5），日期使用 today
+   - Format：`## [X.Y.Z.W] - YYYY-MM-DD`
+   - **Voice:** 以用户现在能 **do** 而此前不能做的事情开头。使用 plain language，不写 implementation details。不要提 TODOS.md、internal tracking 或 contributor-facing details。
 
-6. **Cross-check:** Compare your CHANGELOG entry against the commit list from step 2.
-   Every commit must map to at least one bullet point. If any commit is unrepresented,
-   add it now. If the branch has N commits spanning K themes, the CHANGELOG must
-   reflect all K themes.
+6. **Cross-check:** 将你的 CHANGELOG entry 与第 2 步的 commit list 对比。
+   每个 commit 必须至少映射到一个 bullet point。如果有 commit 未被代表，
+   现在补上。如果 branch 有 N 个 commits，跨 K 个 themes，CHANGELOG 必须
+   反映所有 K 个 themes。
 
-**Do NOT ask the user to describe changes.** Infer from the diff and commit history.
+**不要让用户描述 changes。** 从 diff 和 commit history 中推断。
 
 ---

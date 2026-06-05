@@ -3,12 +3,11 @@ name: document-generate
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Generate missing documentation from scratch for a feature, module, or entire project.
-  Uses the Diataxis framework (tutorial / how-to / reference / explanation) to produce
-  complete, structured documentation. Can be invoked standalone or called by
-  /document-release when it finds coverage gaps. Use when asked to "write docs",
-  "generate documentation", "document this feature", "create a tutorial", or
-  "explain this module". (gstack)
+  为 feature、module 或整个 project 从零生成缺失文档。使用 Diataxis framework
+  （tutorial / how-to / reference / explanation）产出完整、结构化 documentation。
+  可 standalone 调用，也可在 /document-release 发现 coverage gaps 时由它调用。
+  当用户要求 "write docs"、"generate documentation"、"document this feature"、
+  "create a tutorial" 或 "explain this module" 时使用。（gstack）
 allowed-tools:
   - Bash
   - Read
@@ -31,75 +30,72 @@ triggers:
 
 {{BASE_BRANCH_DETECT}}
 
-# Document Generate: Diataxis Documentation Writer
+# Document Generate：Diataxis 文档写作者
 
-You are running the `/document-generate` workflow. Your job: produce **high-quality,
-structured documentation** for features, modules, or an entire project. You research
-the code thoroughly before writing a single line of documentation.
+你正在运行 `/document-generate` workflow。你的工作：为 features、modules 或整个 project
+产出**高质量、结构化 documentation**。在写任何一行 documentation 前，先彻底研究代码。
 
-This skill can be invoked two ways:
-1. **Standalone** — the user points you at a feature, module, or project and says "document this"
-2. **From /document-release** — the coverage map identified gaps; you fill them
+此 skill 有两种调用方式：
+1. **Standalone**：用户指向某个 feature、module 或 project，并说 "document this"
+2. **From /document-release**：coverage map 识别出 gaps；你负责填补
 
-You follow the **Diataxis framework** — four quadrants of documentation, each serving a
-different reader need:
-- **Tutorial** — learning-oriented, walks a newcomer through a working example step-by-step
-- **How-to** — task-oriented, shows how to accomplish a specific goal (assumes basic familiarity)
-- **Reference** — information-oriented, complete and accurate technical description
-- **Explanation** — understanding-oriented, explains why things work the way they do
+你遵循 **Diataxis framework**：documentation 的四个 quadrants，各自服务不同 reader need：
+- **Tutorial**：learning-oriented，逐步带 newcomer 完成 working example
+- **How-to**：task-oriented，展示如何达成 specific goal（假设已有 basic familiarity）
+- **Reference**：information-oriented，完整且准确的技术描述
+- **Explanation**：understanding-oriented，解释为什么 things work the way they do
 
-**Philosophy: research the whole, then write the parts.** Like an architect who surveys the
-entire site before drawing a single room, you read the full codebase surface before writing
-any documentation. This prevents the "documentation that describes half the feature" failure mode.
+**Philosophy：先研究整体，再写局部。**像 architect 在画单个房间前会勘察整块场地一样，
+你在写任何 documentation 前先阅读完整 codebase surface。这能避免
+"documentation that describes half the feature" 这种 failure mode。
 
 ---
 
-## Step 0: Scope & Intent
+## Step 0：Scope & Intent（范围与意图）
 
-1. Determine what to document:
-   - **If invoked with a specific target** (feature, module, file, skill): scope is that target
-   - **If invoked for an entire project**: scope is the full project
-   - **If called from /document-release with gaps**: scope is the specific entities from the coverage map
+1. 确定要 document 什么：
+   - **如果调用时带 specific target**（feature、module、file、skill）：scope 就是该 target
+   - **如果为整个 project 调用**：scope 是 full project
+   - **如果由 /document-release 带 gaps 调用**：scope 是 coverage map 中的 specific entities
 
-2. Use AskUserQuestion to confirm scope and ask about documentation target:
+2. 使用 AskUserQuestion 确认 scope，并询问 documentation target：
 
    - A) Write documentation inline in existing files (README, ARCHITECTURE, etc.)
    - B) Create standalone documentation files (e.g., `docs/` directory)
    - C) Both — inline summaries in existing files + deep docs in standalone files
 
-   RECOMMENDATION: Choose C because it maximizes both discoverability and depth.
+   RECOMMENDATION：选择 C，因为它同时最大化 discoverability 和 depth。
 
-3. Determine the output format:
-   - If the project already has a `docs/` directory, follow its conventions
-   - If the project uses a doc framework (Nextra, Docusaurus, MkDocs, VitePress), follow its format
-   - Otherwise, use plain Markdown files in `docs/`
+3. 确定 output format：
+   - 如果 project 已有 `docs/` directory，遵循其 conventions
+   - 如果 project 使用 doc framework（Nextra、Docusaurus、MkDocs、VitePress），遵循其 format
+   - 否则，在 `docs/` 中使用 plain Markdown files
 
 ---
 
-## Step 1: Codebase Archaeology (Research Phase)
+## Step 1：Codebase Archaeology（代码库考古 / 研究阶段）
 
-**This is the most important step.** Do not skip or rush it. The quality of your documentation
-is directly proportional to how well you understand the code.
+**这是最重要的一步。**不要跳过，也不要赶。Documentation quality 与你对代码的理解深度成正比。
 
-1. **Map the project structure:**
+1. **绘制 project structure：**
 
 ```bash
 find . -type f -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./.gstack/*" -not -path "./dist/*" -not -path "./build/*" -not -path "./.next/*" | head -200
 ```
 
-2. **Read the entry points.** Identify and read:
+2. **阅读 entry points。**识别并阅读：
    - README.md, ARCHITECTURE.md, CONTRIBUTING.md, CLAUDE.md / AGENTS.md
-   - package.json / Cargo.toml / pyproject.toml / go.mod (understand the project type)
-   - Main entry files (index.ts, main.rs, app.py, cmd/main.go)
-   - Configuration files and examples
+   - package.json / Cargo.toml / pyproject.toml / go.mod（理解 project type）
+   - Main entry files（index.ts、main.rs、app.py、cmd/main.go）
+   - Configuration files 和 examples
 
-3. **Read the source code for each target entity.** For each feature/module you're documenting:
-   - Read the implementation files end-to-end (not just signatures)
-   - Read the tests — they reveal intended behavior, edge cases, and usage patterns
-   - Read related modules that the target depends on or is depended upon by
-   - Read any existing inline comments, especially `// NOTE:`, `// DESIGN:`, `// WHY:`
+3. **阅读每个 target entity 的 source code。**对你要 documenting 的每个 feature/module：
+   - 端到端阅读 implementation files（不要只看 signatures）
+   - 阅读 tests：它们揭示 intended behavior、edge cases 和 usage patterns
+   - 阅读 target 依赖或依赖 target 的 related modules
+   - 阅读任何 existing inline comments，尤其是 `// NOTE:`、`// DESIGN:`、`// WHY:`
 
-4. **Build a concept map.** Before writing, produce an internal outline:
+4. **构建 concept map。**写作前，先产出 internal outline：
 
 ```
 Target: [feature/module name]
@@ -112,27 +108,27 @@ Edge cases: [from reading tests and code]
 Design decisions: [any non-obvious "why" choices]
 ```
 
-5. Output: "Researched N files, identified K public surface items, M concepts, and J design decisions."
+5. 输出："已研究 N 个 files，识别 K 个 public surface items、M 个 concepts 和 J 个 design decisions。"
 
 ---
 
-## Step 2: Diataxis Partitioning
+## Step 2：Diataxis Partitioning（Diataxis 分区）
 
-For each target entity, decide which Diataxis quadrants to produce. Not every entity needs all four.
+对每个 target entity，决定要产出哪些 Diataxis quadrants。不是每个 entity 都需要四类全有。
 
-**Decision matrix:**
+**Decision matrix（决策矩阵）：**
 
-| Entity type | Tutorial? | How-to? | Reference? | Explanation? |
+| Entity type（实体类型） | Tutorial? | How-to? | Reference? | Explanation? |
 |---|---|---|---|---|
-| New feature a user interacts with | ✅ | ✅ | ✅ | Maybe |
-| CLI command or flag | Maybe | ✅ | ✅ | No |
+| 用户会交互的新 feature | ✅ | ✅ | ✅ | Maybe |
+| CLI command 或 flag | Maybe | ✅ | ✅ | No |
 | Internal module/architecture | No | No | ✅ | ✅ |
 | Config option | No | ✅ | ✅ | No |
 | Design pattern / philosophy | No | No | No | ✅ |
 | API endpoint | Maybe | ✅ | ✅ | No |
-| Workflow (multi-step process) | ✅ | ✅ | No | Maybe |
+| Workflow（multi-step process） | ✅ | ✅ | No | Maybe |
 
-Output the partition plan:
+输出 partition plan：
 
 ```
 Documentation plan:
@@ -142,96 +138,92 @@ Documentation plan:
   Bayesian scheduler    ❌        ❌       ✅ new      ✅ new
 ```
 
-If the plan has more than 5 documents to create, use AskUserQuestion to confirm before proceeding.
-For smaller scopes, proceed directly.
+如果 plan 要创建超过 5 份 documents，继续前用 AskUserQuestion 确认。
+对于较小 scopes，直接继续。
 
 ---
 
-## Step 3: Write Reference Documentation First
+## Step 3：先写 Reference Documentation（参考文档）
 
-Reference docs are the foundation. They are factual, complete, and derived directly from code.
-Write these before tutorials or how-tos because they establish the vocabulary.
+Reference docs 是基础。它们 factual、complete，并直接从 code 派生。
+先于 tutorials 或 how-tos 编写它们，因为它们建立 vocabulary。
 
-**Reference doc template:**
+**Reference doc template（参考文档模板）：**
 
 ```markdown
 # [Entity Name]
 
-[One paragraph: what it is, what it does, when you'd use it.]
+[一段话：它是什么、做什么、什么时候会用到它。]
 
-## API / Interface
+## API / Interface（API / 接口）
 
-[Complete listing of public surface: functions, commands, config options, parameters.
-Include types, defaults, and constraints. Pull directly from code — do not paraphrase
-loosely.]
+[完整列出 public surface：functions、commands、config options、parameters。
+包含 types、defaults 和 constraints。直接从 code 提取，不要宽泛 paraphrase。]
 
-## Options / Configuration
+## 选项 / 配置（Options / Configuration）
 
-[If applicable: every option with its type, default, and effect.]
+[如适用：每个 option 及其 type、default 和 effect。]
 
-## Examples
+## Examples（示例）
 
-[2-3 concrete examples showing actual usage. Prefer real command output or code that
-would actually compile/run.]
+[2-3 个展示实际 usage 的具体 examples。优先使用真实 command output，或确实能
+compile/run 的 code。]
 
-## Related
+## Related（相关文档）
 
-[Links to other reference docs, how-tos, or explanations that provide context.]
+[链接到提供 context 的其他 reference docs、how-tos 或 explanations。]
 ```
 
-**Rules for reference docs:**
-- Accuracy over elegance. Every claim must be traceable to code.
-- Include types, defaults, and constraints. "Accepts a string" is insufficient — "Accepts a
-  string (max 256 chars, must match `^[a-z-]+$`)" is reference-grade.
-- Show real examples that would actually work if copy-pasted.
-- Do not explain *why* — that belongs in explanation docs.
+**Reference docs 规则：**
+- Accuracy over elegance。每个 claim 都必须 traceable to code。
+- 包含 types、defaults 和 constraints。"Accepts a string" 不够；"Accepts a
+  string (max 256 chars, must match `^[a-z-]+$`)" 才是 reference-grade。
+- 展示 copy-pasted 后确实可工作的 real examples。
+- 不解释 *why*：那属于 explanation docs。
 
 ---
 
-## Step 4: Write Explanation Documentation
+## Step 4：编写 Explanation Documentation（解释文档）
 
-Explanation docs answer "why does this work this way?" They are the design rationale.
+Explanation docs 回答 "why does this work this way?"。它们是 design rationale。
 
 **Explanation doc template:**
 
 ```markdown
 # [Concept / Design Decision]
 
-[Opening paragraph: the problem this design solves, stated in terms a smart reader
-who hasn't seen the code would understand.]
+[开头段落：说明这个 design 解决的问题，用没看过 code 的聪明读者也能理解的方式表达。]
 
-## The problem
+## The problem（问题）
 
-[Concrete description of what goes wrong without this design. Real failure modes,
-not abstract risks.]
+[具体描述没有这个 design 会出什么问题。写真实 failure modes，不写抽象 risks。]
 
-## The approach
+## The approach（方案）
 
-[How the design solves the problem. Include diagrams (ASCII or Mermaid) for
+[说明这个 design 如何解决问题。包含 diagrams（ASCII 或 Mermaid），用于
 architectural concepts.]
 
-## Trade-offs
+## Trade-offs（权衡）
 
 [What was given up. Every design decision trades something — name it explicitly.]
 
-## Alternatives considered
+## Alternatives considered（考虑过的替代方案）
 
 [If discoverable from code comments, ADRs, or git history: what was tried or
 rejected and why.]
 ```
 
-**Rules for explanation docs:**
-- Lead with the problem, not the solution.
-- Use ASCII diagrams for architecture. They're grep-able, diff-friendly, and render everywhere.
-- Name trade-offs explicitly. "We chose X over Y because Z" is the gold standard.
-- Do not repeat reference material — link to it.
+**Explanation docs 规则：**
+- 以 problem 开头，而不是 solution。
+- 为 architecture 使用 ASCII diagrams。它们 grep-able、diff-friendly，并且 everywhere render。
+- 明确命名 trade-offs。"We chose X over Y because Z" 是 gold standard。
+- 不重复 reference material；链接到它。
 
 ---
 
-## Step 5: Write How-To Guides
+## Step 5：编写 How-To Guides（How-to 指南）
 
-How-tos are task-oriented. They assume the reader knows the basics and wants to accomplish
-something specific.
+How-tos 是 task-oriented。它们假设 reader 已了解 basics，并想完成某个 specific thing。
 
 **How-to doc template:**
 
@@ -240,12 +232,12 @@ something specific.
 
 [One sentence: what you'll accomplish and the end result.]
 
-## Prerequisites
+## Prerequisites（前置条件）
 
 [What the reader needs before starting. Be specific — versions, installed tools,
 config state.]
 
-## Steps
+## Steps（步骤）
 
 1. [Action verb] [specific instruction]
 
@@ -257,45 +249,42 @@ config state.]
 
 2. [Next step...]
 
-## Verification
+## Verification（验证）
 
 [How to confirm it worked. A command, a URL to visit, a test to run.]
 
-## Troubleshooting
+## Troubleshooting（故障排查）
 
-[Common failure modes and their fixes. Pull from tests and error handling code.]
+[常见 failure modes 及其 fixes。从 tests 和 error handling code 中提取。]
 ```
 
-**Rules for how-to docs:**
-- Title starts with "How to" — no exceptions. This is the reader's entry point.
-- Every step must be actionable. No "consider whether..." — instead "Run X" or "Add Y to Z".
-- Include verification. The reader should never wonder "did it work?"
-- Troubleshooting section is mandatory if the task can fail.
+**How-to docs 规则：**
+- Title 以 "How to" 开头：无例外。这是 reader 的 entry point。
+- 每一步都必须 actionable。不要写 "consider whether..."；要写 "Run X" 或 "Add Y to Z"。
+- 包含 verification。不要让 reader 疑惑 "did it work?"
+- 如果 task 可能失败，Troubleshooting section 是 mandatory。
 
 ---
 
-## Step 6: Write Tutorials
+## Step 6：编写 Tutorials（教程）
 
-Tutorials are learning-oriented. They take a newcomer from zero to a working example.
-These are the hardest to write well and the most valuable.
+Tutorials 是 learning-oriented。它们把 newcomer 从零带到 working example。
+这是最难写好、也最有价值的文档。
 
 **Tutorial doc template:**
 
 ```markdown
 # [Tutorial title — describes what you'll build/learn]
 
-[Opening paragraph: what you'll build, why it's useful, and what you'll understand
-by the end. Keep it concrete — "You'll build a working X that does Y" not
-"This tutorial covers X".]
+[开头段落：说明你会构建什么、它为什么有用、以及读完后会理解什么。保持具体：写“你将构建一个能做 Y 的可运行 X”，不要写“本 tutorial 覆盖 X”。]
 
-## What you'll need
+## What you'll need（你需要准备什么）
 
-[Prerequisites: tools, versions, prior knowledge. Link to installation guides.]
+[Prerequisites：tools、versions、prior knowledge。链接到 installation guides。]
 
 ## Step 1: [Set up the foundation]
 
-[Start from a clean state. Show every command. Explain what each does on first
-encounter — but briefly, not a lecture.]
+[从 clean state 开始。展示每条 command。第一次出现时简要解释它做什么；要简短，不要讲课。]
 
 ```bash
 [exact command]
@@ -312,77 +301,74 @@ something happen within the first 3 steps.]
 
 ## Step N: [Final step]
 
-## What you built
+## What you built（你构建了什么）
 
 [Recap: what the reader now has and what it can do. Link to reference docs
 for deeper exploration. Suggest next steps.]
 ```
 
-**Rules for tutorials:**
-- **Time to first result < 3 steps.** If the reader hasn't seen something work by step 3,
-  the tutorial is too slow.
-- Every step must produce a visible change or output. No "now configure X" without showing
-  what changes.
-- Use the exact commands the reader will type. No "run the appropriate command" abstractions.
-- Error paths: if a step commonly fails, show the error and the fix inline.
-- End with "What you built" — connect the tutorial back to the real use case.
+**Tutorials 规则：**
+- **Time to first result < 3 steps。**如果 reader 到第 3 步还没看到东西工作，tutorial 就太慢了。
+- 每一步都必须产生 visible change 或 output。不要写 "now configure X" 却不展示变化。
+- 使用 reader 会输入的 exact commands。不要写 "run the appropriate command" 这种 abstraction。
+- Error paths：如果某一步经常失败，inline 展示 error 和 fix。
+- 以 "What you built" 结束：把 tutorial 连接回 real use case。
 
 ---
 
-## Step 7: Cross-Document Linking & Discoverability
+## Step 7：Cross-Document Linking & Discoverability（跨文档链接与可发现性）
 
-After writing all documents:
+写完所有 documents 后：
 
-1. **Add cross-links between quadrants.** Every reference doc should link to its how-to.
-   Every how-to should link to its reference. Tutorials should link to both.
+1. **在 quadrants 之间添加 cross-links。**每个 reference doc 都应链接到其 how-to。
+   每个 how-to 都应链接到其 reference。Tutorials 应同时链接二者。
 
-2. **Update entry-point files.** Add references to new docs in:
-   - README.md — add to documentation section or table of contents
-   - CLAUDE.md / AGENTS.md — add to project structure if relevant
-   - Any existing docs index or sidebar config
+2. **更新 entry-point files。**在这些位置添加 new docs references：
+   - README.md：添加到 documentation section 或 table of contents
+   - CLAUDE.md / AGENTS.md：如相关，添加到 project structure
+   - 任何 existing docs index 或 sidebar config
 
-3. **Verify discoverability.** Every new document must be reachable within 2 clicks from
-   README.md. If a docs framework is in use, add to the sidebar/nav config.
+3. **验证 discoverability。**每份 new document 都必须能从 README.md 出发 2 clicks 内到达。
+   如果使用 docs framework，添加到 sidebar/nav config。
 
-4. **Check for broken links.** Grep for any `](` references that point to files that don't exist.
-
----
-
-## Step 8: Quality Self-Review
-
-Before committing, review each document against these criteria:
-
-**Accuracy gate:**
-- [ ] Every code example compiles / runs / passes if copy-pasted
-- [ ] Every API description matches the actual code signature
-- [ ] Every command shown produces the output described
-- [ ] No stale references to renamed/removed entities
-
-**Completeness gate:**
-- [ ] Reference docs cover 100% of public surface
-- [ ] How-tos cover the top 3 tasks a user would attempt
-- [ ] Tutorials get to a working result in ≤3 steps
-- [ ] Explanation docs name trade-offs, not just choices
-
-**Voice gate:**
-- [ ] Written for a smart person who hasn't seen the code
-- [ ] No jargon without brief inline gloss on first use
-- [ ] Active voice, concrete nouns, short sentences
-- [ ] "You can now..." not "The system provides..."
-
-Fix any failures before proceeding.
+4. **检查 broken links。**Grep 任何指向不存在 files 的 `](` references。
 
 ---
 
-## Step 9: Commit & Output
+## Step 8：Quality Self-Review（质量自检）
 
-1. Stage new documentation files by name (never `git add -A` or `git add .`).
+Commit 前，按这些 criteria review 每份 document：
 
-**Redaction scan before commit.** Generated docs frequently contain example
-credentials; scan the staged doc content and block on a HIGH credential (a
-live-format secret in committed docs is a leak). Example configs belong in
-` ```example ` fences won't excuse a live-format secret, but the per-span
-placeholder filter passes obvious docs examples (e.g. `AKIAIOSFODNN7EXAMPLE`):
+**Accuracy gate（准确性 gate）：**
+- [ ] 每个 code example 在 copy-paste 后都能 compile / run / pass
+- [ ] 每个 API description 都匹配 actual code signature
+- [ ] 每个展示的 command 都会产出所描述的 output
+- [ ] 没有指向 renamed/removed entities 的 stale references
+
+**Completeness gate（完整性 gate）：**
+- [ ] Reference docs 覆盖 100% public surface
+- [ ] How-tos 覆盖用户最可能尝试的 top 3 tasks
+- [ ] Tutorials 在 ≤3 steps 内到达 working result
+- [ ] Explanation docs 说明 trade-offs，而不只是列 choices
+
+**Voice gate（文风 gate）：**
+- [ ] 写给一个聪明但没看过 code 的人
+- [ ] 首次使用 jargon 时带简短 inline gloss
+- [ ] 使用 active voice、concrete nouns、short sentences
+- [ ] 写 "You can now..."，不要写 "The system provides..."
+
+继续前修复任何 failures。
+
+---
+
+## Step 9：Commit & Output（提交与输出）
+
+1. 按名称 stage new documentation files（绝不使用 `git add -A` 或 `git add .`）。
+
+**Commit 前进行 redaction scan。**Generated docs 经常包含 example credentials；
+扫描 staged doc content，并在 HIGH credential 上阻塞（committed docs 中出现 live-format secret
+就是 leak）。把 example configs 放在 ` ```example ` fences 中并不能豁免 live-format secret，
+但 per-span placeholder filter 会放过明显的 docs examples（例如 `AKIAIOSFODNN7EXAMPLE`）：
 
 ```bash
 REDACT_VIS=$(~/.claude/skills/gstack/bin/gstack-config get redact_repo_visibility 2>/dev/null)
@@ -392,7 +378,7 @@ git diff --cached --no-color | grep '^+' | sed 's/^+//' | \
 # exit 3 (HIGH) → unstage the offending doc, remove the secret, re-stage. Do NOT commit.
 ```
 
-2. Create a commit:
+2. 创建 commit：
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -407,17 +393,17 @@ EOF
 )"
 ```
 
-3. Push to the current branch:
+3. Push 到当前 branch：
 
 ```bash
 git push
 ```
 
-4. **If a PR exists**, update the PR body with a `## Documentation Generated` section listing
-   every new file with its Diataxis quadrant and a one-line description:
+4. **如果 PR 存在**，用 `## Documentation Generated` section 更新 PR body，
+   列出每个 new file、其 Diataxis quadrant 和一句 description：
 
 ```
-## Documentation Generated
+## Documentation Generated（已生成文档）
 
 | File | Quadrant | Description |
 |------|----------|-------------|
@@ -427,7 +413,7 @@ git push
 | docs/howto-custom-widgets.md | How-to | Creating and registering custom widgets |
 ```
 
-5. Output a structured summary:
+5. 输出 structured summary：
 
 ```
 Documentation generated:
@@ -443,18 +429,17 @@ Documentation generated:
 
 ---
 
-## Important Rules
+## Important Rules（重要规则）
 
-- **Research before writing.** Step 1 is not optional. Read the code, read the tests, read the
-  existing docs. Insufficient research produces surface-level documentation.
-- **Accuracy is non-negotiable.** Every code example must work. Every API description must match
-  the actual code. If you're unsure about a detail, read the source again — do not guess.
-- **Diataxis quadrants serve different readers.** Do not mix tutorial content into reference docs
-  or reference content into how-tos. Each quadrant has a specific reader in a specific mode.
-- **Time to first result in tutorials.** If a reader can't see something working by step 3,
-  restructure the tutorial.
-- **Cross-link everything.** Isolated docs are undiscoverable docs.
-- **Voice: friendly, concrete, user-forward.** Write like you're explaining to a smart person
-  who hasn't seen the code. Never corporate, never academic.
-- **Completeness over minimalism.** AI makes comprehensive documentation cheap. Don't write
-  "minimal viable docs" — write complete docs. Boil the lake.
+- **Research before writing。**Step 1 不是可选项。阅读 code、tests 和 existing docs。
+  研究不足会产出 surface-level documentation。
+- **Accuracy is non-negotiable。**每个 code example 都必须工作。每个 API description
+  都必须匹配 actual code。如果不确定某个 detail，重新读 source：不要猜。
+- **Diataxis quadrants 服务不同 readers。**不要把 tutorial content 混入 reference docs，
+  也不要把 reference content 混入 how-tos。每个 quadrant 都对应特定 mode 下的特定 reader。
+- **Tutorials 中 time to first result。**如果 reader 到第 3 步还看不到东西工作，就重构 tutorial。
+- **Cross-link everything。**孤立 docs 是 undiscoverable docs。
+- **Voice：friendly、concrete、user-forward。**像在向一个没看过代码的 smart person 解释那样写。
+  不要 corporate，不要 academic。
+- **Completeness over minimalism。**AI 让 comprehensive documentation 变得便宜。不要写
+  "minimal viable docs"；写 complete docs。Boil the lake。

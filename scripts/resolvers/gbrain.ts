@@ -1,21 +1,21 @@
 /**
- * GBrain resolver — brain-first lookup and save-to-brain for thinking skills.
+ * GBrain resolver — 为 thinking skills 提供 brain-first lookup 和 save-to-brain。
  *
- * GBrain is a "mod" for gstack. When installed, coding skills become brain-aware:
- * they search the brain for context before starting and save results after finishing.
+ * GBrain 是 gstack 的一个 "mod"。安装后，coding skills 会变成 brain-aware：
+ * 开始前搜索 brain 获取 context，结束后保存 results。
  *
- * These resolvers are suppressed on hosts that don't support brain features
- * (via suppressedResolvers in each host config). For those hosts,
+ * 在不支持 brain features 的 hosts 上，这些 resolvers 会被 suppressed
+ * （通过各 host config 中的 suppressedResolvers）。对这些 hosts，
  * {{GBRAIN_CONTEXT_LOAD}}, {{GBRAIN_SAVE_RESULTS}}, {{BRAIN_PREFLIGHT}},
- * {{BRAIN_CACHE_REFRESH}}, and {{BRAIN_WRITE_BACK}} all resolve to empty string.
+ * {{BRAIN_CACHE_REFRESH}} 和 {{BRAIN_WRITE_BACK}} 都会 resolve 为空字符串。
  *
- * Compatible with GBrain >= v0.10.0 (search CLI, doctor --fast --json, entity enrichment).
+ * 兼容 GBrain >= v0.10.0（search CLI、doctor --fast --json、entity enrichment）。
  *
- * Brain-aware planning (T4 / v1.48 plan): adds three new resolvers powered by
- * the bin/gstack-brain-cache CLI and scripts/brain-cache-spec.ts. The new
- * resolvers fire only for the 5 planning skills registered in
+ * Brain-aware planning（T4 / v1.48 plan）：新增三个 resolver，由
+ * bin/gstack-brain-cache CLI 和 scripts/brain-cache-spec.ts 驱动。新的
+ * resolvers 只对注册在
  * SKILL_DIGEST_SUBSETS (office-hours, plan-ceo-review, plan-eng-review,
- * plan-design-review, plan-devex-review).
+ * plan-design-review, plan-devex-review) 中的 5 个 planning skills 触发。
  */
 import type { TemplateContext } from './types';
 import {
@@ -26,13 +26,12 @@ import {
   getInvalidationTargets,
 } from '../brain-cache-spec';
 
-// Per-skill slug + title + tag metadata for SAVE_RESULTS. The full save
-// template (heredoc body, entity-stub instructions, throttle handling,
-// backlinks) lives in docs/gbrain-write-surfaces.md §Save Template and is
-// read on-demand by the agent. Compressing the inline prose keeps the
-// token footprint at ~150 tokens per skill (down from ~500), so users with
-// gbrain installed pay a small overhead and users without it (whose hosts
-// have GBRAIN_SAVE_RESULTS suppressed at gen-time) pay nothing.
+// SAVE_RESULTS 使用的 per-skill slug + title + tag metadata。完整 save
+// template（heredoc body、entity-stub instructions、throttle handling、
+// backlinks）位于 docs/gbrain-write-surfaces.md §Save Template，由 agent
+// 按需读取。压缩 inline prose 可把 token footprint 保持在每个 skill 约 150 tokens
+//（从约 500 降低），因此安装了 gbrain 的用户只付出小额 overhead；未安装用户
+//（其 hosts 在 gen-time suppressed GBRAIN_SAVE_RESULTS）不付出成本。
 interface SkillSaveMeta {
   slugPrefix: string;
   title: string;
@@ -55,49 +54,47 @@ const skillSaveMap: Record<string, SkillSaveMeta> = {
 export function generateGBrainContextLoad(ctx: TemplateContext): string {
   let base = `## Brain Context Load
 
-**Skip this entire section if \`gbrain\` is not on PATH.**
+**如果 \`gbrain\` 不在 PATH 上，跳过整个 section。**
 
-Extract 2-4 keywords from the user's request. Search the brain:
-\`gbrain search "<keywords>"\`. Read the top 3 results with
-\`gbrain get_page "<slug>"\`. Use that context to inform your analysis.
+从用户请求中提取 2-4 个 keywords。搜索 brain：
+\`gbrain search "<keywords>"\`。用 \`gbrain get_page "<slug>"\`
+读取 top 3 results。使用这些 context 支撑你的 analysis。
 
-If \`gbrain search\` returns no results or any non-zero exit, proceed
-without brain context. Full search/read protocol + examples:
-see \`docs/gbrain-write-surfaces.md\` §Context Load.`;
+如果 \`gbrain search\` 没有返回结果，或以任何 non-zero exit 退出，
+就不带 brain context 继续。完整 search/read protocol + examples：
+见 \`docs/gbrain-write-surfaces.md\` §Context Load。`;
 
   if (ctx.skillName === 'investigate') {
-    base += `\n\nFor structured-data extraction requests ("track this", "extract from emails", "build a tracker"), route to GBrain's data-research skill instead: \`gbrain call data-research\`.`;
+    base += `\n\n对于 structured-data extraction requests（"track this"、"extract from emails"、"build a tracker"），改为 route 到 GBrain 的 data-research skill：\`gbrain call data-research\`。`;
   }
 
   return base;
 }
 
 export function generateGBrainSaveResults(ctx: TemplateContext): string {
-  // gbrain v0.18+ uses `gbrain put <slug>` (NOT the deprecated `put_page`
-  // MCP op). Compressed in v1.50.0.0: the inline heredoc + entity-stub +
-  // throttle + backlink prose moved to docs/gbrain-write-surfaces.md
-  // §Save Template, which the agent reads on demand when it actually
-  // saves. The compact pointer keeps non-gbrain users' token overhead
-  // near zero when their host's static suppression is overridden by
-  // detection.
+  // gbrain v0.18+ 使用 `gbrain put <slug>`（不是 deprecated `put_page`
+  // MCP op）。v1.50.0.0 中压缩：inline heredoc + entity-stub + throttle +
+  // backlink prose 已移到 docs/gbrain-write-surfaces.md §Save Template，
+  // agent 真正保存时按需读取。这个 compact pointer 让 non-gbrain users 在其
+  // host 的 static suppression 被 detection 覆盖时，token overhead 仍接近 0。
   const meta = skillSaveMap[ctx.skillName];
 
   if (!meta) {
     return `## Save Results to Brain
 
-**Skip this entire section if \`gbrain\` is not on PATH.**
+**如果 \`gbrain\` 不在 PATH 上，跳过整个 section。**
 
-If the skill output is worth preserving, save it via
-\`gbrain put "<slug>" --content "<frontmatter + markdown>"\`. Full template
-(heredoc body, frontmatter shape, entity-stub instructions, throttle
-handling): see \`docs/gbrain-write-surfaces.md\` §Save Template.`;
+如果 skill output 值得保留，通过
+\`gbrain put "<slug>" --content "<frontmatter + markdown>"\` 保存。完整 template
+（heredoc body、frontmatter shape、entity-stub instructions、throttle
+handling）：见 \`docs/gbrain-write-surfaces.md\` §Save Template。`;
   }
 
   return `## Save Results to Brain
 
-**Skip this entire section if \`gbrain\` is not on PATH.**
+**如果 \`gbrain\` 不在 PATH 上，跳过整个 section。**
 
-After completing this skill, save the output:
+完成此 skill 后，保存 output：
 
 \`\`\`bash
 gbrain put "${meta.slugPrefix}/<feature-slug>" --content "$(cat <<'EOF'
@@ -110,43 +107,40 @@ EOF
 )"
 \`\`\`
 
-Then extract person/org entities and create stub pages for each one.
-Throttle errors (exit 1 with "throttle"/"rate limit"/"busy") and any
-other non-zero exit are transient — don't retry inline. Full entity-stub
-template, throttle handling, and backlink protocol:
-see \`docs/gbrain-write-surfaces.md\` §Save Template.`;
+然后提取 person/org entities，并为每个 entity 创建 stub pages。
+Throttle errors（exit 1 且包含 "throttle"/"rate limit"/"busy"）和任何
+其他 non-zero exit 都是 transient；不要 inline retry。完整 entity-stub
+template、throttle handling 和 backlink protocol：
+见 \`docs/gbrain-write-surfaces.md\` §Save Template。`;
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Brain-aware planning resolvers (T4 / v1.48 plan)
+// Brain-aware planning resolvers（T4 / v1.48 plan）
 // ────────────────────────────────────────────────────────────────────
 
 /**
- * Returns true when this skill is registered for brain preflight. Skills not
- * in SKILL_DIGEST_SUBSETS get an empty BRAIN_PREFLIGHT block (no behavior).
+ * 当此 skill 已注册 brain preflight 时返回 true。不在 SKILL_DIGEST_SUBSETS 中的
+ * skills 会得到空的 BRAIN_PREFLIGHT block（无行为）。
  */
 function isPreflightSkill(skillName: string): boolean {
   return Object.prototype.hasOwnProperty.call(SKILL_DIGEST_SUBSETS, skillName);
 }
 
 /**
- * Renders the per-skill BRAIN_PREFLIGHT block. The rendered output is a single
- * bash script that:
- *   1. Reads each digest file from gstack-brain-cache get (one call per digest)
- *   2. Falls back to "(brain context unavailable)" on missing
- *   3. Concatenates outputs into a single ## Brain Context block injected
- *      into the skill's prompt context
- *   4. Tells the agent: "use this context to skip already-known questions"
+ * 渲染 per-skill BRAIN_PREFLIGHT block。渲染结果是单个 bash script：
+ *   1. 从 gstack-brain-cache get 读取每个 digest file（每个 digest 一次调用）
+ *   2. 缺失时 fallback 到 "(brain context unavailable)"
+ *   3. 将输出拼接成单个 ## Brain Context block，并注入 skill 的 prompt context
+ *   4. 告诉 agent："use this context to skip already-known questions"
  *
- * The cache CLI handles cold-refresh + lock dedup + stale-but-usable
- * fallback internally. From the resolver's perspective the call is one
- * shell command per digest.
+ * cache CLI 内部处理 cold-refresh + lock dedup + stale-but-usable fallback。
+ * 从 resolver 视角看，每个 digest 只是一个 shell command。
  */
 export function generateBrainPreflight(ctx: TemplateContext): string {
   if (!isPreflightSkill(ctx.skillName)) return '';
   const subset = getSkillSubset(ctx.skillName);
   const binDir = ctx.paths.binDir;
-  // Build the bash that loads each digest. Per-skill subset is small (2-5 entries).
+  // 构建加载每个 digest 的 bash。Per-skill subset 很小（2-5 entries）。
   const loadLines = subset.map((entityName) => {
     const entity = BRAIN_CACHE_ENTITIES[entityName];
     if (!entity) return '';
@@ -156,11 +150,10 @@ export function generateBrainPreflight(ctx: TemplateContext): string {
 
   return `## Brain Context (preflight)
 
-Before asking any clarifying questions, load the brain's structured context
-for this project. The cache layer handles staleness, refresh, and stale-but-
-usable fallback automatically. Skip questions whose answers are already
-present in the loaded context; ground recommendations in what the brain
-already knows about the user, the product, the goals, and recent decisions.
+提出任何 clarifying questions 前，加载此 project 的 brain structured context。
+cache layer 会自动处理 staleness、refresh 和 stale-but-usable fallback。
+如果 loaded context 中已经有答案，就跳过对应 questions；recommendations
+要 grounded in brain 已经知道的 user、product、goals 和 recent decisions。
 
 \`\`\`bash
 eval "$(${binDir}/gstack-slug 2>/dev/null)" 2>/dev/null || true
@@ -172,35 +165,33 @@ ${loadLines}
 rm -f /tmp/.gstack-brain-context-$$.md 2>/dev/null || true
 \`\`\`
 
-**How to use this context:**
-- If \`product\` digest names the value prop, target user, or stage — don't re-ask.
-- If \`goals\` digest lists active goals — frame recommendations against them.
-- If \`recent-decisions\` digest names a prior scope/architecture choice — flag if this plan contradicts.
-- If \`user-profile\` digest carries calibration pattern statements ("tends to over-engineer security") — surface them when relevant.
-- If a digest is \`(no X digest available yet)\`, treat that section as cold; ask the user.
+**如何使用此 context：**
+- 如果 \`product\` digest 已说明 value prop、target user 或 stage，不要重复询问。
+- 如果 \`goals\` digest 列出了 active goals，基于这些 goals framing recommendations。
+- 如果 \`recent-decisions\` digest 提到了既有 scope/architecture choice，而当前 plan 与其冲突，要标记出来。
+- 如果 \`user-profile\` digest 带有 calibration pattern statements（"tends to over-engineer security"），在相关时 surfaced。
+- 如果某个 digest 是 \`(no X digest available yet)\`，把该 section 当作 cold，询问用户。
 
-**Privacy:** Salience digest is filtered by allowlist (D9 default: \`projects/\`,
-\`gstack/\`, \`concepts/\` only). Personal/family/therapy content never leaks here.
+**Privacy:** Salience digest 通过 allowlist 过滤（D9 default：仅 \`projects/\`、
+\`gstack/\`、\`concepts/\`）。Personal/family/therapy content 永远不会泄漏到这里。
 `;
 }
 
 /**
- * Renders the at-skill-end background refresh hook. Fires after the skill's
- * own work completes (telemetry has already logged); kicks any digest whose
- * age exceeds half its TTL but hasn't yet expired, so the NEXT invocation
- * gets a fresh cache without paying the cold-miss tax.
+ * 渲染 at-skill-end background refresh hook。它在 skill 自身工作完成后触发
+ *（telemetry 已记录）；kick 那些 age 超过半个 TTL 但尚未过期的 digest，
+ * 让下一次 invocation 获得 fresh cache，且无需支付 cold-miss tax。
  *
- * Subordinate to {{TELEMETRY}} — runs after. Doesn't block the user.
+ * Subordinate to {{TELEMETRY}} — 在其之后运行。不会 block 用户。
  */
 export function generateBrainCacheRefresh(ctx: TemplateContext): string {
   if (!isPreflightSkill(ctx.skillName)) return '';
   const binDir = ctx.paths.binDir;
   return `## Brain Cache Background Refresh
 
-After the skill's work completes (and telemetry has logged), kick a
-background refresh of any cache digest that's getting close to its TTL.
-This is non-blocking — the user doesn't wait. Next invocation benefits
-from the warm cache.
+skill 工作完成后（且 telemetry 已记录），为任何接近 TTL 的 cache digest
+kick 一次 background refresh。这是 non-blocking；用户无需等待。下一次
+invocation 会受益于 warm cache。
 
 \`\`\`bash
 eval "$(${binDir}/gstack-slug 2>/dev/null)" 2>/dev/null || true
@@ -210,21 +201,21 @@ eval "$(${binDir}/gstack-slug 2>/dev/null)" 2>/dev/null || true
 }
 
 /**
- * Renders the calibration write-back block. ONLY emits when the skill makes
- * typed decisions worth a kind=bet take AND the brain trust policy is
- * personal. Phase 2 / E5 cross-skill calibration.
+ * 渲染 calibration write-back block。仅当 skill 做出值得记录 kind=bet take
+ * 的 typed decisions，且 brain trust policy 是 personal 时才 emit。
+ * Phase 2 / E5 cross-skill calibration。
  *
- * Gated behind BRAIN_CALIBRATION_WRITEBACK feature flag in the resolver
- * output — the flag stays false until upstream gbrain ships takes_add MCP
- * op (T8). When the flag flips, the existing skill templates pick up the
- * write-back behavior without any template changes.
+ * 在 resolver output 中由 BRAIN_CALIBRATION_WRITEBACK feature flag gated；
+ * 此 flag 在 upstream gbrain ship takes_add MCP op（T8）之前保持 false。
+ * flag 翻转后，existing skill templates 会无需 template changes 就获得
+ * write-back behavior。
  */
 export function generateBrainWriteBack(ctx: TemplateContext): string {
   if (!isPreflightSkill(ctx.skillName)) return '';
   const weight = SKILL_CALIBRATION_WEIGHTS[ctx.skillName];
   if (weight == null) return '';
-  // List the cache digests this skill's writes should invalidate. Multiple
-  // skills write to multiple entities; the invalidation map captures this.
+  // 列出此 skill 写入后应 invalidate 的 cache digests。多个 skills 会写入多个
+  // entities；invalidation map 捕获这个关系。
   const invalidatesEntities = getInvalidationTargets(`/${ctx.skillName}`);
   const invalidateBash = invalidatesEntities
     .map((e) => `  ${ctx.paths.binDir}/gstack-brain-cache invalidate ${e} --project "$SLUG" 2>/dev/null || true`)
@@ -232,23 +223,23 @@ export function generateBrainWriteBack(ctx: TemplateContext): string {
 
   return `## Brain Calibration Write-Back (Phase 2 / gated)
 
-When the skill makes a typed prediction worth tracking (scope decision,
-TTHW target, architectural bet, wedge commitment), it MAY write a
-\`kind=bet\` take to the brain so a calibration profile builds over time.
+当 skill 做出值得追踪的 typed prediction（scope decision、TTHW target、
+architectural bet、wedge commitment）时，它 MAY 向 brain 写入一个
+\`kind=bet\` take，让 calibration profile 随时间建立。
 
-**Gated on two things:**
-1. Brain trust policy for the active endpoint is \`personal\` (check via
+**由两件事 gate：**
+1. active endpoint 的 Brain trust policy 是 \`personal\`（通过
    \`${ctx.paths.binDir}/gstack-config get brain_trust_policy@<endpoint-hash>\`).
-   Shared brains skip write-back to avoid polluting team calibration.
-2. Feature flag \`BRAIN_CALIBRATION_WRITEBACK\` is set (today: false; flips
-   to true when upstream gbrain v0.42+ ships \`takes_add\` MCP op).
+   Shared brains 会跳过 write-back，以避免污染 team calibration。
+2. Feature flag \`BRAIN_CALIBRATION_WRITEBACK\` 已设置（当前：false；当
+   upstream gbrain v0.42+ ship \`takes_add\` MCP op 后翻为 true）。
 
-When both gates pass, the write-back path uses \`mcp__gbrain__takes_add\`
-to record a take with weight ${weight} (per SKILL_CALIBRATION_WEIGHTS).
-If the MCP op is unavailable, fall back to \`mcp__gbrain__put_page\` with
-a gstack:takes fence block (documented but uglier path).
+当两个 gates 都通过时，write-back path 使用 \`mcp__gbrain__takes_add\`
+记录一个 weight ${weight} 的 take（按 SKILL_CALIBRATION_WEIGHTS）。
+如果 MCP op 不可用，fallback 到 \`mcp__gbrain__put_page\`，并带
+gstack:takes fence block（有文档，但路径更丑）。
 
-Mandatory take frontmatter shape:
+Mandatory take frontmatter shape（必须使用的 take frontmatter 形状）：
 \`\`\`yaml
 kind: bet
 holder: <user identity from whoami>
@@ -259,8 +250,7 @@ expected_resolution: <date in 1-3 months depending on skill>
 source_skill: ${ctx.skillName}
 \`\`\`
 
-After write, invalidate the affected digests so the next preflight reflects
-the new state:
+写入后，invalidate 受影响的 digests，让下一次 preflight 反映新的 state：
 
 \`\`\`bash
 eval "$(${ctx.paths.binDir}/gstack-slug 2>/dev/null)" 2>/dev/null || true

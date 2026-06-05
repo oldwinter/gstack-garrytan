@@ -1,6 +1,6 @@
 ---
 name: hackernews-frontpage
-description: Scrape the Hacker News front page (titles, points, comment counts).
+description: 抓取 Hacker News front page（titles、points、comment counts）。
 host: news.ycombinator.com
 trusted: true
 source: human
@@ -15,9 +15,7 @@ triggers:
 
 # Hacker News front-page scraper
 
-Scrapes the Hacker News (`news.ycombinator.com`) front page and returns the
-top 30 stories as JSON. Each story has its rank, title, link URL, point count,
-and comment count.
+抓取 Hacker News（`news.ycombinator.com`）front page，并以 JSON 返回 top 30 stories。每条 story 包含 rank、title、link URL、point count 和 comment count。
 
 ## Usage
 
@@ -34,19 +32,13 @@ $ $B skill run hackernews-frontpage
 
 ## How it works
 
-1. Navigates to `https://news.ycombinator.com` via the daemon.
-2. Reads the page HTML.
-3. Parses each story row (HN's stable `tr.athing` structure) into a typed
-   `Story` record.
-4. Emits a single JSON document on stdout.
+1. 通过 daemon navigate 到 `https://news.ycombinator.com`。
+2. 读取 page HTML。
+3. 将每个 story row（HN 稳定的 `tr.athing` structure）parse 成 typed `Story` record。
+4. 在 stdout 输出单个 JSON document。
 
 ## Why this is the reference skill
 
-`hackernews-frontpage` is the smallest interesting browser-skill: no auth,
-stable HTML, deterministic output, file-fixture-friendly. Every Phase 1
-component (SDK, scoped tokens, three-tier lookup, spawn lifecycle) is
-exercised by `$B skill run hackernews-frontpage` and the bundled
-`script.test.ts`.
+`hackernews-frontpage` 是最小但有代表性的 browser-skill：no auth、stable HTML、deterministic output、file-fixture-friendly。每个 Phase 1 component（SDK、scoped tokens、three-tier lookup、spawn lifecycle）都会被 `$B skill run hackernews-frontpage` 和 bundled `script.test.ts` 覆盖。
 
-When the HN HTML rotates and our selectors break, the test fails against the
-captured fixture before users notice. That's the point.
+当 HN HTML rotation 导致 selectors 失效时，test 会先在 captured fixture 上失败，而不是等 users 发现问题。这正是它的意义。

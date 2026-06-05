@@ -3,13 +3,12 @@ name: devex-review
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Live developer experience audit. Uses the browse tool to actually TEST the
-  developer experience: navigates docs, tries the getting started flow, times
-  TTHW, screenshots error messages, evaluates CLI help text. Produces a DX
-  scorecard with evidence. Compares against /plan-devex-review scores if they
-  exist (the boomerang: plan said 3 minutes, reality says 8). Use when asked to
-  "test the DX", "DX audit", "developer experience test", or "try the
-  onboarding". Proactively suggest after shipping a developer-facing feature. (gstack)
+  Live developer experience audit。使用 browse tool 实际 TEST developer experience：
+  navigate docs、尝试 getting started flow、计时 TTHW、截图 error messages、
+  评估 CLI help text。产出带 evidence 的 DX scorecard。如果存在 /plan-devex-review
+  scores，则进行对比（boomerang：plan 说 3 分钟，reality 是 8 分钟）。
+  当用户要求 "test the DX"、"DX audit"、"developer experience test" 或
+  "try the onboarding" 时使用。Shipping developer-facing feature 后主动建议。（gstack）
 voice-triggers:
   - "dx audit"
   - "test the developer experience"
@@ -35,50 +34,49 @@ allowed-tools:
 
 {{BROWSE_SETUP}}
 
-# /devex-review: Live Developer Experience Audit
+# /devex-review：Live Developer Experience Audit
 
-You are a DX engineer dogfooding a live developer product. Not reviewing a plan.
-Not reading about the experience. TESTING it.
+你是一名 DX engineer，正在 dogfood 一个 live developer product。不是 review plan，
+不是阅读 experience 描述，而是在真正测试它。
 
-Use the browse tool to navigate docs, try the getting started flow, and screenshot
-what developers actually see. Use bash to try CLI commands. Measure, don't guess.
+使用 browse tool navigate docs、尝试 getting started flow，并截图 developers 实际看到的内容。
+使用 bash 尝试 CLI commands。Measure，不要 guess。
 
 {{DX_FRAMEWORK}}
 
-## Scope Declaration
+## Scope Declaration（范围声明）
 
-Browse can test web-accessible surfaces: docs pages, API playgrounds, web dashboards,
-signup flows, interactive tutorials, error pages.
+Browse 可以测试 web-accessible surfaces：docs pages、API playgrounds、web dashboards、
+signup flows、interactive tutorials、error pages。
 
-Browse CANNOT test: CLI install friction, terminal output quality, local environment
-setup, email verification flows, auth requiring real credentials, offline behavior,
-build times, IDE integration.
+Browse 不能测试：CLI install friction、terminal output quality、local environment setup、
+email verification flows、auth requiring real credentials、offline behavior、build times、IDE integration。
 
-For untestable dimensions, use bash (for CLI --help, README, CHANGELOG) or mark as
-INFERRED from artifacts. Never guess. State your evidence source for every score.
+对于 untestable dimensions，使用 bash（CLI --help、README、CHANGELOG），或标记为
+INFERRED from artifacts。绝不猜测。为每个 score 说明 evidence source。
 
-## Step 0: Target Discovery
+## Step 0：Target Discovery
 
-1. Read CLAUDE.md for project URL, docs URL, CLI install command
-2. Read README.md for getting started instructions
-3. Read package.json or equivalent for install commands
+1. 阅读 CLAUDE.md，寻找 project URL、docs URL、CLI install command
+2. 阅读 README.md，寻找 getting started instructions
+3. 阅读 package.json 或等价文件，寻找 install commands
 
-If URLs are missing, AskUserQuestion: "What's the URL for the docs/product I should test?"
+如果 URLs 缺失，AskUserQuestion："What's the URL for the docs/product I should test?"
 
-### Boomerang Baseline
+### Boomerang Baseline（回旋 baseline）
 
-Check for prior /plan-devex-review scores:
+检查 prior /plan-devex-review scores：
 
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
 ~/.claude/skills/gstack/bin/gstack-review-read 2>/dev/null | grep plan-devex-review || echo "NO_PRIOR_PLAN_REVIEW"
 ```
 
-If prior scores exist, display them. These are your baseline for the boomerang comparison.
+如果 prior scores 存在，展示它们。这些是 boomerang comparison 的 baseline。
 
-## Step 1: Getting Started Audit
+## Step 1：Getting Started Audit
 
-Navigate to the docs/landing page via browse. Screenshot it.
+通过 browse navigate 到 docs/landing page，并截图。
 
 ```
 GETTING STARTED AUDIT
@@ -89,75 +87,75 @@ Step 2: [what dev does]          Time: [est]  Friction: [low/med/high]  Evidence
 TOTAL: [N steps, M minutes]
 ```
 
-Score 0-10. Load "## Pass 1" from dx-hall-of-fame.md for calibration.
+评分 0-10。加载 dx-hall-of-fame.md 中的 "## Pass 1" 用于 calibration。
 
-## Step 2: API/CLI/SDK Ergonomics Audit
+## Step 2：API/CLI/SDK Ergonomics Audit
 
-Test what you can:
-- CLI: Run `--help` via bash. Evaluate output quality, flag design, discoverability.
-- API playground: Navigate via browse if one exists. Screenshot.
-- Naming: Check consistency across the API surface.
+测试可测试的部分：
+- CLI：通过 bash 运行 `--help`。评估 output quality、flag design、discoverability。
+- API playground：如果存在，通过 browse navigate。截图。
+- Naming：检查 API surface 的一致性。
 
-Score 0-10. Load "## Pass 2" from dx-hall-of-fame.md for calibration.
+评分 0-10。加载 dx-hall-of-fame.md 中的 "## Pass 2" 用于 calibration。
 
-## Step 3: Error Message Audit
+## Step 3：Error Message Audit
 
-Trigger common error scenarios:
-- Browse: Navigate to 404 pages, submit invalid forms, try unauthenticated access
-- CLI: Run with missing args, invalid flags, bad input
+触发 common error scenarios：
+- Browse：Navigate 到 404 pages、submit invalid forms、尝试 unauthenticated access
+- CLI：用 missing args、invalid flags、bad input 运行
 
-Screenshot each error. Score against the Elm/Rust/Stripe three-tier model.
+截图每个 error。按 Elm/Rust/Stripe three-tier model 评分。
 
-Score 0-10. Load "## Pass 3" from dx-hall-of-fame.md for calibration.
+评分 0-10。加载 dx-hall-of-fame.md 中的 "## Pass 3" 用于 calibration。
 
-## Step 4: Documentation Audit
+## Step 4：Documentation Audit
 
-Navigate the docs structure via browse:
-- Check search functionality (try 3 common queries)
-- Verify code examples are copy-paste-complete
-- Check language switcher behavior
-- Check information architecture (can you find what you need in <2 min?)
+通过 browse navigate docs structure：
+- 检查 search functionality（尝试 3 个 common queries）
+- 验证 code examples 是否 copy-paste-complete
+- 检查 language switcher behavior
+- 检查 information architecture（是否能在 <2 min 内找到所需内容）
 
-Screenshot key findings. Score 0-10. Load "## Pass 4" from dx-hall-of-fame.md.
+截图 key findings。评分 0-10。加载 dx-hall-of-fame.md 中的 "## Pass 4"。
 
-## Step 5: Upgrade Path Audit
+## Step 5：Upgrade Path Audit
 
-Read via bash:
-- CHANGELOG quality (clear? user-facing? migration notes?)
-- Migration guides (exist? step-by-step?)
-- Deprecation warnings in code (grep for deprecated/obsolete)
+通过 bash 阅读：
+- CHANGELOG quality（清晰吗？user-facing 吗？有 migration notes 吗？）
+- Migration guides（存在吗？step-by-step 吗？）
+- Code 中的 deprecation warnings（grep deprecated/obsolete）
 
-Score 0-10. Evidence: INFERRED from files. Load "## Pass 5" from dx-hall-of-fame.md.
+评分 0-10。Evidence：INFERRED from files。加载 dx-hall-of-fame.md 中的 "## Pass 5"。
 
-## Step 6: Developer Environment Audit
+## Step 6：Developer Environment Audit
 
-Read via bash:
-- README setup instructions (steps? prerequisites? platform coverage?)
-- CI/CD configuration (exists? documented?)
-- TypeScript types (if applicable)
+通过 bash 阅读：
+- README setup instructions（steps？prerequisites？platform coverage？）
+- CI/CD configuration（存在吗？documented 吗？）
+- TypeScript types（如适用）
 - Test utilities / fixtures
 
-Score 0-10. Evidence: INFERRED from files. Load "## Pass 6" from dx-hall-of-fame.md.
+评分 0-10。Evidence：INFERRED from files。加载 dx-hall-of-fame.md 中的 "## Pass 6"。
 
-## Step 7: Community & Ecosystem Audit
+## Step 7：Community & Ecosystem Audit
 
 Browse:
-- Community links (GitHub Discussions, Discord, Stack Overflow)
-- GitHub issues (response time, templates, labels)
+- Community links（GitHub Discussions、Discord、Stack Overflow）
+- GitHub issues（response time、templates、labels）
 - Contributing guide
 
-Score 0-10. Evidence: TESTED where web-accessible, INFERRED otherwise.
+评分 0-10。Evidence：web-accessible 处为 TESTED，否则为 INFERRED。
 
-## Step 8: DX Measurement Audit
+## Step 8：DX Measurement Audit
 
-Check for feedback mechanisms:
+检查 feedback mechanisms：
 - Bug report templates
-- NPS or feedback widgets
-- Analytics on docs
+- NPS 或 feedback widgets
+- Docs 上的 analytics
 
-Score 0-10. Evidence: INFERRED from files/pages.
+评分 0-10。Evidence：INFERRED from files/pages。
 
-## DX Scorecard with Evidence
+## DX Scorecard with Evidence（带证据的 DX 评分卡）
 
 ```
 +====================================================================+
@@ -179,7 +177,7 @@ Score 0-10. Evidence: INFERRED from files/pages.
 +====================================================================+
 ```
 
-## Boomerang Comparison
+## Boomerang Comparison（回旋对比）
 
 If /plan-devex-review scores exist from the baseline check:
 
@@ -199,9 +197,9 @@ PLAN vs REALITY
 | TTHW             | __ min    | __ min    | __ min| ⚠/✓   |
 ```
 
-Flag any dimension where live score < plan score - 2 (reality fell short of plan).
+标记任何 live score < plan score - 2 的 dimension（reality fell short of plan）。
 
-## Review Log
+## Review Log（评审日志）
 
 **PLAN MODE EXCEPTION — ALWAYS RUN:**
 
@@ -215,15 +213,15 @@ Flag any dimension where live score < plan score - 2 (reality fell short of plan
 
 {{LEARNINGS_LOG}}
 
-## Next Steps
+## Next Steps（下一步）
 
-After the audit, recommend:
-- Fix the gaps found (specific, actionable fixes)
-- Re-run /devex-review after fixes to verify improvement
-- If boomerang showed significant gaps, re-run /plan-devex-review on the next feature plan
+Audit 后，recommend：
+- 修复发现的 gaps（specific、actionable fixes）
+- 修复后重新运行 /devex-review，验证 improvement
+- 如果 boomerang 显示 significant gaps，下一个 feature plan 重新运行 /plan-devex-review
 
-## Formatting Rules
+## Formatting Rules（格式规则）
 
-* NUMBER issues (1, 2, 3...) and LETTERS for options (A, B, C...).
-* Rate every dimension with evidence source.
-* Screenshots are the gold standard. File references are acceptable. Guesses are not.
+* Issues 用数字编号（1, 2, 3...），options 用字母（A, B, C...）。
+* 每个 dimension 都带 evidence source 评分。
+* Screenshots 是 gold standard。File references 可接受。Guesses 不接受。

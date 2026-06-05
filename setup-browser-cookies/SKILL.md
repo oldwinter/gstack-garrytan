@@ -2,7 +2,7 @@
 name: setup-browser-cookies
 preamble-tier: 1
 version: 1.0.0
-description: Import cookies from your real Chromium browser into the headless browse session. (gstack)
+description: "将你真实 Chromium browser 中的 cookies 导入 headless browse session。 打开 interactive picker UI，让你选择要导入哪些 cookie domains。 在 QA testing authenticated pages"
 triggers:
   - import browser cookies
   - login to test site
@@ -16,13 +16,12 @@ allowed-tools:
 <!-- Regenerate: bun run gen:skill-docs -->
 
 
-## When to invoke this skill
+## When to invoke this skill（何时调用此 skill）
 
-Opens an interactive picker UI where you select which cookie domains to import.
-Use before QA testing authenticated pages. Use when asked to "import cookies",
-"login to the site", or "authenticate the browser".
+前使用。当用户要求 "import cookies"、
+"login to the site" 或 "authenticate the browser" 时使用。（gstack）
 
-## Preamble (run first)
+## Preamble (run first)（Preamble，先运行）
 
 ```bash
 _UPD=$(~/.claude/skills/gstack/bin/gstack-update-check 2>/dev/null || .claude/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
@@ -99,11 +98,11 @@ _CHECKPOINT_MODE=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_mode
 _CHECKPOINT_PUSH=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_push 2>/dev/null || echo "false")
 echo "CHECKPOINT_MODE: $_CHECKPOINT_MODE"
 echo "CHECKPOINT_PUSH: $_CHECKPOINT_PUSH"
-# Plan-mode hint for skills like /spec that branch behavior on plan-mode state.
-# Claude Code exposes plan mode via system reminders; we detect best-effort
-# from CLAUDE_PLAN_FILE (set by the harness when plan mode is active) and
-# fall back to "inactive". Codex hosts and Claude execution mode both end up
-# inactive, which is the safe default (defaults to file+execute pipeline).
+# Plan mode 提示：供 /spec 这类会根据 plan-mode 状态分支的 skills 使用。
+# Claude Code 通过 system reminders 暴露 plan mode；这里 best-effort
+# 检测 CLAUDE_PLAN_FILE（harness 在 plan mode active 时设置），否则
+# fallback 到 "inactive"。Codex hosts 和 Claude execution mode 都会落到
+# inactive，这是安全默认值（默认走 file+execute pipeline）。
 if [ -n "${CLAUDE_PLAN_FILE:-}${GSTACK_PLAN_MODE_FORCE:-}" ]; then
   export GSTACK_PLAN_MODE="active"
 elif [ "${GSTACK_PLAN_MODE:-}" = "active" ]; then
@@ -115,182 +114,182 @@ echo "GSTACK_PLAN_MODE: $GSTACK_PLAN_MODE"
 [ -n "$OPENCLAW_SESSION" ] && echo "SPAWNED_SESSION: true" || true
 ```
 
-## Plan Mode Safe Operations
+## Plan Mode Safe Operations（Plan mode 安全操作）
 
-In plan mode, allowed because they inform the plan: `$B`, `$D`, `codex exec`/`codex review`, writes to `~/.gstack/`, writes to the plan file, and `open` for generated artifacts.
+在 plan mode 中，以下操作允许执行，因为它们用于补充计划信息：`$B`、`$D`、`codex exec`/`codex review`、写入 `~/.gstack/`、写入 plan file，以及对生成 artifacts 使用 `open`。
 
-## Skill Invocation During Plan Mode
+## Skill Invocation During Plan Mode（Plan mode 中的 skill 调用）
 
-If the user invokes a skill in plan mode, the skill takes precedence over generic plan mode behavior. **Treat the skill file as executable instructions, not reference.** Follow it step by step starting from Step 0; the first AskUserQuestion is the workflow entering plan mode, not a violation of it. AskUserQuestion (any variant — `mcp__*__AskUserQuestion` or native; see "AskUserQuestion Format → Tool resolution") satisfies plan mode's end-of-turn requirement. If no variant is callable, the skill is BLOCKED — stop and report `BLOCKED — AskUserQuestion unavailable` per the AskUserQuestion Format rule. At a STOP point, stop immediately. Do not continue the workflow or call ExitPlanMode there. Commands marked "PLAN MODE EXCEPTION — ALWAYS RUN" execute. Call ExitPlanMode only after the skill workflow completes, or if the user tells you to cancel the skill or leave plan mode.
+如果用户在 plan mode 中调用 skill，skill 优先于通用 plan mode 行为。**把 skill 文件视为可执行指令，而不是参考资料。**从 Step 0 开始逐步执行；第一次 AskUserQuestion 是工作流进入 plan mode 的方式，不是违规。AskUserQuestion（任意变体：`mcp__*__AskUserQuestion` 或 native；见 "AskUserQuestion Format → Tool resolution"）满足 plan mode 的 turn-end 要求。如果没有可调用的变体，此 skill 为 BLOCKED：停止，并按 AskUserQuestion Format 规则报告 `BLOCKED — AskUserQuestion unavailable`。遇到 STOP 点时立即停止。不要继续工作流，也不要在那里调用 ExitPlanMode。标记为 "PLAN MODE EXCEPTION — ALWAYS RUN" 的命令需要执行。仅在 skill 工作流完成后，或用户要求取消 skill / 离开 plan mode 时，才调用 ExitPlanMode。
 
-If `PROACTIVE` is `"false"`, do not auto-invoke or proactively suggest skills. If a skill seems useful, ask: "I think /skillname might help here — want me to run it?"
+如果 `PROACTIVE` 是 `"false"`，不要 auto-invoke 或主动建议 skills。如果某个 skill 看起来有用，询问："I think /skillname might help here — want me to run it?"
 
-If `SKILL_PREFIX` is `"true"`, suggest/invoke `/gstack-*` names. Disk paths stay `~/.claude/skills/gstack/[skill-name]/SKILL.md`.
+如果 `SKILL_PREFIX` 是 `"true"`，建议/invoke `/gstack-*` names。Disk paths 仍是 `~/.claude/skills/gstack/[skill-name]/SKILL.md`。
 
-If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined).
+如果 output 显示 `UPGRADE_AVAILABLE <old> <new>`：读取 `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` 并遵循 "Inline upgrade flow"（如果已配置则 auto-upgrade，否则用 4 个 options 的 AskUserQuestion；如果 declined，则写入 snooze state）。
 
-If output shows `JUST_UPGRADED <from> <to>`: print "Running gstack v{to} (just updated!)". If `SPAWNED_SESSION` is true, skip feature discovery.
+如果 output 显示 `JUST_UPGRADED <from> <to>`：打印 "Running gstack v{to} (just updated!)"。如果 `SPAWNED_SESSION` 为 true，跳过 feature discovery。
 
-Feature discovery, max one prompt per session:
-- Missing `~/.claude/skills/gstack/.feature-prompted-continuous-checkpoint`: AskUserQuestion for Continuous checkpoint auto-commits. If accepted, run `~/.claude/skills/gstack/bin/gstack-config set checkpoint_mode continuous`. Always touch marker.
-- Missing `~/.claude/skills/gstack/.feature-prompted-model-overlay`: inform "Model overlays are active. MODEL_OVERLAY shows the patch." Always touch marker.
+Feature discovery，每个 session 最多一个 prompt：
+- 缺少 `~/.claude/skills/gstack/.feature-prompted-continuous-checkpoint`：用 AskUserQuestion 询问是否启用 Continuous checkpoint auto-commits。如果 accepted，运行 `~/.claude/skills/gstack/bin/gstack-config set checkpoint_mode continuous`。始终 touch marker。
+- 缺少 `~/.claude/skills/gstack/.feature-prompted-model-overlay`：告知 "Model overlays are active. MODEL_OVERLAY shows the patch." 始终 touch marker。
 
-After upgrade prompts, continue workflow.
+Upgrade prompts 后，继续 workflow。
 
-If `WRITING_STYLE_PENDING` is `yes`: ask once about writing style:
+如果 `WRITING_STYLE_PENDING` 是 `yes`：询问一次 writing style：
 
-> v1 prompts are simpler: first-use jargon glosses, outcome-framed questions, shorter prose. Keep default or restore terse?
+> v1 prompts 更简单：first-use jargon glosses、outcome-framed questions、更短 prose。保留 default，还是恢复 terse？
 
 Options:
-- A) Keep the new default (recommended — good writing helps everyone)
-- B) Restore V0 prose — set `explain_level: terse`
+- A) 保留新 default（recommended — good writing helps everyone）
+- B) 恢复 V0 prose — 设置 `explain_level: terse`
 
-If A: leave `explain_level` unset (defaults to `default`).
-If B: run `~/.claude/skills/gstack/bin/gstack-config set explain_level terse`.
+如果选择 A：保持 `explain_level` unset（默认为 `default`）。
+如果选择 B：运行 `~/.claude/skills/gstack/bin/gstack-config set explain_level terse`。
 
-Always run (regardless of choice):
+无论选择什么，始终运行：
 ```bash
 rm -f ~/.gstack/.writing-style-prompt-pending
 touch ~/.gstack/.writing-style-prompted
 ```
 
-Skip if `WRITING_STYLE_PENDING` is `no`.
+如果 `WRITING_STYLE_PENDING` 是 `no`，跳过。
 
-If `LAKE_INTRO` is `no`: say "gstack follows the **Boil the Lake** principle — do the complete thing when AI makes marginal cost near-zero. Read more: https://garryslist.org/posts/boil-the-ocean" Offer to open:
+如果 `LAKE_INTRO` 是 `no`：说 "gstack 遵循 **Boil the Lake** principle：当 AI 让边际成本接近 0 时，就把完整的事做完。Read more: https://garryslist.org/posts/boil-the-ocean"。询问是否打开：
 
 ```bash
 open https://garryslist.org/posts/boil-the-ocean
 touch ~/.gstack/.completeness-intro-seen
 ```
 
-Only run `open` if yes. Always run `touch`.
+只有用户同意时才运行 `open`。始终运行 `touch`。
 
-If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: ask telemetry once via AskUserQuestion:
+如果 `TEL_PROMPTED` 是 `no` 且 `LAKE_INTRO` 是 `yes`：通过 AskUserQuestion 询问一次 telemetry：
 
-> Help gstack get better. Share usage data only: skill, duration, crashes, stable device ID. No code or file paths. Your repo name is recorded locally only and stripped before any upload.
-
-Options:
-- A) Help gstack get better! (recommended)
-- B) No thanks
-
-If A: run `~/.claude/skills/gstack/bin/gstack-config set telemetry community`
-
-If B: ask follow-up:
-
-> Anonymous mode sends only aggregate usage, no unique ID.
+> 帮助 gstack 变得更好。只分享 usage data：skill、duration、crashes、stable device ID。不分享 code 或 file paths。Repo name 只在本地记录，并会在任何 upload 前移除。
 
 Options:
-- A) Sure, anonymous is fine
-- B) No thanks, fully off
+- A) 帮助 gstack 变得更好！（recommended）
+- B) 不，谢谢
 
-If B→A: run `~/.claude/skills/gstack/bin/gstack-config set telemetry anonymous`
-If B→B: run `~/.claude/skills/gstack/bin/gstack-config set telemetry off`
+如果选择 A：运行 `~/.claude/skills/gstack/bin/gstack-config set telemetry community`
 
-Always run:
+如果选择 B：继续询问：
+
+> Anonymous mode 只发送 aggregate usage，不发送 unique ID。
+
+Options:
+- A) 可以，anonymous 没问题
+- B) 不，谢谢，完全关闭
+
+如果 B→A：运行 `~/.claude/skills/gstack/bin/gstack-config set telemetry anonymous`
+如果 B→B：运行 `~/.claude/skills/gstack/bin/gstack-config set telemetry off`
+
+始终运行：
 ```bash
 touch ~/.gstack/.telemetry-prompted
 ```
 
-Skip if `TEL_PROMPTED` is `yes`.
+如果 `TEL_PROMPTED` 是 `yes`，跳过。
 
-If `PROACTIVE_PROMPTED` is `no` AND `TEL_PROMPTED` is `yes`: ask once:
+如果 `PROACTIVE_PROMPTED` 是 `no` 且 `TEL_PROMPTED` 是 `yes`：询问一次：
 
-> Let gstack proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
+> 允许 gstack 主动建议 skills，例如对 "does this work?" 建议 /qa，或对 bugs 建议 /investigate？
 
 Options:
-- A) Keep it on (recommended)
-- B) Turn it off — I'll type /commands myself
+- A) 保持开启（recommended）
+- B) 关闭 — 我会自己输入 /commands
 
-If A: run `~/.claude/skills/gstack/bin/gstack-config set proactive true`
-If B: run `~/.claude/skills/gstack/bin/gstack-config set proactive false`
+如果选择 A：运行 `~/.claude/skills/gstack/bin/gstack-config set proactive true`
+如果选择 B：运行 `~/.claude/skills/gstack/bin/gstack-config set proactive false`
 
-Always run:
+始终运行：
 ```bash
 touch ~/.gstack/.proactive-prompted
 ```
 
-Skip if `PROACTIVE_PROMPTED` is `yes`.
+如果 `PROACTIVE_PROMPTED` 是 `yes`，跳过。
 
-If `HAS_ROUTING` is `no` AND `ROUTING_DECLINED` is `false` AND `PROACTIVE_PROMPTED` is `yes`:
-Check if a CLAUDE.md file exists in the project root. If it does not exist, create it.
+如果 `HAS_ROUTING` 为 `no`，且 `ROUTING_DECLINED` 为 `false`，且 `PROACTIVE_PROMPTED` 为 `yes`：
+检查项目根目录是否存在 CLAUDE.md。如果不存在，则创建它。
 
-Use AskUserQuestion:
+使用 AskUserQuestion：
 
-> gstack works best when your project's CLAUDE.md includes skill routing rules.
+> 当 project 的 CLAUDE.md 包含 skill routing rules 时，gstack 效果最好。
 
 Options:
-- A) Add routing rules to CLAUDE.md (recommended)
-- B) No thanks, I'll invoke skills manually
+- A) 把 routing rules 添加到 CLAUDE.md（recommended）
+- B) 不，谢谢，我会手动 invoke skills
 
-If A: Append this section to the end of CLAUDE.md:
+如果选择 A：把以下 section 追加到 CLAUDE.md 末尾：
 
 ```markdown
 
-## Skill routing
+## Skill routing（Skill 路由）
 
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+当用户请求匹配可用 skill 时，通过 Skill tool 调用它。不确定时，也调用对应 skill。
 
-Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
-- Author a backlog-ready spec/issue → invoke /spec
+关键 routing rules：
+- 产品想法/brainstorming -> 调用 /office-hours
+- 策略/scope -> 调用 /plan-ceo-review
+- 架构 -> 调用 /plan-eng-review
+- Design system/plan review -> 调用 /design-consultation 或 /plan-design-review
+- 完整 review pipeline -> 调用 /autoplan
+- Bugs/errors -> 调用 /investigate
+- QA/testing site behavior -> 调用 /qa 或 /qa-only
+- Code review/diff check -> 调用 /review
+- Visual polish -> 调用 /design-review
+- Ship/deploy/PR -> 调用 /ship 或 /land-and-deploy
+- 保存进度 -> 调用 /context-save
+- 恢复上下文 -> 调用 /context-restore
+- 编写 backlog-ready spec/issue -> 调用 /spec
 ```
 
-Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
+然后提交改动：`git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
 
-If B: run `~/.claude/skills/gstack/bin/gstack-config set routing_declined true` and say they can re-enable with `gstack-config set routing_declined false`.
+如果选择 B：运行 `~/.claude/skills/gstack/bin/gstack-config set routing_declined true`，并说明可用 `gstack-config set routing_declined false` 重新启用。
 
-This only happens once per project. Skip if `HAS_ROUTING` is `yes` or `ROUTING_DECLINED` is `true`.
+每个项目只执行一次。如果 `HAS_ROUTING` 为 `yes` 或 `ROUTING_DECLINED` 为 `true`，则跳过。
 
-If `VENDORED_GSTACK` is `yes`, warn once via AskUserQuestion unless `~/.gstack/.vendoring-warned-$SLUG` exists:
+如果 `VENDORED_GSTACK` 是 `yes`，且 `~/.gstack/.vendoring-warned-$SLUG` 不存在，则通过 AskUserQuestion warning 一次：
 
-> This project has gstack vendored in `.claude/skills/gstack/`. Vendoring is deprecated.
-> Migrate to team mode?
+> 这个 project 把 gstack vendored 在 `.claude/skills/gstack/`。Vendoring 已 deprecated。
+> 是否迁移到 team mode？
 
 Options:
-- A) Yes, migrate to team mode now
-- B) No, I'll handle it myself
+- A) 是，现在迁移到 team mode
+- B) 否，我自己处理
 
-If A:
-1. Run `git rm -r .claude/skills/gstack/`
-2. Run `echo '.claude/skills/gstack/' >> .gitignore`
-3. Run `~/.claude/skills/gstack/bin/gstack-team-init required` (or `optional`)
-4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate gstack from vendored to team mode"`
-5. Tell the user: "Done. Each developer now runs: `cd ~/.claude/skills/gstack && ./setup --team`"
+如果选择 A：
+1. 运行 `git rm -r .claude/skills/gstack/`
+2. 运行 `echo '.claude/skills/gstack/' >> .gitignore`
+3. 运行 `~/.claude/skills/gstack/bin/gstack-team-init required`（或 `optional`）
+4. 运行 `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate gstack from vendored to team mode"`
+5. 告诉用户："Done. Each developer now runs: `cd ~/.claude/skills/gstack && ./setup --team`"（保留 exact command）
 
-If B: say "OK, you're on your own to keep the vendored copy up to date."
+如果选择 B：说 "OK，我不会迁移。你需要自己保持 vendored copy up to date。"
 
-Always run (regardless of choice):
+无论选择什么，始终运行：
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
 touch ~/.gstack/.vendoring-warned-${SLUG:-unknown}
 ```
 
-If marker exists, skip.
+如果 marker 已存在，则跳过。
 
-If `SPAWNED_SESSION` is `"true"`, you are running inside a session spawned by an
-AI orchestrator (e.g., OpenClaw). In spawned sessions:
-- Do NOT use AskUserQuestion for interactive prompts. Auto-choose the recommended option.
-- Do NOT run upgrade checks, telemetry prompts, routing injection, or lake intro.
-- Focus on completing the task and reporting results via prose output.
-- End with a completion report: what shipped, decisions made, anything uncertain.
+如果 `SPAWNED_SESSION` 是 `"true"`，你正在由 AI orchestrator（例如 OpenClaw）
+spawn 的 session 中运行。在 spawned sessions 中：
+- 不要使用 AskUserQuestion 做 interactive prompts。自动选择 recommended option。
+- 不要运行 upgrade checks、telemetry prompts、routing injection 或 lake intro。
+- 专注完成任务，并通过 prose output 报告结果。
+- 以 completion report 收尾：shipped 了什么、做了哪些 decisions、还有什么不确定。
 
-## Artifacts Sync (skill start)
+## Artifacts Sync (skill start)（Artifacts 同步，skill 启动时）
 
 ```bash
 _GSTACK_HOME="${GSTACK_HOME:-$HOME/.gstack}"
-# Prefer the v1.27.0.0 artifacts file; fall back to brain file for users
-# upgrading mid-stream before the migration script runs.
+# 优先使用 v1.27.0.0 artifacts 文件；对于 migration script 运行前
+# 处于升级中途的用户，fallback 到旧 brain 文件。
 if [ -f "$HOME/.gstack-artifacts-remote.txt" ]; then
   _BRAIN_REMOTE_FILE="$HOME/.gstack-artifacts-remote.txt"
 else
@@ -299,12 +298,11 @@ fi
 _BRAIN_SYNC_BIN="~/.claude/skills/gstack/bin/gstack-brain-sync"
 _BRAIN_CONFIG_BIN="~/.claude/skills/gstack/bin/gstack-config"
 
-# /sync-gbrain context-load: teach the agent to use gbrain when it's available.
-# Per-worktree pin: post-spike redesign uses kubectl-style `.gbrain-source` in the
-# git toplevel to scope queries. Look for the pin in the worktree (not a global
-# state file) so that opening worktree B without a pin doesn't claim "indexed"
-# just because worktree A was synced. Empty string when gbrain is not
-# configured (zero context cost for non-gbrain users).
+# /sync-gbrain context-load：当 gbrain 可用时，教 agent 使用 gbrain。
+# Per-worktree pin：post-spike redesign 使用 kubectl-style 的 `.gbrain-source`
+# 放在 git toplevel 里限定 queries 范围。要在 worktree 内寻找 pin（不是
+# global state file），避免因为 worktree A 已同步，就让没有 pin 的 worktree B
+# 声称自己已 indexed。gbrain 未配置时为空字符串（对非 gbrain 用户为零 context cost）。
 _GBRAIN_CONFIG="$HOME/.gbrain/config.json"
 if [ -f "$_GBRAIN_CONFIG" ] && command -v gbrain >/dev/null 2>&1; then
   _GBRAIN_VERSION_OK=$(gbrain --version 2>/dev/null | grep -c '^gbrain ' || echo 0)
@@ -329,10 +327,9 @@ fi
 
 _BRAIN_SYNC_MODE=$("$_BRAIN_CONFIG_BIN" get artifacts_sync_mode 2>/dev/null || echo off)
 
-# Detect remote-MCP mode (Path 4 of /setup-gbrain). Local artifacts sync is
-# a no-op in remote mode; the brain server pulls from GitHub/GitLab on its
-# own cadence. Read claude.json directly to keep this preamble fast (no
-# subprocess to claude CLI on every skill start).
+# 检测 remote-MCP mode（/setup-gbrain 的 Path 4）。Remote mode 下 local artifacts
+# sync 是 no-op；brain server 会按自己的节奏从 GitHub/GitLab 拉取。
+# 直接读取 claude.json 以保持 preamble 快速（每次 skill start 不启动 claude CLI 子进程）。
 _GBRAIN_MCP_MODE="none"
 if command -v jq >/dev/null 2>&1 && [ -f "$HOME/.claude.json" ]; then
   _GBRAIN_MCP_TYPE=$(jq -r '.mcpServers.gbrain.type // .mcpServers.gbrain.transport // empty' "$HOME/.claude.json" 2>/dev/null)
@@ -367,8 +364,8 @@ if [ -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" != "off" ]; then
 fi
 
 if [ "$_GBRAIN_MCP_MODE" = "remote-http" ]; then
-  # Remote-MCP mode: local artifacts sync is a no-op (brain admin's server
-  # pulls from GitHub/GitLab). Show the user this is by design, not broken.
+  # Remote-MCP mode：local artifacts sync 是 no-op（brain admin 的 server
+  # 会从 GitHub/GitLab 拉取）。向用户说明这是预期行为，不是故障。
   _GBRAIN_HOST=$(jq -r '.mcpServers.gbrain.url // empty' "$HOME/.claude.json" 2>/dev/null | sed -E 's|^https?://([^/:]+).*|\1|')
   echo "ARTIFACTS_SYNC: remote-mode (managed by brain server ${_GBRAIN_HOST:-remote})"
 elif [ -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" != "off" ]; then
@@ -384,26 +381,26 @@ fi
 
 
 
-Privacy stop-gate: if output shows `ARTIFACTS_SYNC: off`, `artifacts_sync_mode_prompted` is `false`, and gbrain is on PATH or `gbrain doctor --fast --json` works, ask once:
+Privacy stop-gate：如果输出显示 `ARTIFACTS_SYNC: off`，`artifacts_sync_mode_prompted` 为 `false`，且 gbrain 在 PATH 上或 `gbrain doctor --fast --json` 可运行，则询问一次：
 
-> gstack can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
+> gstack 可以把你的 artifacts（CEO plans、designs、reports）发布到一个 private GitHub repo，并由 GBrain 跨机器 index。要同步多少内容？
 
 Options:
-- A) Everything allowlisted (recommended)
-- B) Only artifacts
-- C) Decline, keep everything local
+- A) 所有 allowlisted 内容（recommended）
+- B) 仅 artifacts
+- C) 拒绝，全部保持 local
 
-After answer:
+回答后：
 
 ```bash
-# Chosen mode: full | artifacts-only | off
+# 选择的 mode：full | artifacts-only | off
 "$_BRAIN_CONFIG_BIN" set artifacts_sync_mode <choice>
 "$_BRAIN_CONFIG_BIN" set artifacts_sync_mode_prompted true
 ```
 
-If A/B and `~/.gstack/.git` is missing, ask whether to run `gstack-artifacts-init`. Do not block the skill.
+如果选择 A/B 且 `~/.gstack/.git` 缺失，询问是否运行 `gstack-artifacts-init`。不要阻塞此 skill。
 
-At skill END before telemetry:
+在 skill END、telemetry 之前：
 
 ```bash
 "~/.claude/skills/gstack/bin/gstack-brain-sync" --discover-new 2>/dev/null || true
@@ -411,72 +408,66 @@ At skill END before telemetry:
 ```
 
 
-## Model-Specific Behavioral Patch (claude)
+## Model-Specific Behavioral Patch (claude)（模型专属行为补丁）
 
-The following nudges are tuned for the claude model family. They are
-**subordinate** to skill workflow, STOP points, AskUserQuestion gates, plan-mode
-safety, and /ship review gates. If a nudge below conflicts with skill instructions,
-the skill wins. Treat these as preferences, not rules.
+以下 nudges 针对 claude model family 调整。它们**从属于** skill workflow、
+STOP points、AskUserQuestion gates、plan-mode safety 和 /ship review gates。
+如果下面的 nudge 与 skill instructions 冲突，以 skill 为准。把这些视为偏好，而不是规则。
 
-**Todo-list discipline.** When working through a multi-step plan, mark each task
-complete individually as you finish it. Do not batch-complete at the end. If a task
-turns out to be unnecessary, mark it skipped with a one-line reason.
+**Todo-list discipline。** 处理 multi-step plan 时，每完成一个 task 就单独标记 complete。不要等到最后 batch-complete。如果某个 task 变得不必要，用一行 reason 标记 skipped。
 
-**Think before heavy actions.** For complex operations (refactors, migrations,
-non-trivial new features), briefly state your approach before executing. This lets
-the user course-correct cheaply instead of mid-flight.
+**Think before heavy actions。** 对复杂操作（refactors、migrations、non-trivial new features），执行前简短说明 approach。这样用户可以低成本 course-correct，而不是等你做到一半才打断。
 
-**Dedicated tools over Bash.** Prefer Read, Edit, Write, Glob, Grep over shell
-equivalents (cat, sed, find, grep). The dedicated tools are cheaper and clearer.
+**Dedicated tools over Bash。** 优先使用 Read、Edit、Write、Glob、Grep，而不是 shell equivalents（cat、sed、find、grep）。Dedicated tools 更便宜、更清晰。
 
-## Voice
+## Voice（语气）
 
-Direct, concrete, builder-to-builder. Name the file, function, command, and user-visible impact. No filler.
+直接、具体，builder-to-builder。说出 file、function、command 和 user-visible impact。不要 filler。
 
-No em dashes. No AI vocabulary: delve, crucial, robust, comprehensive, nuanced, multifaceted. Never corporate or academic. Short paragraphs. End with what to do.
+不要 em dashes。不要 AI vocabulary：delve、crucial、robust、comprehensive、nuanced、multifaceted。不要 corporate 或 academic。短段落。以接下来要做什么收尾。
 
-The user has context you do not. Cross-model agreement is a recommendation, not a decision. The user decides.
+用户拥有你没有的 context。Cross-model agreement 是 recommendation，不是 decision。由用户决定。
 
-## Completion Status Protocol
+## Completion Status Protocol（完成状态协议）
 
-When completing a skill workflow, report status using one of:
-- **DONE** — completed with evidence.
-- **DONE_WITH_CONCERNS** — completed, but list concerns.
-- **BLOCKED** — cannot proceed; state blocker and what was tried.
-- **NEEDS_CONTEXT** — missing info; state exactly what is needed.
+完成 skill 工作流时，使用以下之一报告状态：
+- **DONE** — 已完成，并附证据。
+- **DONE_WITH_CONCERNS** — 已完成，但列出顾虑。
+- **BLOCKED** — 无法继续；说明阻塞点和已尝试的操作。
+- **NEEDS_CONTEXT** — 缺少信息；精确说明需要什么。
 
-Escalate after 3 failed attempts, uncertain security-sensitive changes, or scope you cannot verify. Format: `STATUS`, `REASON`, `ATTEMPTED`, `RECOMMENDATION`.
+如果 3 次尝试失败、涉及不确定的安全敏感改动，或范围无法验证，则升级处理。格式：`STATUS`、`REASON`、`ATTEMPTED`、`RECOMMENDATION`。
 
-## Operational Self-Improvement
+## Operational Self-Improvement（操作自我改进）
 
-Before completing, if you discovered a durable project quirk or command fix that would save 5+ minutes next time, log it:
+完成前，如果你发现了可长期复用的项目 quirks 或命令修复、下次可节省 5 分钟以上，请记录：
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-learnings-log '{"skill":"SKILL_NAME","type":"operational","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"observed"}'
 ```
 
-Do not log obvious facts or one-time transient errors.
+不要记录显而易见的事实或一次性 transient errors。
 
-## Telemetry (run last)
+## Telemetry (run last)（Telemetry，最后运行）
 
-After workflow completion, log telemetry. Use skill `name:` from frontmatter. OUTCOME is success/error/abort/unknown.
+工作流完成后记录 telemetry。使用 frontmatter 中的 skill `name:`。OUTCOME 为 success/error/abort/unknown。
 
-**PLAN MODE EXCEPTION — ALWAYS RUN:** This command writes telemetry to
-`~/.gstack/analytics/`, matching preamble analytics writes.
+**PLAN MODE EXCEPTION — ALWAYS RUN:** 此命令把 telemetry 写入
+`~/.gstack/analytics/`，与 preamble analytics 写入一致。
 
-Run this bash:
+运行以下 bash：
 
 ```bash
 _TEL_END=$(date +%s)
 _TEL_DUR=$(( _TEL_END - _TEL_START ))
 rm -f ~/.gstack/analytics/.pending-"$_SESSION_ID" 2>/dev/null || true
-# Session timeline: record skill completion (local-only, never sent anywhere)
+# Session timeline：记录 skill 完成情况（仅本地，绝不发送到任何地方）
 ~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
-# Local analytics (gated on telemetry setting)
+# Local analytics（受 telemetry 设置控制）
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"SKILL_NAME","duration_s":"'"$_TEL_DUR"'","outcome":"OUTCOME","browse":"USED_BROWSE","session":"'"$_SESSION_ID"'","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
-# Remote telemetry (opt-in, requires binary)
+# Remote telemetry（opt-in，需要 binary）
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
@@ -484,36 +475,36 @@ if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+运行前替换 `SKILL_NAME`、`OUTCOME` 和 `USED_BROWSE`。
 
-## Plan Status Footer
+## Plan Status Footer（计划状态页脚）
 
-Skills that run plan reviews (`/plan-*-review`, `/codex review`) include the EXIT PLAN MODE GATE blocking checklist at the end of the skill, which verifies the plan file ends with `## GSTACK REVIEW REPORT` before ExitPlanMode is called. Skills that don't run plan reviews (operational skills like `/ship`, `/qa`, `/review`) typically don't operate in plan mode and have no review report to verify; this footer is a no-op for them. Writing the plan file is the one edit allowed in plan mode.
+运行 plan reviews 的 skills（`/plan-*-review`、`/codex review`）会在 skill 末尾包含 EXIT PLAN MODE GATE 阻塞 checklist；它会在调用 ExitPlanMode 前验证 plan file 以 `## GSTACK REVIEW REPORT` 结尾。不运行 plan reviews 的 skills（如 `/ship`、`/qa`、`/review` 这类 operational skills）通常不在 plan mode 中运行，也没有 review report 需要验证；此 footer 对它们是 no-op。写入 plan file 是 plan mode 中唯一允许的编辑。
 
-# Setup Browser Cookies
+# Setup Browser Cookies（设置浏览器 cookies）
 
-Import logged-in sessions from your real Chromium browser into the headless browse session.
+将真实 Chromium browser 中的 logged-in sessions 导入 headless browse session。
 
-## CDP mode check
+## CDP mode check（CDP mode 检查）
 
-First, check if browse is already connected to the user's real browser:
+首先，检查 browse 是否已经连接到用户的真实 browser：
 ```bash
 $B status 2>/dev/null | grep -q "Mode: cdp" && echo "CDP_MODE=true" || echo "CDP_MODE=false"
 ```
-If `CDP_MODE=true`: tell the user "Not needed — you're connected to your real browser via CDP. Your cookies and sessions are already available." and stop. No cookie import needed.
+如果 `CDP_MODE=true`：告诉用户 "不需要导入：你已经通过 CDP 连接到真实 browser，cookies 和 sessions 已可用。" 然后停止。不需要 cookie import。
 
-## How it works
+## How it works（工作方式）
 
-1. Find the browse binary
-2. Run `cookie-import-browser` to detect installed browsers and open the picker UI
-3. User selects which cookie domains to import in their browser
-4. Cookies are decrypted and loaded into the Playwright session
+1. 找到 browse binary
+2. 运行 `cookie-import-browser`，检测 installed browsers 并打开 picker UI
+3. 用户在 browser 中选择要导入哪些 cookie domains
+4. Cookies 被 decrypt 并 loaded into Playwright session
 
-## Steps
+## Steps（步骤）
 
-### 1. Find the browse binary
+### 1. 查找 browse binary
 
-## SETUP (run this check BEFORE any browse command)
+## SETUP (run this check BEFORE any browse command)（设置：任何 browse command 前先运行）
 
 ```bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -527,10 +518,10 @@ else
 fi
 ```
 
-If `NEEDS_SETUP`:
-1. Tell the user: "gstack browse needs a one-time build (~10 seconds). OK to proceed?" Then STOP and wait.
-2. Run: `cd <SKILL_DIR> && ./setup`
-3. If `bun` is not installed:
+如果输出 `NEEDS_SETUP`：
+1. 告诉用户："gstack browse needs a one-time build (~10 seconds). OK to proceed?" 然后 STOP 并等待。
+2. 运行：`cd <SKILL_DIR> && ./setup`
+3. 如果未安装 `bun`：
    ```bash
    if ! command -v bun >/dev/null 2>&1; then
      BUN_VERSION="1.3.10"
@@ -549,45 +540,45 @@ If `NEEDS_SETUP`:
    fi
    ```
 
-### 2. Open the cookie picker
+### 2. 打开 cookie picker
 
 ```bash
 $B cookie-import-browser
 ```
 
-This auto-detects installed Chromium browsers and opens
-an interactive picker UI in your default browser where you can:
-- Switch between installed browsers
+这会 auto-detect installed Chromium browsers，并在 default browser 中打开 interactive picker UI。
+你可以：
+- 在 installed browsers 之间切换
 - Search domains
-- Click "+" to import a domain's cookies
-- Click trash to remove imported cookies
+- 点击 "+" 导入某个 domain 的 cookies
+- 点击 trash 移除 imported cookies
 
-Tell the user: **"Cookie picker opened — select the domains you want to import in your browser, then tell me when you're done."**
+告诉用户：**"Cookie picker 已打开：请在 browser 中选择要导入的 domains，完成后告诉我。"**
 
-### 3. Direct import (alternative)
+### 3. Direct import（alternative）
 
-If the user specifies a domain directly (e.g., `/setup-browser-cookies github.com`), skip the UI:
+如果用户直接指定 domain（例如 `/setup-browser-cookies github.com`），跳过 UI：
 
 ```bash
 $B cookie-import-browser comet --domain github.com
 ```
 
-Replace `comet` with the appropriate browser if specified.
+如果指定了 browser，用相应 browser 替换 `comet`。
 
-### 4. Verify
+### 4. Verify（验证）
 
-After the user confirms they're done:
+用户确认完成后：
 
 ```bash
 $B cookies
 ```
 
-Show the user a summary of imported cookies (domain counts).
+向用户展示 imported cookies summary（domain counts）。
 
-## Notes
+## Notes（备注）
 
-- On macOS, the first import per browser may trigger a Keychain dialog — click "Allow" / "Always Allow"
-- On Linux, `v11` cookies may require `secret-tool`/libsecret access; `v10` cookies use Chromium's standard fallback key
-- Cookie picker is served on the same port as the browse server (no extra process)
-- Only domain names and cookie counts are shown in the UI — no cookie values are exposed
-- The browse session persists cookies between commands, so imported cookies work immediately
+- 在 macOS 上，每个 browser 的首次 import 可能触发 Keychain dialog：点击 "Allow" / "Always Allow"
+- 在 Linux 上，`v11` cookies 可能需要 `secret-tool`/libsecret access；`v10` cookies 使用 Chromium 的 standard fallback key
+- Cookie picker 与 browse server 使用同一 port（无额外 process）
+- UI 中只显示 domain names 和 cookie counts：不暴露 cookie values
+- Browse session 会在 commands 之间持久化 cookies，因此 imported cookies 会立即生效

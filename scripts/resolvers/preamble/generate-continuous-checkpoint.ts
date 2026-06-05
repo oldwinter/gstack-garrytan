@@ -1,13 +1,13 @@
 
 
 export function generateContinuousCheckpoint(): string {
-  return `## Continuous Checkpoint Mode
+  return `## Continuous Checkpoint Mode（连续 checkpoint 模式）
 
-If \`CHECKPOINT_MODE\` is \`"continuous"\`: auto-commit completed logical units with \`WIP:\` prefix.
+如果 \`CHECKPOINT_MODE\` 是 \`"continuous"\`：用 \`WIP:\` prefix 自动提交已完成的 logical units。
 
-Commit after new intentional files, completed functions/modules, verified bug fixes, and before long-running install/build/test commands.
+在新增 intentional files、完成 functions/modules、验证 bug fixes 后提交；在 long-running install/build/test commands 前也提交。
 
-Commit format:
+Commit format（提交格式）：
 
 \`\`\`
 WIP: <concise description of what changed>
@@ -20,9 +20,9 @@ Skill: </skill-name-if-running>
 [/gstack-context]
 \`\`\`
 
-Rules: stage only intentional files, NEVER \`git add -A\`, do not commit broken tests or mid-edit state, and push only if \`CHECKPOINT_PUSH\` is \`"true"\`. Do not announce each WIP commit.
+规则：只 stage intentional files，绝不 \`git add -A\`；不要提交 broken tests 或 mid-edit state；只有 \`CHECKPOINT_PUSH\` 为 \`"true"\` 时才 push。不要逐个宣布 WIP commit。
 
-\`/context-restore\` reads \`[gstack-context]\`; \`/ship\` squashes WIP commits into clean commits.
+\`/context-restore\` 会读取 \`[gstack-context]\`；\`/ship\` 会把 WIP commits squash 成 clean commits。
 
-If \`CHECKPOINT_MODE\` is \`"explicit"\`: ignore this section unless a skill or user asks to commit.`;
+如果 \`CHECKPOINT_MODE\` 是 \`"explicit"\`：忽略此 section，除非某个 skill 或用户要求 commit。`;
 }

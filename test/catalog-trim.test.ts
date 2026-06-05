@@ -180,7 +180,7 @@ describe('buildWhenToInvokeSection', () => {
       voiceLine: 'Voice triggers (speech-to-text aliases): "ship it".',
       hasGstackTag: true,
     });
-    expect(out).toContain('## When to invoke this skill');
+    expect(out).toContain('## When to invoke this skill（何时调用此 skill）');
     expect(out).toContain('Use when asked to ship.');
     expect(out).toContain('Voice triggers');
   });
@@ -192,7 +192,7 @@ describe('buildWhenToInvokeSection', () => {
       voiceLine: null,
       hasGstackTag: true,
     });
-    expect(out).toContain('## When to invoke this skill');
+    expect(out).toContain('## When to invoke this skill（何时调用此 skill）');
     expect(out).not.toContain('Use when');
   });
 
@@ -231,8 +231,8 @@ Original body content here.
     // description with an interior colon ("Example skill:") is YAML-quoted, so
     // the value is wrapped in double quotes — tolerate the optional quotes.
     expect(content).toMatch(/^description: "?Example skill:[^\n]*\(gstack\)"?\n/m);
-    // Body has the When to invoke section
-    expect(content).toContain('## When to invoke this skill');
+    // Body has the When to invoke section.
+    expect(content).toContain('## When to invoke this skill（何时调用此 skill）');
     expect(content).toContain('Use when asked to do an example task.');
     expect(content).toContain('Proactively suggest when');
     // Original body still present

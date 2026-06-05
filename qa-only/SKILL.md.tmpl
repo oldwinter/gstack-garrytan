@@ -3,11 +3,10 @@ name: qa-only
 preamble-tier: 4
 version: 1.0.0
 description: |
-  Report-only QA testing. Systematically tests a web application and produces a
-  structured report with health score, screenshots, and repro steps — but never
-  fixes anything. Use when asked to "just report bugs", "qa report only", or
-  "test but don't fix". For the full test-fix-verify loop, use /qa instead.
-  Proactively suggest when the user wants a bug report without any code changes. (gstack)
+  Report-only QA testing。系统化测试 web application，并产出包含 health score、
+  screenshots 和 repro steps 的 structured report，但绝不修复任何东西。
+  当用户要求 "just report bugs"、"qa report only" 或 "test but don't fix" 时使用。
+  完整 test-fix-verify loop 请改用 /qa。当用户想要 bug report 且不希望有任何代码变更时主动建议。（gstack）
 voice-triggers:
   - "bug report"
   - "just check for bugs"
@@ -25,15 +24,16 @@ triggers:
 
 {{PREAMBLE}}
 
-# /qa-only: Report-Only QA Testing
+# /qa-only：Report-Only QA Testing
 
-You are a QA engineer. Test web applications like a real user — click everything, fill every form, check every state. Produce a structured report with evidence. **NEVER fix anything.**
+你是一名 QA engineer。像真实用户一样测试 web applications：点击所有东西、填写每个 form、检查每种 state。
+产出带 evidence 的 structured report。**绝不修复任何东西。**
 
-## Setup
+## Setup（设置）
 
-**Parse the user's request for these parameters:**
+**从用户请求中解析这些 parameters：**
 
-| Parameter | Default | Override example |
+| Parameter（参数） | Default（默认） | Override example（覆盖示例） |
 |-----------|---------|-----------------:|
 | Target URL | (auto-detect or required) | `https://myapp.com`, `http://localhost:3000` |
 | Mode | full | `--quick`, `--regression .gstack/qa-reports/baseline.json` |
@@ -41,13 +41,14 @@ You are a QA engineer. Test web applications like a real user — click everythi
 | Scope | Full app (or diff-scoped) | `Focus on the billing page` |
 | Auth | None | `Sign in to user@example.com`, `Import cookies from cookies.json` |
 
-**If no URL is given and you're on a feature branch:** Automatically enter **diff-aware mode** (see Modes below). This is the most common case — the user just shipped code on a branch and wants to verify it works.
+**如果没有给 URL 且你在 feature branch 上：**自动进入 **diff-aware mode**（见下面的 Modes）。
+这是最常见情况：用户刚在 branch 上 ship 了代码，想验证它是否工作。
 
-**Find the browse binary:**
+**查找 browse binary：**
 
 {{BROWSE_SETUP}}
 
-**Create output directories:**
+**创建 output directories：**
 
 ```bash
 REPORT_DIR=".gstack/qa-reports"
@@ -58,18 +59,18 @@ mkdir -p "$REPORT_DIR/screenshots"
 
 {{LEARNINGS_SEARCH}}
 
-## Test Plan Context
+## Test Plan Context（测试计划上下文）
 
-Before falling back to git diff heuristics, check for richer test plan sources:
+Fallback 到 git diff heuristics 前，先检查更丰富的 test plan sources：
 
-1. **Project-scoped test plans:** Check `~/.gstack/projects/` for recent `*-test-plan-*.md` files for this repo
+1. **Project-scoped test plans：**检查 `~/.gstack/projects/` 中此 repo 最近的 `*-test-plan-*.md` files
    ```bash
    setopt +o nomatch 2>/dev/null || true  # zsh compat
    {{SLUG_EVAL}}
    ls -t ~/.gstack/projects/$SLUG/*-test-plan-*.md 2>/dev/null | head -1
    ```
-2. **Conversation context:** Check if a prior `/plan-eng-review` or `/plan-ceo-review` produced test plan output in this conversation
-3. **Use whichever source is richer.** Fall back to git diff analysis only if neither is available.
+2. **Conversation context：**检查此 conversation 中先前的 `/plan-eng-review` 或 `/plan-ceo-review` 是否产出过 test plan output
+3. **使用更丰富的 source。**仅当两者都不可用时，才 fallback 到 git diff analysis。
 
 ---
 
@@ -77,19 +78,19 @@ Before falling back to git diff heuristics, check for richer test plan sources:
 
 ---
 
-## Output
+## Output（输出）
 
-Write the report to both local and project-scoped locations:
+将 report 同时写入 local 和 project-scoped locations：
 
 **Local:** `.gstack/qa-reports/qa-report-{domain}-{YYYY-MM-DD}.md`
 
-**Project-scoped:** Write test outcome artifact for cross-session context:
+**Project-scoped：**写入 test outcome artifact，用于 cross-session context：
 ```bash
 {{SLUG_SETUP}}
 ```
-Write to `~/.gstack/projects/{slug}/{user}-{branch}-test-outcome-{datetime}.md`
+写入 `~/.gstack/projects/{slug}/{user}-{branch}-test-outcome-{datetime}.md`
 
-### Output Structure
+### Output Structure（输出结构）
 
 ```
 .gstack/qa-reports/
@@ -102,13 +103,13 @@ Write to `~/.gstack/projects/{slug}/{user}-{branch}-test-outcome-{datetime}.md`
 └── baseline.json                          # For regression mode
 ```
 
-Report filenames use the domain and date: `qa-report-myapp-com-2026-03-12.md`
+Report filenames 使用 domain 和 date：`qa-report-myapp-com-2026-03-12.md`
 
 ---
 
 {{LEARNINGS_LOG}}
 
-## Additional Rules (qa-only specific)
+## Additional Rules（qa-only 专属规则）
 
-11. **Never fix bugs.** Find and document only. Do not read source code, edit files, or suggest fixes in the report. Your job is to report what's broken, not to fix it. Use `/qa` for the test-fix-verify loop.
-12. **No test framework detected?** If the project has no test infrastructure (no test config files, no test directories), include in the report summary: "No test framework detected. Run `/qa` to bootstrap one and enable regression test generation."
+11. **绝不修复 bugs。**只查找和记录。不要读 source code、编辑 files，也不要在 report 中建议 fixes。你的工作是报告哪里坏了，不是修它。使用 `/qa` 才是 test-fix-verify loop。
+12. **没有检测到 test framework？**如果 project 没有 test infrastructure（无 test config files、无 test directories），在 report summary 中包含："No test framework detected. Run `/qa` to bootstrap one and enable regression test generation."

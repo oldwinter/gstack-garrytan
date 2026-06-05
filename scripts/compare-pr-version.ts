@@ -33,7 +33,7 @@ try {
 
 if (parsed.offline === true) {
   console.log("::warning::workspace-aware-ship util offline; failing open (no collision check performed)");
-  console.log(`::notice::If you merge this PR and a queued PR landed ahead, CHANGELOG may need manual reconciliation.`);
+  console.log(`::notice::如果 merge 此 PR 时已有 queued PR 抢先 landed，CHANGELOG 可能需要手动 reconciliation。`);
   process.exit(0);
 }
 
@@ -99,7 +99,7 @@ if (collision) {
 // monotonic ordering on main when this PR merges ahead of higher-numbered
 // queued PRs.
 if (cmp(pPR, pNext) < 0) {
-  console.log(`::notice::${tag} claims v${prVersion}, below util's suggestion v${nextSlot}. Slot is unclaimed; gate passes. If this PR lands ahead of queued PRs at higher slots, version ordering on main remains monotonic.`);
+  console.log(`::notice::${tag} claims v${prVersion}，低于 util 建议的 v${nextSlot}。该 slot 未被 claim；gate passes。如果此 PR 先于 higher-slot queued PRs landed，main 上的 version ordering 仍保持 monotonic。`);
 }
 
 console.log(`✓ ${tag} claims v${prVersion} — slot is free.`);

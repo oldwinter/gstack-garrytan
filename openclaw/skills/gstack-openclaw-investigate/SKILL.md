@@ -1,134 +1,135 @@
 ---
 name: gstack-openclaw-investigate
-description: Use when asked to debug, fix a bug, investigate an error, or do root cause analysis, and when users report errors, stack traces, unexpected behavior, or say something stopped working.
+description: 当用户要求 debug、fix bug、investigate error、做 root cause analysis，或报告 errors、stack traces、unexpected behavior、某个东西停止工作时使用。
 ---
 
-# Systematic Debugging
+# Systematic Debugging（系统化调试）
 
-## Iron Law
+## Iron Law（铁律）
 
-**NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.**
+**没有 root cause investigation，就不要修复。**
 
-Fixing symptoms creates whack-a-mole debugging. Every fix that doesn't address root cause makes the next bug harder to find. Find the root cause, then fix it.
+修 symptom 会制造 whack-a-mole debugging。每个没有解决 root cause 的 fix，都会让下一个 bug 更难找。先找到 root cause，再修复它。
 
 ---
 
-## Phase 1: Root Cause Investigation
+## Phase 1：Root Cause Investigation
 
-Gather context before forming any hypothesis.
+形成任何 hypothesis 之前，先收集 context。
 
-1. **Collect symptoms:** Read the error messages, stack traces, and reproduction steps. If the user hasn't provided enough context, ask ONE question at a time. Don't ask five questions at once.
+1. **收集 symptoms：**阅读 error messages、stack traces 和 reproduction steps。如果用户提供的 context 不够，一次只问一个问题。不要一次问五个问题。
 
-2. **Read the code:** Trace the code path from the symptom back to potential causes. Search for all references, read the logic around the failure point.
+2. **读代码：**从 symptom 反向追踪 code path，到可能的 causes。搜索所有 references，阅读 failure point 周围的 logic。
 
-3. **Check recent changes:**
+3. **检查 recent changes：**
    ```bash
    git log --oneline -20 -- <affected-files>
    ```
-   Was this working before? What changed? A regression means the root cause is in the diff.
+   之前是否正常？发生了什么变化？Regression 意味着 root cause 在 diff 里。
 
-4. **Reproduce:** Can you trigger the bug deterministically? If not, gather more evidence before proceeding.
+4. **Reproduce：**能否 deterministic 地触发 bug？如果不能，继续收集 evidence，再往下走。
 
-5. **Check memory** for prior debugging sessions on the same area. Recurring bugs in the same files are an architectural smell.
+5. **检查 memory** 中同一区域的 prior debugging sessions。同一批文件反复出 bug 是 architectural smell。
 
-Output: **"Root cause hypothesis: ..."** ... a specific, testable claim about what is wrong and why.
-
----
-
-## Phase 2: Pattern Analysis
-
-Check if this bug matches a known pattern:
-
-**Race condition** ... Intermittent, timing-dependent. Look at concurrent access to shared state.
-
-**Nil/null propagation** ... NoMethodError, TypeError. Missing guards on optional values.
-
-**State corruption** ... Inconsistent data, partial updates. Check transactions, callbacks, hooks.
-
-**Integration failure** ... Timeout, unexpected response. External API calls, service boundaries.
-
-**Configuration drift** ... Works locally, fails in staging/prod. Env vars, feature flags, DB state.
-
-**Stale cache** ... Shows old data, fixes on cache clear. Redis, CDN, browser cache.
-
-Also check:
-- Known issues in the project for related problems
-- Git log for prior fixes in the same area. Recurring bugs in the same files are an architectural smell, not a coincidence.
-
-**External search:** If the bug doesn't match a known pattern, search for the error type online. **Sanitize first:** strip hostnames, IPs, file paths, SQL, customer data. Search the error category, not the raw message.
+输出：**"Root cause hypothesis: ..."**（保留 exact prefix），后面给出一个关于哪里错了、为什么错的 specific、testable claim。
 
 ---
 
-## Phase 3: Hypothesis Testing
+## Phase 2：Pattern Analysis
 
-Before writing ANY fix, verify your hypothesis.
+检查这个 bug 是否匹配 known pattern：
 
-1. **Confirm the hypothesis:** Add a temporary log statement, assertion, or debug output at the suspected root cause. Run the reproduction. Does the evidence match?
+**Race condition**：间歇性、timing-dependent。查看 shared state 的 concurrent access。
 
-2. **If the hypothesis is wrong:** Search for the error (sanitize sensitive data first). Return to Phase 1. Gather more evidence. Do not guess.
+**Nil/null propagation**：NoMethodError、TypeError。Optional values 缺少 guards。
 
-3. **3-strike rule:** If 3 hypotheses fail, **STOP**. Tell the user:
+**State corruption**：数据不一致、partial updates。检查 transactions、callbacks、hooks。
+
+**Integration failure**：timeout、unexpected response。检查 external API calls、service boundaries。
+
+**Configuration drift**：本地能跑，staging / prod 失败。检查 env vars、feature flags、DB state。
+
+**Stale cache**：显示旧数据，清 cache 后恢复。检查 Redis、CDN、browser cache。
+
+同时检查：
+- 项目中与相关问题有关的 known issues
+- Git log 中同一区域的 prior fixes。同一批文件反复出 bug 是 architectural smell，不是巧合。
+
+**External search：**如果 bug 不匹配 known pattern，在线搜索 error type。**先 sanitize：**移除 hostnames、IPs、file paths、SQL、customer data。搜索 error category，不要搜索 raw message。
+
+---
+
+## Phase 3：Hypothesis Testing
+
+写任何 fix 之前，先验证 hypothesis。
+
+1. **确认 hypothesis：**在疑似 root cause 处添加 temporary log statement、assertion 或 debug output。运行 reproduction。Evidence 是否匹配？
+
+2. **如果 hypothesis 错了：**搜索 error（先 sanitize sensitive data）。回到 Phase 1。收集更多 evidence。不要猜。
+
+3. **3-strike rule：**如果 3 个 hypotheses 都失败，**STOP**。告诉用户：
 
    "3 hypotheses tested, none match. This may be an architectural issue rather than a simple bug."
+   （中文语义：已经测试 3 个 hypotheses，但都不匹配。这可能是 architectural issue，而不是 simple bug。）
 
-   Options:
-   - Continue investigating with a new hypothesis (describe it)
-   - Escalate for human review (needs someone who knows the system)
-   - Add logging and wait (instrument the area and catch it next time)
+   Options：
+   - 用新的 hypothesis 继续调查（说明它是什么）
+   - Escalate for human review（需要了解系统的人）
+   - Add logging and wait（instrument 该区域，下次捕获）
 
-**Red flags** ... if you see any of these, slow down:
-- "Quick fix for now" ... there is no "for now." Fix it right or escalate.
-- Proposing a fix before tracing data flow ... you're guessing.
-- Each fix reveals a new problem elsewhere ... wrong layer, not wrong code.
-
----
-
-## Phase 4: Implementation
-
-Once root cause is confirmed:
-
-1. **Fix the root cause, not the symptom.** The smallest change that eliminates the actual problem.
-
-2. **Minimal diff:** Fewest files touched, fewest lines changed. Resist the urge to refactor adjacent code.
-
-3. **Write a regression test** that:
-   - **Fails** without the fix (proves the test is meaningful)
-   - **Passes** with the fix (proves the fix works)
-
-4. **Run the full test suite.** No regressions allowed.
-
-5. **If the fix touches >5 files:** Flag the blast radius to the user before proceeding. That's large for a bug fix.
+**Red flags**：如果看到以下任一情况，放慢：
+- "Quick fix for now"：没有 "for now"。正确修复，或 escalate。
+- 在 trace data flow 前提出 fix：你在猜。
+- 每次 fix 都暴露 elsewhere 的新问题：错的是 layer，不是某行 code。
 
 ---
 
-## Phase 5: Verification & Report
+## Phase 4：Implementation
 
-**Fresh verification:** Reproduce the original bug scenario and confirm it's fixed. This is not optional.
+确认 root cause 后：
 
-Run the test suite.
+1. **修 root cause，不修 symptom。**用消除实际问题的最小变更。
 
-Output a structured debug report:
+2. **Minimal diff：**触碰最少文件、改最少行。抵抗顺手 refactor adjacent code 的冲动。
+
+3. **写 regression test**，它必须：
+   - 没有 fix 时 **失败**（证明 test 有意义）
+   - 有 fix 时 **通过**（证明 fix 有效）
+
+4. **运行完整 test suite。**不允许 regression。
+
+5. **如果 fix touches >5 files：**继续前先向用户标出 blast radius。对 bug fix 来说这已经很大。
+
+---
+
+## Phase 5：Verification & Report
+
+**Fresh verification：**重新 reproduce 原始 bug scenario，并确认已修复。这不是可选项。
+
+运行 test suite。
+
+输出 structured debug report：
 
 **DEBUG REPORT**
-- **Symptom:** what the user observed
-- **Root cause:** what was actually wrong
-- **Fix:** what was changed, with file references
-- **Evidence:** test output, reproduction showing fix works
-- **Regression test:** location of the new test
-- **Related:** prior bugs in same area, architectural notes
-- **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED
+- **Symptom（症状）：** 用户观察到什么
+- **Root cause（根因）：** 实际哪里错了
+- **Fix（修复）：** 改了什么，附 file references
+- **Evidence（证据）：** test output、reproduction，用来证明 fix 有效
+- **Regression test（回归测试）：** new test 的位置
+- **Related（相关）：** 同一区域 prior bugs、architectural notes
+- **Status（状态）：** DONE | DONE_WITH_CONCERNS | BLOCKED
 
-Save the report to `memory/` with today's date so future sessions can reference it.
+用今天日期把 report 保存到 `memory/`，供未来 sessions reference。
 
 ---
 
-## Important Rules
+## 重要规则
 
-- **3+ failed fix attempts: STOP and question the architecture.** Wrong architecture, not failed hypothesis.
-- **Never apply a fix you cannot verify.** If you can't reproduce and confirm, don't ship it.
-- **Never say "this should fix it."** Verify and prove it. Run the tests.
-- **If fix touches >5 files:** Flag to user before proceeding.
-- **Completion status:**
-  - DONE ... root cause found, fix applied, regression test written, all tests pass
-  - DONE_WITH_CONCERNS ... fixed but cannot fully verify (e.g., intermittent bug, requires staging)
-  - BLOCKED ... root cause unclear after investigation, escalated
+- **3+ failed fix attempts：STOP 并质疑 architecture。** 这通常是 wrong architecture，而不是 failed hypothesis。
+- **永远不要应用无法验证的 fix。** 如果不能 reproduce 并 confirm，就不要 ship。
+- **永远不要说 "this should fix it."** Verify and prove it。Run the tests。
+- **如果 fix touches >5 files：** proceed 前先 flag 给用户。
+- **Completion status：**
+  - DONE ... root cause 已找到，fix 已应用，regression test 已写，所有 tests pass
+  - DONE_WITH_CONCERNS ... 已修复但无法 fully verify（例如 intermittent bug、requires staging）
+  - BLOCKED ... investigation 后 root cause 仍不清楚，已 escalated

@@ -3,10 +3,10 @@ name: gstack
 preamble-tier: 1
 version: 1.1.0
 description: |
-  Fast headless browser for QA testing and site dogfooding. Navigate pages, interact with
-  elements, verify state, diff before/after, take annotated screenshots, test responsive
-  layouts, forms, uploads, dialogs, and capture bug evidence. Use when asked to open or
-  test a site, verify a deployment, dogfood a user flow, or file a bug with screenshots. (gstack)
+  用于 QA testing 和 site dogfooding 的快速 headless browser. 可 navigate pages、interact with
+  elements、verify state、diff before/after、take annotated screenshots、test responsive
+  layouts、forms、uploads、dialogs，并 capture bug evidence。当用户要求打开或
+  test site、验证 deployment、dogfood user flow，或用 screenshots file bug 时使用。 (gstack)
 allowed-tools:
   - Bash
   - Read
@@ -21,165 +21,155 @@ triggers:
 
 {{PREAMBLE}}
 
-If `PROACTIVE` is `false`: do NOT proactively invoke or suggest other gstack skills during
-this session. Only run skills the user explicitly invokes. This preference persists across
-sessions via `gstack-config`.
+如果 `PROACTIVE` 是 `false`：本 session 中不要主动 invoke 或建议其他 gstack skills。只运行用户明确 invoke 的 skills。该偏好会通过 `gstack-config` 跨 sessions 持久化。
 
-If `PROACTIVE` is `true` (default): **invoke the Skill tool** when the user's request
-matches a skill's purpose. Do NOT answer directly when a skill exists for the task.
-Use the Skill tool to invoke it. The skill has specialized workflows, checklists, and
-quality gates that produce better results than answering inline.
+如果 `PROACTIVE` 是 `true`（默认）：当用户请求匹配某个 skill 的 purpose 时，**invoke the Skill tool**。当任务已有对应 skill 时，不要直接回答。使用 Skill tool invoke 它。Skill 有专门的 workflows、checklists 和 quality gates，比 inline answer 产出更好。
 
-**Routing rules — when you see these patterns, INVOKE the skill via the Skill tool:**
-- User describes a new idea, asks "is this worth building", brainstorms, pitches a concept → invoke `/office-hours`
-- User asks to spec something out, file an issue, write up a ticket, "turn this into a GitHub issue", "backlog item" → invoke `/spec`
-- User asks about strategy, scope, ambition, "think bigger", "what should we build" → invoke `/plan-ceo-review`
-- User asks to review architecture, lock in the plan, "does this design make sense" → invoke `/plan-eng-review`
-- User asks about design system, brand, visual identity, "how should this look" → invoke `/design-consultation`
-- User asks to review design of a plan → invoke `/plan-design-review`
-- User asks about developer experience of a plan, API/CLI/SDK design → invoke `/plan-devex-review`
-- User wants all reviews done automatically, "review everything" → invoke `/autoplan`
-- User reports a bug, error, broken behavior, "why is this broken", "this doesn't work", "wtf", "something's wrong" → invoke `/investigate`
-- User asks to test the site, find bugs, QA, "does this work", "check the deploy" → invoke `/qa`
-- User asks to just report bugs without fixing → invoke `/qa-only`
-- User asks to review code, check the diff, pre-landing review, "look at my changes" → invoke `/review`
-- User asks about visual polish, design audit of a live site, "this looks off" → invoke `/design-review`
-- User asks to audit the live developer experience, time-to-hello-world → invoke `/devex-review`
-- User asks to ship, deploy, push, create a PR, "let's land this", "send it" → invoke `/ship`
-- User asks to merge + deploy + verify as one flow → invoke `/land-and-deploy`
-- User asks to configure deployment for the project → invoke `/setup-deploy`
-- User asks to monitor prod after shipping, post-deploy checks → invoke `/canary`
-- User asks to update docs after shipping → invoke `/document-release`
-- User asks to write docs from scratch, generate documentation, "document this feature/module" → invoke `/document-generate`
-- User asks for a weekly retro, what did we ship, "how'd we do" → invoke `/retro`
-- User asks for a second opinion, codex review → invoke `/codex`
-- User asks for safety mode, careful mode → invoke `/careful` or `/guard`
-- User asks to restrict edits to a directory → invoke `/freeze` or `/unfreeze`
-- User asks to upgrade gstack → invoke `/gstack-upgrade`
-- User asks to save progress, checkpoint, "save my work" → invoke `/context-save`
-- User asks to resume, restore, "where was I" → invoke `/context-restore`
-- User asks about security, OWASP, vulnerabilities, "is this secure" → invoke `/cso`
-- User asks to make a PDF, document, publication → invoke `/make-pdf`
-- User asks to launch a real browser for QA, "open the browser" → invoke `/open-gstack-browser`
-- User asks to import cookies for authenticated testing → invoke `/setup-browser-cookies`
-- User asks about page speed, performance regression, benchmarks → invoke `/benchmark`
-- User asks what gstack has learned, "show learnings" → invoke `/learn`
-- User asks to tune question sensitivity, "stop asking me that" → invoke `/plan-tune`
-- User asks for code quality dashboard, "health check" → invoke `/health`
+**Routing rules：看到这些模式时，通过 Skill tool INVOKE 对应 skill：**
+- 用户描述新 idea、询问 "is this worth building"、brainstorms、pitch concept -> invoke `/office-hours`
+- 用户要求 spec something out、file issue、write ticket、"turn this into a GitHub issue"、"backlog item" -> invoke `/spec`
+- 用户询问 strategy、scope、ambition、"think bigger"、"what should we build" -> invoke `/plan-ceo-review`
+- 用户要求 review architecture、lock in plan、"does this design make sense" -> invoke `/plan-eng-review`
+- 用户询问 design system、brand、visual identity、"how should this look" -> invoke `/design-consultation`
+- 用户要求 review design of a plan -> invoke `/plan-design-review`
+- 用户询问 plan 的 developer experience、API/CLI/SDK design -> invoke `/plan-devex-review`
+- 用户希望自动完成所有 reviews、"review everything" -> invoke `/autoplan`
+- 用户报告 bug、error、broken behavior、"why is this broken"、"this doesn't work"、"wtf"、"something's wrong" -> invoke `/investigate`
+- 用户要求 test site、find bugs、QA、"does this work"、"check the deploy" -> invoke `/qa`
+- 用户只想 report bugs 不修复 -> invoke `/qa-only`
+- 用户要求 review code、check diff、pre-landing review、"look at my changes" -> invoke `/review`
+- 用户询问 visual polish、live site design audit、"this looks off" -> invoke `/design-review`
+- 用户要求 audit live developer experience、time-to-hello-world -> invoke `/devex-review`
+- 用户要求 ship、deploy、push、create PR、"let's land this"、"send it" -> invoke `/ship`
+- 用户要求 merge + deploy + verify 作为一个 flow -> invoke `/land-and-deploy`
+- 用户要求为项目配置 deployment -> invoke `/setup-deploy`
+- 用户要求 shipping 后 monitor prod、post-deploy checks -> invoke `/canary`
+- 用户要求 shipping 后 update docs -> invoke `/document-release`
+- 用户要求从零 write docs、generate documentation、"document this feature/module" -> invoke `/document-generate`
+- 用户要求 weekly retro、what did we ship、"how'd we do" -> invoke `/retro`
+- 用户要求 second opinion、codex review -> invoke `/codex`
+- 用户要求 safety mode、careful mode -> invoke `/careful` or `/guard`
+- 用户要求把 edits 限制到某个 directory -> invoke `/freeze` or `/unfreeze`
+- 用户要求 upgrade gstack -> invoke `/gstack-upgrade`
+- 用户要求 save progress、checkpoint、"save my work" -> invoke `/context-save`
+- 用户要求 resume、restore、"where was I" -> invoke `/context-restore`
+- 用户询问 security、OWASP、vulnerabilities、"is this secure" -> invoke `/cso`
+- 用户要求制作 PDF、document、publication -> invoke `/make-pdf`
+- 用户要求 launch real browser for QA、"open the browser" -> invoke `/open-gstack-browser`
+- 用户要求 import cookies for authenticated testing -> invoke `/setup-browser-cookies`
+- 用户询问 page speed、performance regression、benchmarks -> invoke `/benchmark`
+- 用户询问 gstack learned 了什么、"show learnings" -> invoke `/learn`
+- 用户要求 tune question sensitivity、"stop asking me that" -> invoke `/plan-tune`
+- 用户要求 code quality dashboard、"health check" -> invoke `/health`
 
-**When in doubt, invoke the skill.** A false positive (invoking a skill that wasn't
-needed) is cheaper than a false negative (answering ad-hoc when a structured workflow
-exists). The skill provides multi-step workflows, checklists, and quality gates that
-always produce better results than an ad-hoc answer. If no skill matches, answer
-directly as usual.
+**不确定时，invoke the skill。** False positive（invoke 了不必要的 skill）比 false negative（已有 structured workflow 却 ad-hoc answer）成本更低。Skill 提供 multi-step workflows、checklists 和 quality gates，通常比 ad-hoc answer 更好。如果没有匹配 skill，照常直接回答。
 
-If the user opts out of suggestions, run `gstack-config set proactive false`.
-If they opt back in, run `gstack-config set proactive true`.
+如果用户选择不接收 suggestions，运行 `gstack-config set proactive false`。
+如果用户重新开启，运行 `gstack-config set proactive true`。
 
-# gstack browse: QA Testing & Dogfooding
+# gstack browse：QA Testing & Dogfooding（QA 测试与试用）
 
-Persistent headless Chromium. First call auto-starts (~3s), then ~100-200ms per command.
-Auto-shuts down after 30 min idle. State persists between calls (cookies, tabs, sessions).
+Persistent headless Chromium。首次调用 auto-start（约 3s），之后每条 command 约 100-200ms。Idle 30 分钟后 auto-shut down。Calls 之间 state 会持久化（cookies、tabs、sessions）。
 
 {{BROWSE_SETUP}}
 
-## IMPORTANT
+## IMPORTANT（重要）
 
-- Use the compiled binary via Bash: `$B <command>`
-- NEVER use `mcp__claude-in-chrome__*` tools. They are slow and unreliable.
-- Browser persists between calls — cookies, login sessions, and tabs carry over.
-- Dialogs (alert/confirm/prompt) are auto-accepted by default — no browser lockup.
-- **Show screenshots:** After `$B screenshot`, `$B snapshot -a -o`, or `$B responsive`, always use the Read tool on the output PNG(s) so the user can see them. Without this, screenshots are invisible.
+- 通过 Bash 使用 compiled binary：`$B <command>`
+- 永远不要使用 `mcp__claude-in-chrome__*` tools。它们慢且不可靠。
+- Browser 在 calls 之间持久化，cookies、login sessions 和 tabs 会保留。
+- Dialogs（alert/confirm/prompt）默认 auto-accepted，不会 browser lockup。
+- **展示 screenshots：**`$B screenshot`、`$B snapshot -a -o` 或 `$B responsive` 后，始终对输出 PNG(s) 使用 Read tool，让用户能看到它们。否则 screenshots 不可见。
 
-## QA Workflows
+## QA Workflows（QA 工作流）
 
-> **Credential safety:** Use environment variables for test credentials.
-> Set them before running: `export TEST_EMAIL="..." TEST_PASSWORD="..."`
+> **Credential safety：**测试凭据使用 environment variables。
+> 运行前设置：`export TEST_EMAIL="..." TEST_PASSWORD="..."`
 
-### Test a user flow (login, signup, checkout, etc.)
+### Test user flow（login、signup、checkout 等）
 
 ```bash
-# 1. Go to the page
+# 1. 前往页面
 $B goto https://app.example.com/login
 
-# 2. See what's interactive
+# 2. 查看哪些元素可交互
 $B snapshot -i
 
-# 3. Fill the form using refs
+# 3. 使用 refs 填写表单
 $B fill @e3 "$TEST_EMAIL"
 $B fill @e4 "$TEST_PASSWORD"
 $B click @e5
 
-# 4. Verify it worked
-$B snapshot -D              # diff shows what changed after clicking
-$B is visible ".dashboard"  # assert the dashboard appeared
+# 4. 验证结果
+$B snapshot -D              # diff 显示点击后的变化
+$B is visible ".dashboard"  # assert dashboard appeared
 $B screenshot /tmp/after-login.png
 ```
 
-### Verify a deployment / check prod
+### Verify deployment / check prod（验证部署 / 检查生产环境）
 
 ```bash
 $B goto https://yourapp.com
-$B text                          # read the page — does it load?
-$B console                       # any JS errors?
-$B network                       # any failed requests?
-$B js "document.title"           # correct title?
-$B is visible ".hero-section"    # key elements present?
+$B text                          # 读取页面，是否加载？
+$B console                       # 是否有 JS errors？
+$B network                       # 是否有 failed requests？
+$B js "document.title"           # title 是否正确？
+$B is visible ".hero-section"    # key elements 是否存在？
 $B screenshot /tmp/prod-check.png
 ```
 
-### Dogfood a feature end-to-end
+### End-to-end dogfood feature（端到端试用 feature）
 
 ```bash
-# Navigate to the feature
+# 导航到 feature
 $B goto https://app.example.com/new-feature
 
-# Take annotated screenshot — shows every interactive element with labels
+# 生成 annotated screenshot，会标出每个 interactive element
 $B snapshot -i -a -o /tmp/feature-annotated.png
 
-# Find ALL clickable things (including divs with cursor:pointer)
+# 找到所有 clickable things（包括带 cursor:pointer 的 divs）
 $B snapshot -C
 
-# Walk through the flow
+# 走完整个 flow
 $B snapshot -i          # baseline
 $B click @e3            # interact
-$B snapshot -D          # what changed? (unified diff)
+$B snapshot -D          # 发生了什么变化？（unified diff）
 
-# Check element states
+# 检查 element states
 $B is visible ".success-toast"
 $B is enabled "#next-step-btn"
 $B is checked "#agree-checkbox"
 
-# Check console for errors after interactions
+# 交互后检查 console errors
 $B console
 ```
 
-### Test responsive layouts
+### Test responsive layouts（测试响应式布局）
 
 ```bash
-# Quick: 3 screenshots at mobile/tablet/desktop
+# 快速：mobile/tablet/desktop 三张 screenshots
 $B goto https://yourapp.com
 $B responsive /tmp/layout
 
-# Manual: specific viewport
+# 手动：specific viewport
 $B viewport 375x812     # iPhone
 $B screenshot /tmp/mobile.png
 $B viewport 1440x900    # Desktop
 $B screenshot /tmp/desktop.png
 
-# Element screenshot (crop to specific element)
+# Element screenshot（裁剪到 specific element）
 $B screenshot "#hero-banner" /tmp/hero.png
 $B snapshot -i
 $B screenshot @e3 /tmp/button.png
 
-# Region crop
+# Region crop（区域裁剪）
 $B screenshot --clip 0,0,800,600 /tmp/above-fold.png
 
-# Viewport only (no scroll)
+# 仅 viewport（no scroll）
 $B screenshot --viewport /tmp/viewport.png
 ```
 
-### Test file upload
+### Test file upload（测试文件上传）
 
 ```bash
 $B goto https://app.example.com/upload
@@ -189,62 +179,62 @@ $B is visible ".upload-success"
 $B screenshot /tmp/upload-result.png
 ```
 
-### Test forms with validation
+### Test forms with validation（测试带验证的表单）
 
 ```bash
 $B goto https://app.example.com/form
 $B snapshot -i
 
-# Submit empty — check validation errors appear
+# 空提交，检查 validation errors 是否出现
 $B click @e10                        # submit button
-$B snapshot -D                       # diff shows error messages appeared
+$B snapshot -D                       # diff 显示 error messages appeared
 $B is visible ".error-message"
 
-# Fill and resubmit
+# 填写并重新提交
 $B fill @e3 "valid input"
 $B click @e10
-$B snapshot -D                       # diff shows errors gone, success state
+$B snapshot -D                       # diff 显示 errors gone、success state
 ```
 
-### Test dialogs (delete confirmations, prompts)
+### Test dialogs（delete confirmations、prompts）
 
 ```bash
-# Set up dialog handling BEFORE triggering
+# 触发前设置 dialog handling
 $B dialog-accept              # will auto-accept next alert/confirm
 $B click "#delete-button"     # triggers confirmation dialog
-$B dialog                     # see what dialog appeared
-$B snapshot -D                # verify the item was deleted
+$B dialog                     # 查看出现了什么 dialog
+$B snapshot -D                # 验证 item 已删除
 
-# For prompts that need input
-$B dialog-accept "my answer"  # accept with text
+# 对需要输入的 prompts
+$B dialog-accept "my answer"  # 带 text accept
 $B click "#rename-button"     # triggers prompt
 ```
 
-### Test authenticated pages (import real browser cookies)
+### Test authenticated pages（import real browser cookies）
 
 ```bash
-# Import cookies from your real browser (opens interactive picker)
+# 从真实 browser import cookies（打开 interactive picker）
 $B cookie-import-browser
 
-# Or import a specific domain directly
+# 或直接 import specific domain
 $B cookie-import-browser comet --domain .github.com
 
-# Now test authenticated pages
+# 现在 test authenticated pages
 $B goto https://github.com/settings/profile
 $B snapshot -i
 $B screenshot /tmp/github-profile.png
 ```
 
-> **Cookie safety:** `cookie-import-browser` transfers real session data.
-> Only import cookies from browsers you control.
+> **Cookie safety：**`cookie-import-browser` 会传输真实 session data。
+> 只从你控制的 browsers import cookies。
 
-### Compare two pages / environments
+### Compare two pages / environments（比较两个页面 / 环境）
 
 ```bash
 $B diff https://staging.app.com https://prod.app.com
 ```
 
-### Multi-step chain (efficient for long flows)
+### Multi-step chain（对 long flows 更高效）
 
 ```bash
 echo '[
@@ -258,53 +248,53 @@ echo '[
 ]' | $B chain
 ```
 
-## Quick Assertion Patterns
+## Quick Assertion Patterns（快速断言模式）
 
 ```bash
-# Element exists and is visible
+# Element exists and is visible（元素存在且可见）
 $B is visible ".modal"
 
-# Button is enabled/disabled
+# Button is enabled/disabled（按钮启用 / 禁用）
 $B is enabled "#submit-btn"
 $B is disabled "#submit-btn"
 
-# Checkbox state
+# Checkbox state（复选框状态）
 $B is checked "#agree"
 
-# Input is editable
+# Input is editable（输入框可编辑）
 $B is editable "#name-field"
 
-# Element has focus
+# Element has focus（元素获得焦点）
 $B is focused "#search-input"
 
-# Page contains text
+# Page contains text（页面包含文本）
 $B js "document.body.textContent.includes('Success')"
 
-# Element count
+# Element count（元素数量）
 $B js "document.querySelectorAll('.list-item').length"
 
-# Specific attribute value
-$B attrs "#logo"    # returns all attributes as JSON
+# Specific attribute value（特定属性值）
+$B attrs "#logo"    # 以 JSON 返回所有 attributes
 
-# CSS property
+# CSS property（CSS 属性）
 $B css ".button" "background-color"
 ```
 
-## Snapshot System
+## Snapshot System（Snapshot 系统）
 
 {{SNAPSHOT_FLAGS}}
 
-## Command Reference
+## Command Reference（命令参考）
 
 {{COMMAND_REFERENCE}}
 
-## Tips
+## Tips（提示）
 
-1. **Navigate once, query many times.** `goto` loads the page; then `text`, `js`, `screenshot` all hit the loaded page instantly.
-2. **Use `snapshot -i` first.** See all interactive elements, then click/fill by ref. No CSS selector guessing.
-3. **Use `snapshot -D` to verify.** Baseline → action → diff. See exactly what changed.
-4. **Use `is` for assertions.** `is visible .modal` is faster and more reliable than parsing page text.
-5. **Use `snapshot -a` for evidence.** Annotated screenshots are great for bug reports.
-6. **Use `snapshot -C` for tricky UIs.** Finds clickable divs that the accessibility tree misses.
-7. **Check `console` after actions.** Catch JS errors that don't surface visually.
-8. **Use `chain` for long flows.** Single command, no per-step CLI overhead.
+1. **Navigate once, query many times。** `goto` 加载页面；之后 `text`、`js`、`screenshot` 都会立即命中已加载页面。
+2. **先使用 `snapshot -i`。** 查看所有 interactive elements，再通过 ref click/fill。不需要猜 CSS selector。
+3. **用 `snapshot -D` 验证。** Baseline → action → diff。准确看到变化。
+4. **用 `is` 做 assertions。** `is visible .modal` 比 parse page text 更快、更可靠。
+5. **用 `snapshot -a` 留 evidence。** Annotated screenshots 很适合 bug reports。
+6. **复杂 UI 用 `snapshot -C`。** 找到 accessibility tree 漏掉的 clickable divs。
+7. **Actions 后检查 `console`。** 捕捉视觉上不出现的 JS errors。
+8. **Long flows 用 `chain`。** 单条 command，没有 per-step CLI overhead。
