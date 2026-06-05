@@ -1,22 +1,21 @@
 /**
- * RESOLVERS record — maps {{PLACEHOLDER}} names to generator functions
- * or gated entries.
+ * RESOLVERS record — 将 {{PLACEHOLDER}} names 映射到 generator functions
+ * 或 gated entries。
  *
- * Each resolver takes a TemplateContext and returns the replacement string.
- * Resolvers may be either a bare function (always fires) or a gated entry
- * ({ resolve, appliesTo }) where appliesTo can return false to skip the
- * resolver for a given skill. See ./types.ts: ResolverEntry.
+ * 每个 resolver 接收 TemplateContext，并返回 replacement string。
+ * Resolvers 可以是 bare function（始终触发），也可以是 gated entry
+ * ({ resolve, appliesTo })；其中 appliesTo 可返回 false，跳过给定 skill
+ * 的 resolver。见 ./types.ts: ResolverEntry。
  *
- * Most resolvers don't need a gate — the {{NAME}} placeholder system is
- * already conditional at the template level (the resolver only fires for
- * skills that reference it). Use a gate when you want a structural
- * guardrail that says "this placeholder is meaningful only in skills X, Y, Z"
- * even if someone later adds {{NAME}} to skill W.
+ * 大多数 resolvers 不需要 gate；{{NAME}} placeholder system 已经在 template
+ * 层面是 conditional（resolver 只会为引用它的 skills 触发）。当你需要 structural
+ * guardrail，明确 "this placeholder is meaningful only in skills X, Y, Z"，
+ * 即使以后有人把 {{NAME}} 加到 skill W 时，才使用 gate。
  */
 
 import type { TemplateContext, ResolverFn, ResolverValue } from './types';
 
-// Domain modules
+// Domain modules（领域模块）
 import { generatePreamble } from './preamble';
 import { generateTestFailureTriage } from './preamble';
 import { generateCommandReference, generateSnapshotFlags, generateBrowseSetup } from './browse';

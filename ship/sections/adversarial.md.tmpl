@@ -4,16 +4,23 @@
 
 {{GBRAIN_SAVE_RESULTS}}
 
-### Refresh learnings for the headline feature on this branch
+### 刷新此 branch headline feature 的 learnings
 
-The top-of-skill learnings pull was keyed to "release ship" broadly. Before the VERSION/CHANGELOG step, re-pull learnings keyed to THIS branch's headline feature so any prior version-bump or CHANGELOG pitfalls for similar features surface.
+Skill 顶部的 learnings pull 使用的是宽泛的 "release ship"。在 VERSION/CHANGELOG step 前，
+基于此 branch 的 headline feature 重新 pull learnings，让 similar features 的 prior version-bump
+或 CHANGELOG pitfalls 浮现出来。
 
-Pick ONE keyword that names the headline feature you're shipping. The keyword should be a noun: the primary skill or module name, the central feature noun, or the binary you changed. The keyword MUST be alphanumeric or hyphen only — no quotes, slashes, dots, colons, or whitespace. If your candidate has any of those, simplify to just the alphanumeric stem.
+选择一个命名你正在 shipping 的 headline feature 的 keyword。Keyword 应该是名词：
+primary skill 或 module name、central feature noun，或你改动的 binary。Keyword 必须只包含
+alphanumeric 或 hyphen：不要 quotes、slashes、dots、colons 或 whitespace。如果候选词包含这些字符，
+简化为 alphanumeric stem。
 
-Worked examples (ship-specific): good keywords are `learnings-search`, `pacing`, `worktree-ship`. Bad: `the branch headline`, `v1.31.1.0`, `feat: token-or search`.
+示例（ship-specific）：好的 keywords 是 `learnings-search`、`pacing`、`worktree-ship`。
+不好的例子：`the branch headline`、`v1.31.1.0`、`feat: token-or search`。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-learnings-search --query "<your-keyword>" --limit 5 2>/dev/null || true
 ```
 
-If any learnings come back, name which one applies to the version bump or CHANGELOG framing in one sentence. If none come back, continue without reference — the absence is itself useful information.
+如果返回任何 learnings，用一句话说明哪一条适用于 version bump 或 CHANGELOG framing。
+如果没有返回，继续即可：absence 本身也是 useful information。

@@ -2,12 +2,12 @@
 name: pair-agent
 version: 0.1.0
 description: |
-  Pair a remote AI agent with your browser. One command generates a setup key and
-  prints instructions the other agent can follow to connect. Works with OpenClaw,
-  Hermes, Codex, Cursor, or any agent that can make HTTP requests. The remote agent
-  gets its own tab with scoped access (read+write by default, admin on request).
-  Use when asked to "pair agent", "connect agent", "share browser", "remote browser",
-  "let another agent use my browser", or "give browser access". (gstack)
+  将 remote AI agent 与你的 browser 配对。一个 command 会生成 setup key，并打印
+  另一个 agent 可遵循的连接 instructions。适用于 OpenClaw、Hermes、Codex、Cursor，
+  或任何能发 HTTP requests 的 agent。Remote agent 会获得自己的 tab 和 scoped access
+  （默认 read+write，可按需 admin）。当用户要求 "pair agent"、"connect agent"、
+  "share browser"、"remote browser"、"let another agent use my browser" 或
+  "give browser access" 时使用。（gstack）
 voice-triggers:
   - "pair agent"
   - "connect agent"
@@ -26,242 +26,231 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# /pair-agent — Share Your Browser With Another AI Agent
+# /pair-agent — 与另一个 AI Agent 共享你的 Browser
 
-You're sitting in Claude Code with a browser running. You also have another AI agent
-open (OpenClaw, Hermes, Codex, Cursor, whatever). You want that other agent to be
-able to browse the web using YOUR browser. This skill makes that happen.
+你正在 Claude Code 里，并且有一个 browser 正在运行。你还打开了另一个 AI agent
+（OpenClaw、Hermes、Codex、Cursor，或其他）。你希望那个 agent 能使用你的 browser
+浏览 web。此 skill 负责做到这一点。
 
-## How it works
+## How it works（工作方式）
 
-Your gstack browser runs a local HTTP server. This skill creates a one-time setup key,
-prints a block of instructions, and you paste those instructions into the other agent.
-The other agent exchanges the key for a session token, creates its own tab, and starts
-browsing. Each agent gets its own tab. They can't mess with each other's tabs.
+你的 gstack browser 会运行 local HTTP server。此 skill 创建一次性 setup key，打印一段
+instructions，然后你将这些 instructions 粘贴到另一个 agent。另一个 agent 用 key 换取
+session token，创建自己的 tab，并开始 browsing。每个 agent 都有自己的 tab，不能干扰彼此的 tabs。
 
-The setup key expires in 5 minutes and can only be used once. If it leaks, it's dead
-before anyone can abuse it. The session token lasts 24 hours.
+Setup key 5 分钟后过期，且只能使用一次。如果它泄露，在任何人能滥用前就已经失效。
+Session token 有效期 24 小时。
 
-**Same machine:** If the other agent is on the same machine (like OpenClaw running
-locally), you can skip the copy-paste ceremony and write the credentials directly to
-the agent's config directory.
+**Same machine：**如果另一个 agent 在同一台机器上（例如 locally 运行的 OpenClaw），
+可以跳过 copy-paste ceremony，直接将 credentials 写入该 agent 的 config directory。
 
-**Remote:** If the other agent is on a different machine, you need an ngrok tunnel.
-The skill will tell you if one is needed and how to set it up.
+**Remote：**如果另一个 agent 在不同机器上，你需要 ngrok tunnel。此 skill 会告诉你是否需要，
+以及如何设置。
 
 {{BROWSE_SETUP}}
 
-## Step 1: Check prerequisites
+## Step 1：检查 prerequisites
 
 ```bash
 $B status 2>/dev/null
 ```
 
-If the browse server is not running, start it:
+如果 browse server 没有运行，启动它：
 
 ```bash
 $B goto about:blank
 ```
 
-This ensures the server is up and healthy before pairing.
+这确保 pairing 前 server 已启动且 healthy。
 
-## Step 2: Ask what they want
+## Step 2：询问目标
 
-Use AskUserQuestion:
+使用 AskUserQuestion：
 
-> Which agent do you want to pair with your browser? This determines the
-> instructions format and where credentials get written.
+> 你想将哪个 agent 与 browser 配对？这会决定 instructions format 和 credentials 写入位置。
 
-Options:
-- A) OpenClaw (local or remote)
-- B) Codex / OpenAI Agents (local)
-- C) Cursor (local)
-- D) Another Claude Code session (local or remote)
-- E) Something else (generic HTTP instructions — use this for Hermes)
+选项：
+- A) OpenClaw（local 或 remote）
+- B) Codex / OpenAI Agents（local）
+- C) Cursor（local）
+- D) 另一个 Claude Code session（local 或 remote）
+- E) 其他目标（generic HTTP instructions；Hermes 用这个）
 
-Based on the answer, set `TARGET_HOST`:
-- A → `openclaw`
-- B → `codex`
-- C → `cursor`
-- D → `claude`
-- E → generic (no host-specific config)
+根据答案设置 `TARGET_HOST`：
+- A -> `openclaw`
+- B -> `codex`
+- C -> `cursor`
+- D -> `claude`
+- E -> generic（无 host-specific config）
 
-## Step 3: Local or remote?
+## Step 3：Local 还是 remote？
 
-Use AskUserQuestion:
+使用 AskUserQuestion：
 
-> Is the other agent running on this same machine, or on a different machine/server?
+> 另一个 agent 是运行在同一台机器上，还是不同机器/server 上？
 >
-> **Same machine** skips the copy-paste ceremony. Credentials are written directly to
-> the agent's config directory. No tunnel needed.
+> **Same machine** 会跳过 copy-paste ceremony。Credentials 会直接写入该 agent 的
+> config directory。无需 tunnel。
 >
-> **Different machine** generates a setup key and instruction block. If ngrok is
-> installed, the tunnel starts automatically. If not, I'll walk you through setup.
+> **Different machine** 会生成 setup key 和 instruction block。如果已安装 ngrok，
+> tunnel 会自动启动。否则，我会带你完成 setup。
 >
-> RECOMMENDATION: Choose A if the agent is local. It's instant, no copy-paste needed.
+> RECOMMENDATION：如果 agent 是 local，选择 A。它会立即完成，无需 copy-paste。
 
-Options:
-- A) Same machine (write credentials directly)
-- B) Different machine (generate instruction block for copy-paste)
+选项：
+- A) 同一台机器（直接写入 credentials）
+- B) 不同机器（生成用于 copy-paste 的 instruction block）
 
-## Step 4: Execute pairing
+## Step 4：执行 pairing
 
-### If same machine (option A):
+### 如果 same machine（option A）：
 
-Run pair-agent with --local flag:
+用 --local flag 运行 pair-agent：
 
 ```bash
 $B pair-agent --local TARGET_HOST
 ```
 
-Replace `TARGET_HOST` with the value from Step 2 (openclaw, codex, cursor, etc.).
+将 `TARGET_HOST` 替换为 Step 2 中的值（openclaw、codex、cursor 等）。
 
-If it succeeds, tell the user:
+如果成功，告诉用户：
 "Done. TARGET_HOST can now use your browser. It will read credentials from the
 config file that was written. Try asking it to navigate to a URL."
 
-If it fails (host not found, write permission error), show the error and suggest
-using the generic remote flow instead.
+如果失败（host not found、write permission error），展示 error，并建议改用 generic remote flow。
 
-### If different machine (option B):
+### 如果 different machine（option B）：
 
-First, detect ngrok status:
+首先，检测 ngrok status：
 
 ```bash
 which ngrok 2>/dev/null && echo "NGROK_INSTALLED" || echo "NGROK_NOT_INSTALLED"
 ngrok config check 2>/dev/null && echo "NGROK_AUTHED" || echo "NGROK_NOT_AUTHED"
 ```
 
-**If ngrok is installed and authed:** Just run the command. The CLI will auto-detect
-ngrok, start the tunnel, and print the instruction block with the tunnel URL:
+**如果 ngrok 已安装且 authed：**直接运行 command。CLI 会 auto-detect ngrok、启动 tunnel，
+并打印包含 tunnel URL 的 instruction block：
 
 ```bash
 $B pair-agent --client TARGET_HOST
 ```
 
-If the user also needs admin access (JS execution, cookies, storage):
+如果用户还需要 admin access（JS execution、cookies、storage）：
 
 ```bash
 $B pair-agent --admin --client TARGET_HOST
 ```
 
-**CRITICAL: You MUST output the full instruction block to the user.** The command
-prints everything between ═══ lines. Copy the ENTIRE block verbatim into your
-response so the user can copy-paste it into their other agent. Do NOT summarize it,
-do NOT skip it, do NOT just say "here's the output." The user needs to SEE the block
-to copy it. Output it inside a markdown code block so it's easy to select and copy.
+**CRITICAL：必须向用户输出完整 instruction block。**Command 会打印 ═══ lines 之间的所有内容。
+将整个 block 原样复制到你的 response 中，让用户可以 copy-paste 到另一个 agent。
+不要 summarize，不要 skip，不要只说 "here's the output"。用户需要看到 block 才能复制。
+将它放在 markdown code block 中，便于选择和复制。
 
-Then tell the user:
-"Copy the block above and paste it into your other agent's chat. The setup key
-expires in 5 minutes."
+然后告诉用户：
+"复制上面的 block，并粘贴到另一个 agent 的 chat 中。setup key 会在 5 分钟后过期。"
 
-**If ngrok is installed but NOT authed:** Walk the user through authentication:
+**如果 ngrok 已安装但 NOT authed：**引导用户完成 authentication：
 
-Tell the user:
-"ngrok is installed but not logged in. Let's fix that:
+告诉用户：
+"ngrok 已安装但尚未登录。我们来修复它：
 
-1. Go to https://dashboard.ngrok.com/get-started/your-authtoken
-2. Copy your auth token
-3. Come back here and I'll run the auth command for you."
+1. 打开 https://dashboard.ngrok.com/get-started/your-authtoken
+2. 复制你的 auth token
+3. 回到这里，我会为你运行 auth command。"
 
-STOP here and wait for the user to provide their auth token.
+在这里 STOP，等待用户提供 auth token。
 
-When they provide it, run:
+当他们提供后，运行：
 ```bash
 ngrok config add-authtoken THEIR_TOKEN
 ```
 
-Then retry `$B pair-agent --client TARGET_HOST`.
+然后 retry `$B pair-agent --client TARGET_HOST`。
 
-**If ngrok is NOT installed:** Walk the user through installation:
+**如果 ngrok 未安装：**引导用户完成 installation：
 
-Tell the user:
-"To connect a remote agent, we need ngrok (a tunnel that exposes your local
-browser to the internet securely).
+告诉用户：
+"要连接 remote agent，我们需要 ngrok（一个能把你的 local browser 安全暴露到 internet 的 tunnel）。
 
-1. Go to https://ngrok.com and sign up (free tier works)
-2. Install ngrok:
+1. 打开 https://ngrok.com 并注册（free tier 可用）
+2. 安装 ngrok：
    - macOS: `brew install ngrok`
-   - Linux: `snap install ngrok` or download from ngrok.com/download
-3. Auth it: `ngrok config add-authtoken YOUR_TOKEN`
-   (get your token from https://dashboard.ngrok.com/get-started/your-authtoken)
-4. Come back here and run `/pair-agent` again."
+   - Linux: `snap install ngrok`，或从 ngrok.com/download 下载
+3. 完成 auth：`ngrok config add-authtoken YOUR_TOKEN`
+   （从 https://dashboard.ngrok.com/get-started/your-authtoken 获取 token）
+4. 回到这里并重新运行 `/pair-agent`。"
 
-STOP here. Wait for the user to install ngrok and re-invoke.
+在这里 STOP。等待用户安装 ngrok 并重新 invoke。
 
-## Step 5: Verify connection
+## Step 5：验证 connection
 
-After the user pastes the instructions into the other agent, wait a moment then check:
+用户将 instructions 粘贴到另一个 agent 后，稍等片刻再检查：
 
 ```bash
 $B status
 ```
 
-Look for the connected agent in the status output. If it appears, tell the user:
-"The remote agent is connected and has its own tab. You'll see its activity in the
-side panel if you have GStack Browser open."
+在 status output 中查找 connected agent。如果出现，告诉用户：
+"remote agent 已连接，并且拥有自己的 tab。如果你打开了 GStack Browser，会在 side panel 中看到它的 activity。"
 
-## What the remote agent can do
+## Remote agent 能做什么
 
-With default (read+write) access:
-- Navigate to URLs, click elements, fill forms, take screenshots
-- Read page content (text, HTML, snapshot)
-- Create new tabs (each agent gets its own)
-- Cannot execute arbitrary JavaScript, read cookies, or access storage
+默认（read+write）access 下：
+- Navigate to URLs、click elements、fill forms、take screenshots
+- Read page content（text、HTML、snapshot）
+- Create new tabs（每个 agent 都有自己的）
+- 不能 execute arbitrary JavaScript、read cookies 或 access storage
 
-With admin access (--admin flag):
-- Everything above, plus JS execution, cookie access, storage access
-- Use sparingly. Only for agents you fully trust.
+Admin access（--admin flag）下：
+- 上述全部能力，加上 JS execution、cookie access、storage access
+- 谨慎使用。只给你完全信任的 agents。
 
-## Troubleshooting
+## Troubleshooting（故障排查）
 
-**"Tab not owned by your agent"** — The remote agent tried to interact with a tab
-it didn't create. Tell it to run `newtab` first to get its own tab.
+**"Tab not owned by your agent"**：Remote agent 试图与它没有创建的 tab 交互。
+告诉它先运行 `newtab` 获取自己的 tab。
 
-**"Domain not allowed"** — The token has domain restrictions. Re-pair with broader
-domain access or no domain restrictions.
+**"Domain not allowed"**：Token 有 domain restrictions。用更宽的 domain access 或无 domain restrictions 重新 pair。
 
-**"Rate limit exceeded"** — The agent is sending > 10 requests/second. It should
-wait for the Retry-After header and slow down.
+**"Rate limit exceeded"**：Agent 发送超过 10 requests/second。它应等待 Retry-After header 并放慢。
 
-**"Token expired"** — The 24-hour session expired. Run `/pair-agent` again to
-generate a new setup key.
+**"Token expired"**：24-hour session 已过期。再次运行 `/pair-agent` 生成 new setup key。
 
-**Agent can't reach the server** — If remote, check the ngrok tunnel is running
-(`$B status`). If local, check the browse server is running.
+**Agent can't reach the server**：如果是 remote，检查 ngrok tunnel 是否运行（`$B status`）。
+如果是 local，检查 browse server 是否运行。
 
-## Platform-specific notes
+## Platform-specific notes（平台专属说明）
 
 ### OpenClaw / AlphaClaw
 
-OpenClaw agents use the `exec` tool instead of `Bash`. The instruction block uses
-`exec curl` syntax which OpenClaw understands natively. When using `--local openclaw`,
-credentials are written to `~/.openclaw/skills/gstack/browse-remote.json`.
+OpenClaw agents 使用 `exec` tool，而不是 `Bash`。Instruction block 使用 OpenClaw 原生理解的
+`exec curl` syntax。使用 `--local openclaw` 时，credentials 会写入
+`~/.openclaw/skills/gstack/browse-remote.json`。
 
 
 ### Codex
 
-Codex agents can execute shell commands via `codex exec`. The instruction block's
-curl commands work directly. When using `--local codex`, credentials are written
-to `~/.codex/skills/gstack/browse-remote.json`.
+Codex agents 可以通过 `codex exec` 执行 shell commands。Instruction block 中的 curl commands
+可直接工作。使用 `--local codex` 时，credentials 会写入
+`~/.codex/skills/gstack/browse-remote.json`。
 
 ### Cursor
 
-Cursor's AI can run terminal commands. The instruction block works as-is.
-When using `--local cursor`, credentials are written to
+Cursor 的 AI 可以运行 terminal commands。Instruction block 可原样工作。
+使用 `--local cursor` 时，credentials 会写入
 `~/.cursor/skills/gstack/browse-remote.json`.
 
-## Revoking access
+## Revoking access（撤销访问）
 
-To disconnect a specific agent:
+断开特定 agent：
 
 ```bash
 $B tunnel revoke AGENT_NAME
 ```
 
-To disconnect all agents and rotate the root token:
+断开所有 agents 并 rotate root token：
 
 ```bash
-# This invalidates ALL scoped tokens immediately
+# 这会立即 invalidate 所有 scoped tokens
 $B tunnel rotate
 ```

@@ -1,42 +1,41 @@
 /**
- * artifacts-sync preamble block (renamed from gbrain-sync in v1.27.0.0).
+ * artifacts-sync preamble block（v1.27.0.0 从 gbrain-sync 改名）。
  *
- * Emits bash that runs at every skill invocation:
- *   0. Live gbrain-availability hint (per /plan-eng-review): when gbrain is
- *      configured, emit one of two variants (steady-state vs empty-corpus
- *      emergency). Zero context cost when gbrain is not configured.
- *   1. If ~/.gstack-artifacts-remote.txt (or legacy ~/.gstack-brain-remote.txt
- *      during the v1.27.0.0 migration window) exists AND ~/.gstack/.git is
- *      missing, surface a restore-available hint (does NOT auto-run restore).
- *   2. If sync is on, run `gstack-brain-sync --once` (drain + push). The
- *      script keeps its old name; only the config-key + state-file names flip.
- *   3. On first skill of the day (24h cache via .brain-last-pull):
- *      `git fetch` + ff-only merge (JSONL merge driver handles conflicts).
- *   4. Emit an `ARTIFACTS_SYNC:` status line so every skill surfaces health.
- *      In remote-MCP mode, the line reads `ARTIFACTS_SYNC: remote-mode
- *      (managed by brain server <host>)` since this machine doesn't sync
- *      anything locally — the brain admin's server pulls from GitHub/GitLab.
+ * 生成每次 skill invocation 都会运行的 bash：
+ *   0. Live gbrain-availability hint（按 /plan-eng-review）：gbrain 已配置时，
+ *      输出两种 variant 之一（steady-state vs empty-corpus emergency）。
+ *      未配置 gbrain 时为零 context cost。
+ *   1. 如果 ~/.gstack-artifacts-remote.txt（或 v1.27.0.0 migration window
+ *      内的 legacy ~/.gstack-brain-remote.txt）存在，且 ~/.gstack/.git 缺失，
+ *      则暴露 restore-available hint（不会 auto-run restore）。
+ *   2. 如果 sync 开启，运行 `gstack-brain-sync --once`（drain + push）。
+ *      script 保留旧名；只翻转 config-key + state-file names。
+ *   3. 当天第一个 skill（通过 .brain-last-pull 做 24h cache）执行：
+ *      `git fetch` + ff-only merge（JSONL merge driver 处理 conflicts）。
+ *   4. 输出 `ARTIFACTS_SYNC:` status line，让每个 skill 都暴露 health。
+ *      remote-MCP mode 下，该行是 `ARTIFACTS_SYNC: remote-mode
+ *      (managed by brain server <host>)`，因为本机不做 local sync；
+ *      brain admin 的 server 会从 GitHub/GitLab 拉取。
  *
- * Also emits prose instructions for the host LLM to fire a one-time privacy
- * stop-gate via AskUserQuestion when artifacts_sync_mode is unset and gbrain
- * is available on the host.
+ * 当 artifacts_sync_mode 未设置且 host 上可用 gbrain 时，还会生成 prose
+ * instructions，要求 host LLM 通过 AskUserQuestion 触发一次性 privacy stop-gate。
  *
- * Block emitted across all tiers. Internal bash short-circuits when feature
- * is disabled; cost is <5ms.
+ * 该 block 在所有 tiers 中生成。feature disabled 时 internal bash 会 short-circuit；
+ * cost <5ms。
  *
- * Skill-end sync is handled by the completion-status generator via a call
- * to `gstack-brain-sync --discover-new` + `--once`.
+ * Skill-end sync 由 completion-status generator 通过调用
+ * `gstack-brain-sync --discover-new` + `--once` 处理。
  */
 import type { TemplateContext } from '../types';
 
 export function generateBrainSyncBlock(ctx: TemplateContext): string {
   const isBrainHost = ctx.host === 'gbrain' || ctx.host === 'hermes';
-  return `## Artifacts Sync (skill start)
+  return `## Artifacts Sync (skill start)（Artifacts 同步，skill 启动时）
 
 \`\`\`bash
 _GSTACK_HOME="\${GSTACK_HOME:-$HOME/.gstack}"
-# Prefer the v1.27.0.0 artifacts file; fall back to brain file for users
-# upgrading mid-stream before the migration script runs.
+# 优先使用 v1.27.0.0 artifacts 文件；对于 migration script 运行前
+# 处于升级中途的用户，fallback 到旧 brain 文件。
 if [ -f "$HOME/.gstack-artifacts-remote.txt" ]; then
   _BRAIN_REMOTE_FILE="$HOME/.gstack-artifacts-remote.txt"
 else
@@ -45,12 +44,11 @@ fi
 _BRAIN_SYNC_BIN="${ctx.paths.binDir}/gstack-brain-sync"
 _BRAIN_CONFIG_BIN="${ctx.paths.binDir}/gstack-config"
 
-# /sync-gbrain context-load: teach the agent to use gbrain when it's available.
-# Per-worktree pin: post-spike redesign uses kubectl-style \`.gbrain-source\` in the
-# git toplevel to scope queries. Look for the pin in the worktree (not a global
-# state file) so that opening worktree B without a pin doesn't claim "indexed"
-# just because worktree A was synced. Empty string when gbrain is not
-# configured (zero context cost for non-gbrain users).
+# /sync-gbrain context-load：当 gbrain 可用时，教 agent 使用 gbrain。
+# Per-worktree pin：post-spike redesign 使用 kubectl-style 的 \`.gbrain-source\`
+# 放在 git toplevel 里限定 queries 范围。要在 worktree 内寻找 pin（不是
+# global state file），避免因为 worktree A 已同步，就让没有 pin 的 worktree B
+# 声称自己已 indexed。gbrain 未配置时为空字符串（对非 gbrain 用户为零 context cost）。
 _GBRAIN_CONFIG="$HOME/.gbrain/config.json"
 if [ -f "$_GBRAIN_CONFIG" ] && command -v gbrain >/dev/null 2>&1; then
   _GBRAIN_VERSION_OK=$(gbrain --version 2>/dev/null | grep -c '^gbrain ' || echo 0)
@@ -75,10 +73,9 @@ fi
 
 _BRAIN_SYNC_MODE=$("$_BRAIN_CONFIG_BIN" get artifacts_sync_mode 2>/dev/null || echo off)
 
-# Detect remote-MCP mode (Path 4 of /setup-gbrain). Local artifacts sync is
-# a no-op in remote mode; the brain server pulls from GitHub/GitLab on its
-# own cadence. Read claude.json directly to keep this preamble fast (no
-# subprocess to claude CLI on every skill start).
+# 检测 remote-MCP mode（/setup-gbrain 的 Path 4）。Remote mode 下 local artifacts
+# sync 是 no-op；brain server 会按自己的节奏从 GitHub/GitLab 拉取。
+# 直接读取 claude.json 以保持 preamble 快速（每次 skill start 不启动 claude CLI 子进程）。
 _GBRAIN_MCP_MODE="none"
 if command -v jq >/dev/null 2>&1 && [ -f "$HOME/.claude.json" ]; then
   _GBRAIN_MCP_TYPE=$(jq -r '.mcpServers.gbrain.type // .mcpServers.gbrain.transport // empty' "$HOME/.claude.json" 2>/dev/null)
@@ -113,8 +110,8 @@ if [ -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" != "off" ]; then
 fi
 
 if [ "$_GBRAIN_MCP_MODE" = "remote-http" ]; then
-  # Remote-MCP mode: local artifacts sync is a no-op (brain admin's server
-  # pulls from GitHub/GitLab). Show the user this is by design, not broken.
+  # Remote-MCP mode：local artifacts sync 是 no-op（brain admin 的 server
+  # 会从 GitHub/GitLab 拉取）。向用户说明这是预期行为，不是故障。
   _GBRAIN_HOST=$(jq -r '.mcpServers.gbrain.url // empty' "$HOME/.claude.json" 2>/dev/null | sed -E 's|^https?://([^/:]+).*|\\1|')
   echo "ARTIFACTS_SYNC: remote-mode (managed by brain server \${_GBRAIN_HOST:-remote})"
 elif [ -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" != "off" ]; then
@@ -128,28 +125,28 @@ else
 fi
 \`\`\`
 
-${isBrainHost ? `If output shows \`ARTIFACTS_SYNC: artifacts repo detected\`, offer \`gstack-brain-restore\` via AskUserQuestion; otherwise continue.` : ''}
+${isBrainHost ? `如果输出显示 \`ARTIFACTS_SYNC: artifacts repo detected\`，通过 AskUserQuestion 提供 \`gstack-brain-restore\`；否则继续。` : ''}
 
-Privacy stop-gate: if output shows \`ARTIFACTS_SYNC: off\`, \`artifacts_sync_mode_prompted\` is \`false\`, and gbrain is on PATH or \`gbrain doctor --fast --json\` works, ask once:
+Privacy stop-gate：如果输出显示 \`ARTIFACTS_SYNC: off\`，\`artifacts_sync_mode_prompted\` 为 \`false\`，且 gbrain 在 PATH 上或 \`gbrain doctor --fast --json\` 可运行，则询问一次：
 
-> gstack can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
+> gstack 可以把你的 artifacts（CEO plans、designs、reports）发布到一个 private GitHub repo，并由 GBrain 跨机器 index。要同步多少内容？
 
 Options:
-- A) Everything allowlisted (recommended)
-- B) Only artifacts
-- C) Decline, keep everything local
+- A) 所有 allowlisted 内容（recommended）
+- B) 仅 artifacts
+- C) 拒绝，全部保持 local
 
-After answer:
+回答后：
 
 \`\`\`bash
-# Chosen mode: full | artifacts-only | off
+# 选择的 mode：full | artifacts-only | off
 "$_BRAIN_CONFIG_BIN" set artifacts_sync_mode <choice>
 "$_BRAIN_CONFIG_BIN" set artifacts_sync_mode_prompted true
 \`\`\`
 
-If A/B and \`~/.gstack/.git\` is missing, ask whether to run \`gstack-artifacts-init\`. Do not block the skill.
+如果选择 A/B 且 \`~/.gstack/.git\` 缺失，询问是否运行 \`gstack-artifacts-init\`。不要阻塞此 skill。
 
-At skill END before telemetry:
+在 skill END、telemetry 之前：
 
 \`\`\`bash
 "${ctx.paths.binDir}/gstack-brain-sync" --discover-new 2>/dev/null || true

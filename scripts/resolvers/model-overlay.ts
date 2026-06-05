@@ -49,12 +49,11 @@ export function generateModelOverlay(ctx: TemplateContext): string {
   const content = readOverlay(ctx.model);
   if (!content) return '';
 
-  return `## Model-Specific Behavioral Patch (${ctx.model})
+  return `## Model-Specific Behavioral Patch (${ctx.model})（模型专属行为补丁）
 
-The following nudges are tuned for the ${ctx.model} model family. They are
-**subordinate** to skill workflow, STOP points, AskUserQuestion gates, plan-mode
-safety, and /ship review gates. If a nudge below conflicts with skill instructions,
-the skill wins. Treat these as preferences, not rules.
+以下 nudges 针对 ${ctx.model} model family 调整。它们**从属于** skill workflow、
+STOP points、AskUserQuestion gates、plan-mode safety 和 /ship review gates。
+如果下面的 nudge 与 skill instructions 冲突，以 skill 为准。把这些视为偏好，而不是规则。
 
 ${content}`;
 }

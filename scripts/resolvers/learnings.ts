@@ -36,21 +36,20 @@ export function generateLearningsSearch(ctx: TemplateContext, args?: string[]): 
 
   if (ctx.host === 'codex') {
     // Codex: simpler version, no cross-project, uses $GSTACK_BIN
-    return `## Prior Learnings
+    return `## Prior Learnings（历史 learnings）
 
-Search for relevant learnings from previous sessions on this project:
+搜索此 project 先前 sessions 中的相关 learnings：
 
 \`\`\`bash
 $GSTACK_BIN/gstack-learnings-search --limit 10${queryFlag} 2>/dev/null || true
 \`\`\`
 
-If learnings are found, incorporate them into your analysis. When a review finding
-matches a past learning, note it: "Prior learning applied: [key] (confidence N, from [date])"`;
+如果找到 learnings，将其纳入分析。当 review finding 匹配 past learning 时，注明："Prior learning applied: [key] (confidence N, from [date])"`;
   }
 
-  return `## Prior Learnings
+  return `## Prior Learnings（历史 learnings）
 
-Search for relevant learnings from previous sessions:
+搜索先前 sessions 中的相关 learnings：
 
 \`\`\`bash
 _CROSS_PROJ=$(${ctx.paths.binDir}/gstack-config get cross_project_learnings 2>/dev/null || echo "unset")
@@ -62,56 +61,50 @@ else
 fi
 \`\`\`
 
-If \`CROSS_PROJECT\` is \`unset\` (first time): Use AskUserQuestion:
+如果 \`CROSS_PROJECT\` 是 \`unset\`（第一次）：使用 AskUserQuestion：
 
-> gstack can search learnings from your other projects on this machine to find
-> patterns that might apply here. This stays local (no data leaves your machine).
-> Recommended for solo developers. Skip if you work on multiple client codebases
-> where cross-contamination would be a concern.
+> gstack 可以搜索这台机器上其他 projects 的 learnings，寻找可能适用于这里的 patterns。
+> 这只在 local 发生（没有 data 离开你的机器）。推荐 solo developers 使用。
+> 如果你同时处理多个 client codebases，担心 cross-contamination，可以跳过。
 
 Options:
-- A) Enable cross-project learnings (recommended)
-- B) Keep learnings project-scoped only
+- A) 启用 cross-project learnings（recommended）
+- B) Learnings 仅保持 project-scoped
 
-If A: run \`${ctx.paths.binDir}/gstack-config set cross_project_learnings true\`
-If B: run \`${ctx.paths.binDir}/gstack-config set cross_project_learnings false\`
+如果选择 A：运行 \`${ctx.paths.binDir}/gstack-config set cross_project_learnings true\`
+如果选择 B：运行 \`${ctx.paths.binDir}/gstack-config set cross_project_learnings false\`
 
-Then re-run the search with the appropriate flag.
+然后使用合适的 flag 重新运行 search。
 
-If learnings are found, incorporate them into your analysis. When a review finding
-matches a past learning, display:
+如果找到 learnings，将其纳入分析。当 review finding 匹配 past learning 时，显示：
 
 **"Prior learning applied: [key] (confidence N/10, from [date])"**
 
-This makes the compounding visible. The user should see that gstack is getting
-smarter on their codebase over time.`;
+这样会让 compounding 可见。用户应该看到 gstack 正在随着时间推移更了解他们的 codebase。`;
 }
 
 export function generateLearningsLog(ctx: TemplateContext): string {
   const binDir = ctx.host === 'codex' ? '$GSTACK_BIN' : ctx.paths.binDir;
 
-  return `## Capture Learnings
+  return `## Capture Learnings（记录 learnings）
 
-If you discovered a non-obvious pattern, pitfall, or architectural insight during
-this session, log it for future sessions:
+如果你在本 session 中发现了非显而易见的 pattern、pitfall 或 architectural insight，请记录下来供未来 sessions 使用：
 
 \`\`\`bash
 ${binDir}/gstack-learnings-log '{"skill":"${ctx.skillName}","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
 \`\`\`
 
-**Types:** \`pattern\` (reusable approach), \`pitfall\` (what NOT to do), \`preference\`
-(user stated), \`architecture\` (structural decision), \`tool\` (library/framework insight),
-\`operational\` (project environment/CLI/workflow knowledge).
+**Types：** \`pattern\`（reusable approach）、\`pitfall\`（what NOT to do）、\`preference\`
+（user stated）、\`architecture\`（structural decision）、\`tool\`（library/framework insight）、
+\`operational\`（project environment/CLI/workflow knowledge）。
 
-**Sources:** \`observed\` (you found this in the code), \`user-stated\` (user told you),
-\`inferred\` (AI deduction), \`cross-model\` (both Claude and Codex agree).
+**Sources：** \`observed\`（你在代码中发现）、\`user-stated\`（用户告诉你）、
+\`inferred\`（AI deduction）、\`cross-model\`（Claude 和 Codex 都同意）。
 
-**Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
-An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.
+**Confidence：** 1-10。诚实打分。你在代码中验证过的 observed pattern 是 8-9。
+不太确定的 inference 是 4-5。用户明确陈述的 preference 是 10。
 
-**files:** Include the specific file paths this learning references. This enables
-staleness detection: if those files are later deleted, the learning can be flagged.
+**files：** 包含此 learning 引用的具体 file paths。这会启用 staleness detection：如果这些 files 后续被删除，该 learning 可被标记。
 
-**Only log genuine discoveries.** Don't log obvious things. Don't log things the user
-already knows. A good test: would this insight save time in a future session? If yes, log it.`;
+**只记录真正的发现。**不要记录 obvious things。不要记录用户已经知道的事情。一个好测试：这个 insight 会在未来 session 中节省时间吗？如果会，就记录。`;
 }

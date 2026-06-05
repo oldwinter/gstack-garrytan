@@ -1,31 +1,30 @@
 /**
- * Psychographic Signal Map — hand-crafted {question_id, user_choice} → {dimension, delta}.
+ * Psychographic Signal Map — 手工维护的 {question_id, user_choice} → {dimension, delta}。
  *
- * Consumed in v1 ONLY to compute inferred dimension values for /plan-tune
- * inspection output. No skill behavior adapts to these signals in v1.
+ * v1 中仅用于为 /plan-tune inspection output 计算 inferred dimension values。
+ * v1 中没有任何 skill behavior 会根据这些 signals 自适应。
  *
- * When v2 wires 5 skills to consume the profile, this map is the source of
- * truth for how behavior influences dimensions. Calibration deltas in v1 are
- * best-guess starting points; v2 recalibrates from real observed data.
+ * v2 把 5 个 skills 接入 profile 后，这个 map 就是 behavior 如何影响 dimensions
+ * 的 source of truth。v1 中的 calibration deltas 是 best-guess 起点；v2 会
+ * 用真实观察数据重新校准。
  *
  * Design principles
  * -----------------
- * 1. Hand-crafted, not agent-inferred (Codex #4, user Decision C).
- *    Every mapping is explicit TypeScript — no runtime NL interpretation.
+ * 1. 手工维护，不由 agent inference 得出（Codex #4，user Decision C）。
+ *    每条 mapping 都是 explicit TypeScript，不做 runtime NL interpretation。
  *
- * 2. Small, conservative deltas (±0.03 to ±0.06 typical).
- *    A single answer should nudge the profile, not reshape it. Repeated
- *    answers across sessions accumulate.
+ * 2. 小而保守的 deltas（通常 ±0.03 到 ±0.06）。
+ *    单次 answer 应该 nudges profile，而不是重塑它。跨 sessions 的重复 answers
+ *    会累计。
  *
- * 3. Tied to registry signal_key.
- *    Each entry in this map corresponds to a signal_key declared in
- *    scripts/question-registry.ts. The derivation pipeline uses the
- *    question's signal_key + user_choice as the lookup key.
+ * 3. 绑定到 registry signal_key。
+ *    此 map 中的每个 entry 都对应 scripts/question-registry.ts 中声明的
+ *    signal_key。derivation pipeline 用 question 的 signal_key + user_choice
+ *    作为 lookup key。
  *
- * 4. Not every question contributes to every dimension.
- *    Many questions have no signal_key — they're logged but don't move
- *    the psychographic. Only questions that genuinely reveal preference
- *    get a signal_key.
+ * 4. 不是每个 question 都会贡献到每个 dimension。
+ *    很多 questions 没有 signal_key，它们会被 logged，但不会移动 psychographic。
+ *    只有真正揭示 preference 的 questions 才获得 signal_key。
  *
  * Dimensions
  * ----------
@@ -38,7 +37,7 @@
 
 import { QUESTIONS } from './question-registry';
 
-/** The 5 dimensions of the developer psychographic. */
+/** developer psychographic 的 5 个 dimensions。 */
 export type Dimension =
   | 'scope_appetite'
   | 'risk_tolerance'
@@ -55,8 +54,8 @@ export const ALL_DIMENSIONS: readonly Dimension[] = [
 ] as const;
 
 /**
- * Semantic version of the signal map. Increment when deltas change so that
- * cached profiles can detect staleness and recompute from events.
+ * signal map 的 semantic version。deltas 改变时递增，让 cached profiles
+ * 可以检测 staleness 并从 events 重新计算。
  */
 export const SIGNAL_MAP_VERSION = '0.1.0';
 
@@ -66,16 +65,16 @@ export interface DimensionDelta {
 }
 
 /**
- * Signal map: signal_key → user_choice → list of dimension nudges.
+ * Signal map：signal_key → user_choice → dimension nudges 列表。
  *
- * Indexed by signal_key (declared in question-registry entries), not
- * question_id directly. This lets multiple questions share a semantic
- * pattern (e.g., scope-appetite signal comes from both plan-ceo-review
- * expansion proposals AND office-hours approach selection).
+ * 以 signal_key（在 question-registry entries 中声明）为索引，而不是直接用
+ * question_id。这让多个 questions 可以共享一个 semantic pattern（例如
+ * scope-appetite signal 同时来自 plan-ceo-review expansion proposals 和
+ * office-hours approach selection）。
  */
 export const SIGNAL_MAP: Record<string, Record<string, DimensionDelta[]>> = {
   // -----------------------------------------------------------------------
-  // scope-appetite — how much the user likes to expand scope
+  // scope-appetite — user 有多喜欢扩展 scope
   // -----------------------------------------------------------------------
   'scope-appetite': {
     // plan-ceo-review mode choice
@@ -94,7 +93,7 @@ export const SIGNAL_MAP: Record<string, Record<string, DimensionDelta[]>> = {
   },
 
   // -----------------------------------------------------------------------
-  // architecture-care — how much the user sweats the details
+  // architecture-care — user 有多在意细节
   // -----------------------------------------------------------------------
   'architecture-care': {
     'fix-now': [
@@ -109,7 +108,7 @@ export const SIGNAL_MAP: Record<string, Record<string, DimensionDelta[]>> = {
   },
 
   // -----------------------------------------------------------------------
-  // code-quality-care — proxies detail_preference + architecture_care
+  // code-quality-care — 代理 detail_preference + architecture_care
   // -----------------------------------------------------------------------
   'code-quality-care': {
     'fix-now': [
@@ -126,7 +125,7 @@ export const SIGNAL_MAP: Record<string, Record<string, DimensionDelta[]>> = {
   },
 
   // -----------------------------------------------------------------------
-  // test-discipline — proxies architecture_care + detail_preference
+  // test-discipline — 代理 architecture_care + detail_preference
   // -----------------------------------------------------------------------
   'test-discipline': {
     'fix-now': [
@@ -147,7 +146,7 @@ export const SIGNAL_MAP: Record<string, Record<string, DimensionDelta[]>> = {
   },
 
   // -----------------------------------------------------------------------
-  // detail-preference — direct signal for verbosity
+  // detail-preference — verbosity 的直接 signal
   // -----------------------------------------------------------------------
   'detail-preference': {
     accept: [{ dim: 'detail_preference', delta: +0.03 }],
@@ -155,7 +154,7 @@ export const SIGNAL_MAP: Record<string, Record<string, DimensionDelta[]>> = {
   },
 
   // -----------------------------------------------------------------------
-  // design-care — proxies architecture_care for UI-facing work
+  // design-care — UI-facing work 中 architecture_care 的代理
   // -----------------------------------------------------------------------
   'design-care': {
     expand: [{ dim: 'architecture_care', delta: +0.04 }],

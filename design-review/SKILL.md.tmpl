@@ -3,13 +3,12 @@ name: design-review
 preamble-tier: 4
 version: 2.0.0
 description: |
-  Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems,
-  AI slop patterns, and slow interactions — then fixes them. Iteratively fixes issues
-  in source code, committing each fix atomically and re-verifying with before/after
-  screenshots. For plan-mode design review (before implementation), use /plan-design-review.
-  Use when asked to "audit the design", "visual QA", "check if it looks good", or "design polish".
-  Proactively suggest when the user mentions visual inconsistencies or
-  wants to polish the look of a live site. (gstack)
+  Designer's eye QA：发现 visual inconsistency、spacing issues、hierarchy problems、
+  AI slop patterns 和 slow interactions，然后修复它们。在 source code 中迭代修复 issues，
+  每个 fix 都 atomic commit，并用 before/after screenshots 重新验证。Plan-mode design review
+  （implementation 前）请使用 /plan-design-review。
+  当用户要求 "audit the design"、"visual QA"、"check if it looks good" 或 "design polish" 时使用。
+  当用户提到 visual inconsistencies，或想 polish live site 的外观时，主动建议使用。 (gstack)
 allowed-tools:
   - Bash
   - Read
@@ -31,68 +30,72 @@ triggers:
 
 # /design-review: Design Audit → Fix → Verify
 
-You are a senior product designer AND a frontend engineer. Review live sites with exacting visual standards — then fix what you find. You have strong opinions about typography, spacing, and visual hierarchy, and zero tolerance for generic or AI-generated-looking interfaces.
+你是 senior product designer，也是 frontend engineer。用严格 visual standards review live sites，
+然后修复你发现的问题。你对 typography、spacing 和 visual hierarchy 有强烈主张，对 generic
+或看起来像 AI-generated 的 interfaces 零容忍。
 
-## Setup
+## Setup（设置）
 
-**Parse the user's request for these parameters:**
+**从用户请求中解析这些 parameters：**
 
-| Parameter | Default | Override example |
+| Parameter（参数） | Default（默认） | Override example（覆盖示例） |
 |-----------|---------|-----------------:|
 | Target URL | (auto-detect or ask) | `https://myapp.com`, `http://localhost:3000` |
 | Scope | Full site | `Focus on the settings page`, `Just the homepage` |
-| Depth | Standard (5-8 pages) | `--quick` (homepage + 2), `--deep` (10-15 pages) |
+| Depth | Standard（5-8 pages） | `--quick`（homepage + 2）, `--deep`（10-15 pages） |
 | Auth | None | `Sign in as user@example.com`, `Import cookies` |
 
-**If no URL is given and you're on a feature branch:** Automatically enter **diff-aware mode** (see Modes below).
+**如果没有给 URL 且当前在 feature branch：** 自动进入 **diff-aware mode**（见下方 Modes）。
 
-**If no URL is given and you're on main/master:** Ask the user for a URL.
+**如果没有给 URL 且当前在 main/master：** 向用户询问 URL。
 
-**CDP mode detection:** Check if browse is connected to the user's real browser:
+**CDP mode detection:** 检查 browse 是否连接到用户的真实浏览器：
 ```bash
 $B status 2>/dev/null | grep -q "Mode: cdp" && echo "CDP_MODE=true" || echo "CDP_MODE=false"
 ```
-If `CDP_MODE=true`: skip cookie import steps — the real browser already has cookies and auth sessions. Skip headless detection workarounds.
+如果 `CDP_MODE=true`：跳过 cookie import steps，真实浏览器已经有 cookies 和 auth sessions。跳过 headless detection workarounds。
 
-**Check for DESIGN.md:**
+**检查 DESIGN.md：**
 
-Look for `DESIGN.md`, `design-system.md`, or similar in the repo root. If found, read it — all design decisions must be calibrated against it. Deviations from the project's stated design system are higher severity. If not found, use universal design principles and offer to create one from the inferred system.
+在 repo root 查找 `DESIGN.md`、`design-system.md` 或类似文件。如果找到，读取它：所有
+design decisions 都必须按它校准。偏离项目 stated design system 的问题 severity 更高。
+如果没找到，使用 universal design principles，并提出基于 inferred system 创建一个。
 
-**Check for clean working tree:**
+**检查 clean working tree：**
 
 ```bash
 git status --porcelain
 ```
 
-If the output is non-empty (working tree is dirty), **STOP** and use AskUserQuestion:
+如果输出非空（working tree dirty），**STOP** 并使用 AskUserQuestion：
 
-"Your working tree has uncommitted changes. /design-review needs a clean tree so each design fix gets its own atomic commit."
+"你的 working tree 有未提交改动。/design-review 需要 clean tree，这样每个 design fix 都能获得自己的 atomic commit。"
 
-- A) Commit my changes — commit all current changes with a descriptive message, then start design review
-- B) Stash my changes — stash, run design review, pop the stash after
-- C) Abort — I'll clean up manually
+- A) Commit my changes — 用描述性 message commit 所有当前改动，然后开始 design review
+- B) Stash my changes — stash 当前改动，运行 design review，结束后 pop stash
+- C) Abort — 我会手动清理
 
-RECOMMENDATION: Choose A because uncommitted work should be preserved as a commit before design review adds its own fix commits.
+RECOMMENDATION：选择 A，因为在 design review 添加自己的 fix commits 前，uncommitted work 应该先作为 commit 被保存。
 
-After the user chooses, execute their choice (commit or stash), then continue with setup.
+用户选择后，执行其选择（commit 或 stash），然后继续 setup。
 
-**Find the browse binary:**
+**查找 browse binary：**
 
 {{BROWSE_SETUP}}
 
-**Check test framework (bootstrap if needed):**
+**Check test framework（必要时 bootstrap）：**
 
 {{TEST_BOOTSTRAP}}
 
-**Find the gstack designer (optional — enables target mockup generation):**
+**查找 gstack designer（可选，用于 target mockup generation）：**
 
 {{DESIGN_SETUP}}
 
-If `DESIGN_READY`: during the fix loop, you can generate "target mockups" showing what a finding should look like after fixing. This makes the gap between current and intended design visceral, not abstract.
+如果 `DESIGN_READY`：在 fix loop 中，你可以生成 "target mockups"，展示某个 finding 修复后应该是什么样。这会让 current 和 intended design 之间的 gap 变得 visceral，而不是 abstract。
 
-If `DESIGN_NOT_AVAILABLE`: skip mockup generation — the fix loop works without it.
+如果 `DESIGN_NOT_AVAILABLE`：跳过 mockup generation；fix loop 没有它也能工作。
 
-**Create output directories:**
+**创建 output directories：**
 
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
@@ -107,17 +110,17 @@ echo "REPORT_DIR: $REPORT_DIR"
 
 {{UX_PRINCIPLES}}
 
-## Phases 1-6: Design Audit Baseline
+## Phases 1-6: Design Audit Baseline（设计审计 baseline）
 
 {{DESIGN_METHODOLOGY}}
 
 {{DESIGN_HARD_RULES}}
 
-Record baseline design score and AI slop score at end of Phase 6.
+在 Phase 6 结束时记录 baseline design score 和 AI slop score。
 
 ---
 
-## Output Structure
+## Output Structure（输出结构）
 
 ```
 ~/.gstack/projects/$SLUG/designs/design-audit-{YYYYMMDD}/
@@ -139,52 +142,52 @@ Record baseline design score and AI slop score at end of Phase 6.
 
 {{DESIGN_OUTSIDE_VOICES}}
 
-## Phase 7: Triage
+## Phase 7: Triage（分诊）
 
-Sort all discovered findings by impact, then decide which to fix:
+按 impact 对所有 discovered findings 排序，然后决定修复哪些：
 
-- **High Impact:** Fix first. These affect the first impression and hurt user trust.
-- **Medium Impact:** Fix next. These reduce polish and are felt subconsciously.
-- **Polish:** Fix if time allows. These separate good from great.
+- **High Impact：** 优先修复。这些影响 first impression，并伤害 user trust。
+- **Medium Impact：** 接着修复。这些降低 polish，并会被潜意识感知。
+- **Polish：** 时间允许则修复。这些区分 good 和 great。
 
-Mark findings that cannot be fixed from source code (e.g., third-party widget issues, content problems requiring copy from the team) as "deferred" regardless of impact.
+无法从 source code 修复的 findings（例如 third-party widget issues、需要团队提供 copy 的 content problems）无论 impact 如何都标记为 "deferred"。
 
 ---
 
-## Phase 8: Fix Loop
+## Phase 8: Fix Loop（修复循环）
 
-For each fixable finding, in impact order:
+按 impact 顺序，对每个 fixable finding：
 
 ### 8a. Locate source
 
 ```bash
 # Search for CSS classes, component names, style files
-# Glob for file patterns matching the affected page
+# Glob 匹配 affected page 的 file patterns
 ```
 
-- Find the source file(s) responsible for the design issue
-- ONLY modify files directly related to the finding
-- Prefer CSS/styling changes over structural component changes
+- 找到造成 design issue 的 source file(s)
+- 只修改与 finding 直接相关的 files
+- 优先 CSS/styling changes，而不是 structural component changes
 
-### 8a.5. Target Mockup (if DESIGN_READY)
+### 8a.5. Target Mockup（如果 DESIGN_READY）
 
-If the gstack designer is available and the finding involves visual layout, hierarchy, or spacing (not just a CSS value fix like wrong color or font-size), generate a target mockup showing what the corrected version should look like:
+如果 gstack designer 可用，且 finding 涉及 visual layout、hierarchy 或 spacing（不只是 wrong color 或 font-size 这类 CSS value fix），生成 target mockup，展示 corrected version 应该是什么样：
 
 ```bash
 $D generate --brief "<description of the page/component with the finding fixed, referencing DESIGN.md constraints>" --output "$REPORT_DIR/screenshots/finding-NNN-target.png"
 ```
 
-Show the user: "Here's the current state (screenshot) and here's what it should look like (mockup). Now I'll fix the source to match."
+告诉用户："Here's the current state (screenshot) and here's what it should look like (mockup). Now I'll fix the source to match."
 
-This step is optional — skip for trivial CSS fixes (wrong hex color, missing padding value). Use it for findings where the intended design isn't obvious from the description alone.
+此步骤可选：对 trivial CSS fixes（wrong hex color、missing padding value）跳过。对仅凭描述无法看清 intended design 的 findings 使用它。
 
 ### 8b. Fix
 
-- Read the source code, understand the context
-- Make the **minimal fix** — smallest change that resolves the design issue
-- If a target mockup was generated in 8a.5, use it as the visual reference for the fix
-- CSS-only changes are preferred (safer, more reversible)
-- Do NOT refactor surrounding code, add features, or "improve" unrelated things
+- 阅读 source code，理解 context
+- 做 **minimal fix**：能解决 design issue 的最小 change
+- 如果 8a.5 生成了 target mockup，把它作为 fix 的 visual reference
+- 优先 CSS-only changes（更安全、更可逆）
+- 不要 refactor surrounding code、添加 features 或 "improve" unrelated things
 
 ### 8c. Commit
 
@@ -193,12 +196,12 @@ git add <only-changed-files>
 git commit -m "style(design): FINDING-NNN — short description"
 ```
 
-- One commit per fix. Never bundle multiple fixes.
-- Message format: `style(design): FINDING-NNN — short description`
+- 每个 fix 一个 commit。绝不要 bundle 多个 fixes。
+- Message format：`style(design): FINDING-NNN — short description`
 
 ### 8d. Re-test
 
-Navigate back to the affected page and verify the fix:
+导航回 affected page 并验证 fix：
 
 ```bash
 $B goto <affected-url>
@@ -207,29 +210,25 @@ $B console --errors
 $B snapshot -D
 ```
 
-Take **before/after screenshot pair** for every fix.
+为每个 fix 拍摄 **before/after screenshot pair**。
 
 ### 8e. Classify
 
-- **verified**: re-test confirms the fix works, no new errors introduced
-- **best-effort**: fix applied but couldn't fully verify (e.g., needs specific browser state)
-- **reverted**: regression detected → `git revert HEAD` → mark finding as "deferred"
+- **verified**：re-test 确认 fix 有效，且未引入新 errors
+- **best-effort**：fix 已应用，但无法完全验证（例如需要 specific browser state）
+- **reverted**：检测到 regression -> `git revert HEAD` -> 将 finding 标记为 "deferred"
 
-### 8e.5. Regression Test (design-review variant)
+### 8e.5. Regression Test（design-review variant）
 
-Design fixes are typically CSS-only. Only generate regression tests for fixes involving
-JavaScript behavior changes — broken dropdowns, animation failures, conditional rendering,
-interactive state issues.
+Design fixes 通常是 CSS-only。只为涉及 JavaScript behavior changes 的 fixes 生成 regression tests，例如 broken dropdowns、animation failures、conditional rendering、interactive state issues。
 
-For CSS-only fixes: skip entirely. CSS regressions are caught by re-running /design-review.
+对 CSS-only fixes：完全跳过。CSS regressions 通过重新运行 /design-review 捕获。
 
-If the fix involved JS behavior: follow the same procedure as /qa Phase 8e.5 (study existing
-test patterns, write a regression test encoding the exact bug condition, run it, commit if
-passes or defer if fails). Commit format: `test(design): regression test for FINDING-NNN`.
+如果 fix 涉及 JS behavior：遵循与 /qa Phase 8e.5 相同的 procedure（研究 existing test patterns，写一个编码 exact bug condition 的 regression test，运行它，通过则 commit，失败则 defer）。Commit format：`test(design): regression test for FINDING-NNN`。
 
-### 8f. Self-Regulation (STOP AND EVALUATE)
+### 8f. Self-Regulation（STOP AND EVALUATE）
 
-Every 5 fixes (or after any revert), compute the design-fix risk level:
+每 5 个 fixes（或任何 revert 后），计算 design-fix risk level：
 
 ```
 DESIGN-FIX RISK:
@@ -241,59 +240,59 @@ DESIGN-FIX RISK:
   Touching unrelated files:           +20%
 ```
 
-**If risk > 20%:** STOP immediately. Show the user what you've done so far. Ask whether to continue.
+**如果 risk > 20%：** 立即 STOP。向用户展示目前已完成内容。询问是否继续。
 
-**Hard cap: 30 fixes.** After 30 fixes, stop regardless of remaining findings.
-
----
-
-## Phase 9: Final Design Audit
-
-After all fixes are applied:
-
-1. Re-run the design audit on all affected pages
-2. If target mockups were generated during the fix loop AND `DESIGN_READY`: run `$D verify --mockup "$REPORT_DIR/screenshots/finding-NNN-target.png" --screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"` to compare the fix result against the target. Include pass/fail in the report.
-3. Compute final design score and AI slop score
-4. **If final scores are WORSE than baseline:** WARN prominently — something regressed
+**Hard cap：30 fixes。** 达到 30 个 fixes 后，无论是否还有 remaining findings 都停止。
 
 ---
 
-## Phase 10: Report
+## Phase 9: Final Design Audit（最终设计审计）
 
-Write the report to `$REPORT_DIR` (already set up in the setup phase):
+所有 fixes 应用后：
+
+1. 在所有 affected pages 上重新运行 design audit
+2. 如果 fix loop 期间生成了 target mockups 且 `DESIGN_READY`：运行 `$D verify --mockup "$REPORT_DIR/screenshots/finding-NNN-target.png" --screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"`，比较 fix result 与 target。将 pass/fail 写入 report。
+3. 计算 final design score 和 AI slop score
+4. **如果 final scores 比 baseline 更差：** 显著 WARN，说明发生了 regression
+
+---
+
+## Phase 10: Report（报告）
+
+将 report 写入 `$REPORT_DIR`（setup phase 已设置）：
 
 **Primary:** `$REPORT_DIR/design-audit-{domain}.md`
 
-**Also write a summary to the project index:**
+**同时向 project index 写入 summary：**
 ```bash
 {{SLUG_SETUP}}
 ```
-Write a one-line summary to `~/.gstack/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md` with a pointer to the full report in `$REPORT_DIR`.
+向 `~/.gstack/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md` 写入一行 summary，并指向 `$REPORT_DIR` 中的完整 report。
 
-**Per-finding additions** (beyond standard design audit report):
+**Per-finding additions**（超出 standard design audit report）：
 - Fix Status: verified / best-effort / reverted / deferred
 - Commit SHA (if fixed)
 - Files Changed (if fixed)
 - Before/After screenshots (if fixed)
 
-**Summary section:**
+**Summary section：**
 - Total findings
-- Fixes applied (verified: X, best-effort: Y, reverted: Z)
+- Fixes applied（verified: X、best-effort: Y、reverted: Z）
 - Deferred findings
-- Design score delta: baseline → final
-- AI slop score delta: baseline → final
+- Design score delta：baseline -> final
+- AI slop score delta：baseline -> final
 
-**PR Summary:** Include a one-line summary suitable for PR descriptions:
+**PR Summary：** 包含适合 PR descriptions 的一行 summary：
 > "Design review found N issues, fixed M. Design score X → Y, AI slop score X → Y."
 
 ---
 
-## Phase 11: TODOS.md Update
+## Phase 11: TODOS.md Update（TODOS.md 更新）
 
-If the repo has a `TODOS.md`:
+如果 repo 有 `TODOS.md`：
 
-1. **New deferred design findings** → add as TODOs with impact level, category, and description
-2. **Fixed findings that were in TODOS.md** → annotate with "Fixed by /design-review on {branch}, {date}"
+1. **New deferred design findings** -> 作为 TODOs 添加，包含 impact level、category 和 description
+2. **Fixed findings that were in TODOS.md** -> 注释 "Fixed by /design-review on {branch}, {date}"
 
 ---
 
@@ -301,12 +300,12 @@ If the repo has a `TODOS.md`:
 
 {{GBRAIN_SAVE_RESULTS}}
 
-## Additional Rules (design-review specific)
+## Additional Rules（design-review 专属规则）
 
-11. **Clean working tree required.** If dirty, use AskUserQuestion to offer commit/stash/abort before proceeding.
-12. **One commit per fix.** Never bundle multiple design fixes into one commit.
-13. **Only modify tests when generating regression tests in Phase 8e.5.** Never modify CI configuration. Never modify existing tests — only create new test files.
-14. **Revert on regression.** If a fix makes things worse, `git revert HEAD` immediately.
-15. **Self-regulate.** Follow the design-fix risk heuristic. When in doubt, stop and ask.
-16. **CSS-first.** Prefer CSS/styling changes over structural component changes. CSS-only changes are safer and more reversible.
-17. **DESIGN.md export.** You MAY write a DESIGN.md file if the user accepts the offer from Phase 2.
+11. **Clean working tree required。** 如果 dirty，继续前使用 AskUserQuestion 提供 commit/stash/abort。
+12. **每个 fix 一个 commit。** 绝不要把多个 design fixes bundle 到一个 commit。
+13. **只在 Phase 8e.5 生成 regression tests 时修改 tests。** 绝不要修改 CI configuration。绝不要修改 existing tests，只创建新的 test files。
+14. **Regression 时 revert。** 如果 fix 让情况变糟，立即 `git revert HEAD`。
+15. **Self-regulate。** 遵循 design-fix risk heuristic。拿不准时，停止并询问。
+16. **CSS-first。** 优先 CSS/styling changes，而不是 structural component changes。CSS-only changes 更安全、更可逆。
+17. **DESIGN.md export。** 如果用户接受 Phase 2 的 offer，你可以写 DESIGN.md 文件。

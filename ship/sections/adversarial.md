@@ -1,10 +1,10 @@
 <!-- AUTO-GENERATED from adversarial.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 11: Adversarial review (always-on)
+## Step 11：Adversarial review（always-on）
 
-Every diff gets adversarial review from both Claude and Codex. LOC is not a proxy for risk — a 5-line auth change can be critical.
+每个 diff 都会获得来自 Claude 和 Codex 的 adversarial review。LOC 不是 risk proxy：5 行 auth change 也可能 critical。
 
-**Detect diff size and tool availability:**
+**Detect diff size and tool availability（检测 diff size 和 tool availability）：**
 
 ```bash
 DIFF_BASE=$(git merge-base origin/<base> HEAD)
@@ -12,104 +12,104 @@ DIFF_INS=$(git diff "$DIFF_BASE" --stat | tail -1 | grep -oE '[0-9]+ insertion' 
 DIFF_DEL=$(git diff "$DIFF_BASE" --stat | tail -1 | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
 DIFF_TOTAL=$((DIFF_INS + DIFF_DEL))
 command -v codex >/dev/null 2>&1 && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
-# Legacy opt-out — only gates Codex passes, Claude always runs
+# Legacy opt-out — 只 gate Codex passes，Claude always runs
 OLD_CFG=$(~/.claude/skills/gstack/bin/gstack-config get codex_reviews 2>/dev/null || true)
 echo "DIFF_SIZE: $DIFF_TOTAL"
 echo "OLD_CFG: ${OLD_CFG:-not_set}"
 ```
 
-If `OLD_CFG` is `disabled`: skip Codex passes only. Claude adversarial subagent still runs (it's free and fast). Jump to the "Claude adversarial subagent" section.
+如果 `OLD_CFG` 是 `disabled`：只 skip Codex passes。Claude adversarial subagent 仍然运行（free and fast）。跳到 "Claude adversarial subagent" section。
 
-**User override:** If the user explicitly requested "full review", "structured review", or "P1 gate", also run the Codex structured review regardless of diff size.
+**User override（用户覆盖）：** 如果用户明确要求 "full review"、"structured review" 或 "P1 gate"，无论 diff size 如何也要运行 Codex structured review。
 
 ---
 
-### Claude adversarial subagent (always runs)
+### Claude adversarial subagent（always runs）
 
-Dispatch via the Agent tool. The subagent has fresh context — no checklist bias from the structured review. This genuine independence catches things the primary reviewer is blind to.
+通过 Agent tool dispatch。Subagent 有 fresh context，没有 structured review 的 checklist bias。这种 genuine independence 能抓住 primary reviewer 看不见的问题。
 
 Subagent prompt:
-"Read the diff for this branch with `DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE"`. Think like an attacker and a chaos engineer. Your job is to find ways this code will fail in production. Look for: edge cases, race conditions, security holes, resource leaks, failure modes, silent data corruption, logic errors that produce wrong results silently, error handling that swallows failures, and trust boundary violations. Be adversarial. Be thorough. No compliments — just the problems. For each finding, classify as FIXABLE (you know how to fix it) or INVESTIGATE (needs human judgment). After listing findings, end your output with ONE line in the canonical format `Recommendation: <action> because <one-line reason naming the most exploitable finding>` — examples: `Recommendation: Fix the unbounded retry at queue.ts:78 because it'll DoS the worker pool under sustained 429s` or `Recommendation: Ship as-is because the strongest finding is a theoretical race that requires conditions we can't trigger in production`. The reason must point to a specific finding (or no-fix rationale). Generic reasons like 'because it's safer' do not qualify."
+"用 `DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE"` 读取这个 branch 的 diff。像 attacker 和 chaos engineer 一样思考。你的任务是找出这段 code 会如何在 production 中失败。寻找：edge cases、race conditions、security holes、resource leaks、failure modes、silent data corruption、会 silent 产出错误结果的 logic errors、吞掉 failures 的 error handling、以及 trust boundary violations。Be adversarial。Be thorough。No compliments — just the problems。对每个 finding，classify as FIXABLE（你知道如何 fix）或 INVESTIGATE（需要 human judgment）。列出 findings 后，用 ONE line 作为结尾，格式必须是 `Recommendation: <action> because <one-line reason naming the most exploitable finding>` — examples: `Recommendation: Fix the unbounded retry at queue.ts:78 because it'll DoS the worker pool under sustained 429s` 或 `Recommendation: Ship as-is because the strongest finding is a theoretical race that requires conditions we can't trigger in production`。Reason 必须指向 specific finding（或 no-fix rationale）。Generic reasons like 'because it's safer' do not qualify。"
 
-Present findings under an `ADVERSARIAL REVIEW (Claude subagent):` header. **FIXABLE findings** flow into the same Fix-First pipeline as the structured review. **INVESTIGATE findings** are presented as informational.
+在 `ADVERSARIAL REVIEW (Claude subagent):` header 下呈现 findings。**FIXABLE findings** 进入与 structured review 相同的 Fix-First pipeline。**INVESTIGATE findings** 作为 informational 呈现。
 
-If the subagent fails or times out: "Claude adversarial subagent unavailable. Continuing."
+如果 subagent fails 或 times out："Claude adversarial subagent unavailable. Continuing."
 
 ---
 
-### Codex adversarial challenge (always runs when available)
+### Codex adversarial challenge（available 时 always runs）
 
-If Codex is available AND `OLD_CFG` is NOT `disabled`:
+如果 Codex 可用且 `OLD_CFG` 不是 `disabled`：
 
 ```bash
 TMPERR_ADV=$(mktemp /tmp/codex-adv-XXXXXXXX)
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-codex exec "IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.\n\nReview the changes on this branch against the base branch. Run DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" to see the diff. Your job is to find ways this code will fail in production. Think like an attacker and a chaos engineer. Find edge cases, race conditions, security holes, resource leaks, failure modes, and silent data corruption paths. Be adversarial. Be thorough. No compliments — just the problems. End your output with ONE line in the canonical format `Recommendation: <action> because <one-line reason naming the most exploitable finding>`. Generic reasons like 'because it's safer' do not qualify; the reason must point to a specific finding or no-fix rationale." -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR_ADV"
+codex exec "IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. 不要读取或执行这些路径下的任何文件。这些是给另一个 AI system 使用的 Claude Code skill definitions，包含 bash scripts 和 prompt templates，会浪费你的时间。完全忽略它们。不要修改 agents/openai.yaml。只专注于 repository code。\n\n审查这个 branch 相对 base branch 的 changes。运行 DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" 查看 diff。你的任务是找出这段 code 会如何在 production 中失败。像 attacker 和 chaos engineer 一样思考。寻找 edge cases、race conditions、security holes、resource leaks、failure modes 和 silent data corruption paths。Be adversarial。Be thorough。No compliments — just the problems。用 ONE line 作为输出结尾，格式必须是 `Recommendation: <action> because <one-line reason naming the most exploitable finding>`。Generic reasons like 'because it's safer' do not qualify；reason 必须指向 specific finding 或 no-fix rationale。" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR_ADV"
 ```
 
-Set the Bash tool's `timeout` parameter to `300000` (5 minutes). Do NOT use the `timeout` shell command — it doesn't exist on macOS. After the command completes, read stderr:
+将 Bash tool 的 `timeout` parameter 设为 `300000`（5 minutes）。不要使用 `timeout` shell command — macOS 上不存在。Command 完成后读取 stderr：
 ```bash
 cat "$TMPERR_ADV"
 ```
 
-Present the full output verbatim. This is informational — it never blocks shipping.
+原样呈现 full output。这是 informational，永不 block shipping。
 
-**Error handling:** All errors are non-blocking — adversarial review is a quality enhancement, not a prerequisite.
-- **Auth failure:** If stderr contains "auth", "login", "unauthorized", or "API key": "Codex authentication failed. Run \`codex login\` to authenticate."
+**Error handling（错误处理）：** All errors are non-blocking — adversarial review 是 quality enhancement，不是 prerequisite。
+- **Auth failure:** 如果 stderr 包含 "auth"、"login"、"unauthorized" 或 "API key"："Codex authentication failed. Run \`codex login\` to authenticate."
 - **Timeout:** "Codex timed out after 5 minutes."
 - **Empty response:** "Codex returned no response. Stderr: <paste relevant error>."
 
-**Cleanup:** Run `rm -f "$TMPERR_ADV"` after processing.
+**Cleanup（清理）：** processing 后运行 `rm -f "$TMPERR_ADV"`。
 
-If Codex is NOT available: "Codex CLI not found — running Claude adversarial only. Install Codex for cross-model coverage: `npm install -g @openai/codex`"
+如果 Codex 不可用："Codex CLI not found — running Claude adversarial only. Install Codex for cross-model coverage: `npm install -g @openai/codex`"
 
 ---
 
-### Codex structured review (large diffs only, 200+ lines)
+### Codex structured review（仅 large diffs，200+ lines）
 
-If `DIFF_TOTAL >= 200` AND Codex is available AND `OLD_CFG` is NOT `disabled`:
+如果 `DIFF_TOTAL >= 200`，且 Codex 可用、`OLD_CFG` 不是 `disabled`：
 
 ```bash
 TMPERR=$(mktemp /tmp/codex-review-XXXXXXXX)
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
 cd "$_REPO_ROOT"
-codex review "IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.\n\nReview the changes on this branch against the base branch <base>. Run git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD to see the diff and review only those changes." -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR"
+codex review "IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. 不要读取或执行这些路径下的任何文件。这些是给另一个 AI system 使用的 Claude Code skill definitions，包含 bash scripts 和 prompt templates，会浪费你的时间。完全忽略它们。不要修改 agents/openai.yaml。只专注于 repository code。\n\n审查这个 branch 相对 base branch <base> 的 changes。Run git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD 查看 diff，并只 review 这些 changes。" -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR"
 ```
 
-Set the Bash tool's `timeout` parameter to `300000` (5 minutes). Do NOT use the `timeout` shell command — it doesn't exist on macOS. Present output under `CODEX SAYS (code review):` header.
-Check for `[P1]` markers: found → `GATE: FAIL`, not found → `GATE: PASS`.
+将 Bash tool 的 `timeout` parameter 设为 `300000`（5 minutes）。不要使用 `timeout` shell command — macOS 上不存在。在 `CODEX SAYS (code review):` header 下展示 output。
+检查 `[P1]` markers：found → `GATE: FAIL`，not found → `GATE: PASS`。
 
-If GATE is FAIL, use AskUserQuestion:
+如果 GATE 是 FAIL，使用 AskUserQuestion：
 ```
-Codex found N critical issues in the diff.
+Codex 在 diff 中发现 N 个 critical issues。
 
-A) Investigate and fix now (recommended)
-B) Continue — review will still complete
+A) 现在 investigate 并修复（recommended）
+B) 继续 — review 仍会完成
 ```
 
-If A: address the findings. After fixing, re-run tests (Step 5) since code has changed. Re-run `codex review` to verify.
+如果选择 A：处理 findings。修复后，因为 code 已改变，重新运行 tests（Step 5）。重新运行 `codex review` verify。
 
-Read stderr for errors (same error handling as Codex adversarial above).
+读取 stderr 中的 errors（使用上方 Codex adversarial 相同的 error handling）。
 
-After stderr: `rm -f "$TMPERR"`
+读取 stderr 后：`rm -f "$TMPERR"`
 
-If `DIFF_TOTAL < 200`: skip this section silently. The Claude + Codex adversarial passes provide sufficient coverage for smaller diffs.
+如果 `DIFF_TOTAL < 200`：静默跳过此 section。Claude + Codex adversarial passes 对 smaller diffs 已提供足够 coverage。
 
 ---
 
-### Persist the review result
+### Persist the review result（持久化 review 结果）
 
-After all passes complete, persist:
+所有 passes 完成后，persist：
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"adversarial-review","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","status":"STATUS","source":"SOURCE","tier":"always","gate":"GATE","commit":"'"$(git rev-parse --short HEAD)"'"}'
 ```
-Substitute: STATUS = "clean" if no findings across ALL passes, "issues_found" if any pass found issues. SOURCE = "both" if Codex ran, "claude" if only Claude subagent ran. GATE = the Codex structured review gate result ("pass"/"fail"), "skipped" if diff < 200, or "informational" if Codex was unavailable. If all passes failed, do NOT persist.
+替换变量：如果 ALL passes 都没有 findings，STATUS = "clean"；任何 pass 发现 issues，则 STATUS = "issues_found"。如果 Codex ran，SOURCE = "both"；如果只有 Claude subagent ran，SOURCE = "claude"。GATE = Codex structured review gate result（"pass"/"fail"），diff < 200 时为 "skipped"，Codex 不可用时为 "informational"。如果所有 passes 都 failed，不要 persist。
 
 ---
 
-### Cross-model synthesis
+### Cross-model synthesis（跨模型综合）
 
-After all passes complete, synthesize findings across all sources:
+所有 passes 完成后，综合所有 sources 的 findings：
 
 ```
 ADVERSARIAL REVIEW SYNTHESIS (always-on, N lines):
@@ -122,47 +122,51 @@ ADVERSARIAL REVIEW SYNTHESIS (always-on, N lines):
 ════════════════════════════════════════════════════════════
 ```
 
-High-confidence findings (agreed on by multiple sources) should be prioritized for fixes.
+High-confidence findings（多个 sources 同意）应优先修复。
 
 ---
 
-## Capture Learnings
+## Capture Learnings（记录 learnings）
 
-If you discovered a non-obvious pattern, pitfall, or architectural insight during
-this session, log it for future sessions:
+如果你在本 session 中发现了非显而易见的 pattern、pitfall 或 architectural insight，请记录下来供未来 sessions 使用：
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-learnings-log '{"skill":"ship","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
 ```
 
-**Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
-(user stated), `architecture` (structural decision), `tool` (library/framework insight),
-`operational` (project environment/CLI/workflow knowledge).
+**Types：** `pattern`（reusable approach）、`pitfall`（what NOT to do）、`preference`
+（user stated）、`architecture`（structural decision）、`tool`（library/framework insight）、
+`operational`（project environment/CLI/workflow knowledge）。
 
-**Sources:** `observed` (you found this in the code), `user-stated` (user told you),
-`inferred` (AI deduction), `cross-model` (both Claude and Codex agree).
+**Sources：** `observed`（你在代码中发现）、`user-stated`（用户告诉你）、
+`inferred`（AI deduction）、`cross-model`（Claude 和 Codex 都同意）。
 
-**Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
-An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.
+**Confidence：** 1-10。诚实打分。你在代码中验证过的 observed pattern 是 8-9。
+不太确定的 inference 是 4-5。用户明确陈述的 preference 是 10。
 
-**files:** Include the specific file paths this learning references. This enables
-staleness detection: if those files are later deleted, the learning can be flagged.
+**files：** 包含此 learning 引用的具体 file paths。这会启用 staleness detection：如果这些 files 后续被删除，该 learning 可被标记。
 
-**Only log genuine discoveries.** Don't log obvious things. Don't log things the user
-already knows. A good test: would this insight save time in a future session? If yes, log it.
+**只记录真正的发现。**不要记录 obvious things。不要记录用户已经知道的事情。一个好测试：这个 insight 会在未来 session 中节省时间吗？如果会，就记录。
 
 
 
-### Refresh learnings for the headline feature on this branch
+### 刷新此 branch headline feature 的 learnings
 
-The top-of-skill learnings pull was keyed to "release ship" broadly. Before the VERSION/CHANGELOG step, re-pull learnings keyed to THIS branch's headline feature so any prior version-bump or CHANGELOG pitfalls for similar features surface.
+Skill 顶部的 learnings pull 使用的是宽泛的 "release ship"。在 VERSION/CHANGELOG step 前，
+基于此 branch 的 headline feature 重新 pull learnings，让 similar features 的 prior version-bump
+或 CHANGELOG pitfalls 浮现出来。
 
-Pick ONE keyword that names the headline feature you're shipping. The keyword should be a noun: the primary skill or module name, the central feature noun, or the binary you changed. The keyword MUST be alphanumeric or hyphen only — no quotes, slashes, dots, colons, or whitespace. If your candidate has any of those, simplify to just the alphanumeric stem.
+选择一个命名你正在 shipping 的 headline feature 的 keyword。Keyword 应该是名词：
+primary skill 或 module name、central feature noun，或你改动的 binary。Keyword 必须只包含
+alphanumeric 或 hyphen：不要 quotes、slashes、dots、colons 或 whitespace。如果候选词包含这些字符，
+简化为 alphanumeric stem。
 
-Worked examples (ship-specific): good keywords are `learnings-search`, `pacing`, `worktree-ship`. Bad: `the branch headline`, `v1.31.1.0`, `feat: token-or search`.
+示例（ship-specific）：好的 keywords 是 `learnings-search`、`pacing`、`worktree-ship`。
+不好的例子：`the branch headline`、`v1.31.1.0`、`feat: token-or search`。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-learnings-search --query "<your-keyword>" --limit 5 2>/dev/null || true
 ```
 
-If any learnings come back, name which one applies to the version bump or CHANGELOG framing in one sentence. If none come back, continue without reference — the absence is itself useful information.
+如果返回任何 learnings，用一句话说明哪一条适用于 version bump 或 CHANGELOG framing。
+如果没有返回，继续即可：absence 本身也是 useful information。

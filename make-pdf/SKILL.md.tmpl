@@ -3,11 +3,11 @@ name: make-pdf
 preamble-tier: 1
 version: 1.0.0
 description: |
-  Turn any markdown file into a publication-quality PDF. Proper 1in margins,
-  intelligent page breaks, page numbers, cover pages, running headers, curly
-  quotes and em dashes, clickable TOC, diagonal DRAFT watermark. Not a draft
-  artifact — a finished artifact. Use when asked to "make a PDF", "export to
-  PDF", "turn this markdown into a PDF", or "generate a document". (gstack)
+  将任意 markdown file 转成 publication-quality PDF。包含正确的 1in margins、
+  智能 page breaks、page numbers、cover pages、running headers、curly quotes
+  和 em dashes、clickable TOC、diagonal DRAFT watermark。不是 draft artifact，
+  而是 finished artifact。当用户要求 "make a PDF"、"export to PDF"、
+  "turn this markdown into a PDF" 或 "generate a document" 时使用。（gstack）
 voice-triggers:
   - "make this a pdf"
   - "make it a pdf"
@@ -30,71 +30,66 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# make-pdf: publication-quality PDFs from markdown
+# make-pdf：从 markdown 生成 publication-quality PDFs
 
-Turn `.md` files into PDFs that look like Faber & Faber essays: 1in margins,
-left-aligned body, Helvetica throughout, curly quotes and em dashes, optional
-cover page and clickable TOC, diagonal DRAFT watermark when you need it.
-Copy-paste from the PDF produces clean words, never "S a i l i n g".
+将 `.md` files 转成看起来像 Faber & Faber essays 的 PDFs：1in margins、left-aligned body、
+全篇 Helvetica、curly quotes 和 em dashes、可选 cover page 与 clickable TOC、
+需要时加 diagonal DRAFT watermark。从 PDF 复制粘贴会得到干净文字，而不是 "S a i l i n g"。
 
-On Linux, install `fonts-liberation` for correct rendering — Helvetica and Arial
-aren't present by default, and Liberation Sans is the standard metric-compatible
-fallback. CI and Docker builds install it automatically via Dockerfile.ci.
+在 Linux 上，安装 `fonts-liberation` 以正确 rendering：Helvetica 和 Arial 默认不存在，
+Liberation Sans 是标准 metric-compatible fallback。CI 和 Docker builds 会通过 Dockerfile.ci 自动安装它。
 
-Emoji need a color-emoji font. macOS (Apple Color Emoji) and Windows (Segoe UI
-Emoji) ship one; most Linux distros and containers ship none, so emoji render as
-empty boxes (▯). `./setup` auto-installs `fonts-noto-color-emoji` on Linux
-(apt/dnf/pacman/apk, best-effort) and the print CSS falls back through Apple /
-Segoe / Noto emoji families. Set `GSTACK_SKIP_FONTS=1` to skip the install (CI
-without sudo, managed or offline machines).
+Emoji 需要 color-emoji font。macOS（Apple Color Emoji）和 Windows（Segoe UI Emoji）
+自带一个；多数 Linux distros 和 containers 不自带，所以 emoji 会渲染为空框（▯）。
+`./setup` 会在 Linux 上自动安装 `fonts-noto-color-emoji`（apt/dnf/pacman/apk，best-effort），
+print CSS 会依次 fallback 到 Apple / Segoe / Noto emoji families。设置
+`GSTACK_SKIP_FONTS=1` 可跳过安装（无 sudo 的 CI、受管或离线机器）。
 
-## Core patterns
+## Core patterns（核心模式）
 
-### 80% case — memo/letter
+### 80% 场景：memo/letter
 
-One command, no flags. Gets a clean PDF with running header + page numbers
-+ CONFIDENTIAL footer by default.
+一个 command，不加 flags。默认得到带 running header + page numbers + CONFIDENTIAL footer 的干净 PDF。
 
 ```bash
 $P generate letter.md                 # writes /tmp/letter.pdf
 $P generate letter.md letter.pdf      # explicit output path
 ```
 
-### Publication mode — cover + TOC + chapter breaks
+### Publication mode：cover + TOC + chapter breaks
 
 ```bash
 $P generate --cover --toc --author "Garry Tan" --title "On Horizons" \
   essay.md essay.pdf
 ```
 
-Each top-level H1 in the markdown starts a new page. Disable with
-`--no-chapter-breaks` for memos that happen to have multiple H1s.
+Markdown 中每个 top-level H1 都会开始新 page。对于恰好有多个 H1 的 memos，
+可用 `--no-chapter-breaks` 禁用。
 
-### Draft-stage watermark
+### Draft-stage watermark（草稿阶段水印）
 
 ```bash
 $P generate --watermark DRAFT memo.md draft.pdf
 ```
 
-Diagonal 10% opacity DRAFT across every page. When the draft is final, drop
-the flag and regenerate.
+每页都有 diagonal、10% opacity 的 DRAFT。Draft final 后，去掉 flag 并重新生成。
 
-### Fast iteration via preview
+### 通过 preview 快速迭代
 
 ```bash
 $P preview essay.md
 ```
 
-Renders HTML with the same print CSS and opens it in your browser. Refresh
-as you edit the markdown. Skip the PDF round trip until you're ready.
+使用相同 print CSS 渲染 HTML，并在 browser 中打开。编辑 markdown 时刷新即可。
+准备好之前不用反复走 PDF round trip。
 
-### Brand-free (no CONFIDENTIAL footer)
+### Brand-free（无 CONFIDENTIAL footer）
 
 ```bash
 $P generate --no-confidential memo.md memo.pdf
 ```
 
-## Common flags
+## 常用 flags
 
 ```
 Page layout:
@@ -129,9 +124,9 @@ Metadata:
   --date "..."               Date for cover (defaults to today)
 ```
 
-## When Claude should run it
+## Claude 何时应运行它
 
-Watch for markdown-to-PDF intent. Any of these patterns → run `$P generate`:
+留意 markdown-to-PDF intent。遇到以下任一 patterns -> 运行 `$P generate`：
 
 - "Can you make this markdown a PDF"
 - "Export it as a PDF"
@@ -139,21 +134,19 @@ Watch for markdown-to-PDF intent. Any of these patterns → run `$P generate`:
 - "I need a PDF of the essay"
 - "Print this as a PDF for me"
 
-If the user has a `.md` file open and says "make it look nice", propose
-`$P generate --cover --toc` and ask before running.
+如果用户打开了 `.md` file，并说 "make it look nice"，提出
+`$P generate --cover --toc`，并在运行前询问。
 
-## Debugging
+## Debugging（调试）
 
-- Output looks empty / blank → check browse daemon is running: `$B status`.
-- Fragmented text on copy-paste → highlight.js output (Phase 4). Retry with
-  `--no-syntax` once that flag exists. For now, remove fenced code blocks
-  and regenerate.
-- Paged.js timeout → probably no headings in the markdown. Drop `--toc`.
-- External image missing → add `--allow-network` (understand you're giving
-  the markdown file permission to fetch from its image URLs).
-- Generated PDF too tall/wide → `--page-size a4` or `--margins 0.75in`.
+- Output 看起来 empty / blank -> 检查 browse daemon 是否运行：`$B status`。
+- 复制粘贴后 text 断裂 -> highlight.js output（Phase 4）。等 `--no-syntax` flag 存在后用它重试。
+  目前先移除 fenced code blocks 并重新生成。
+- Paged.js timeout -> markdown 中可能没有 headings。去掉 `--toc`。
+- External image 缺失 -> 添加 `--allow-network`（理解这等于允许 markdown file 从其 image URLs fetch）。
+- Generated PDF 太高/太宽 -> `--page-size a4` 或 `--margins 0.75in`。
 
-## Output contract
+## Output contract（输出契约）
 
 ```
 stdout: /tmp/letter.pdf          ← just the path, one line
@@ -165,4 +158,4 @@ exit code: 0 success / 1 bad args / 2 render error / 3 Paged.js timeout
            / 4 browse unavailable
 ```
 
-Capture the path: `PDF=$($P generate letter.md)` — then use `$PDF`.
+捕获 path：`PDF=$($P generate letter.md)`，然后使用 `$PDF`。

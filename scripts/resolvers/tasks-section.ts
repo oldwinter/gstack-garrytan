@@ -1,10 +1,10 @@
 /**
- * Resolvers for the Implementation Tasks emission (#1454).
+ * Implementation Tasks emission (#1454) 的 resolvers。
  *
  *   {{TASKS_SECTION_EMIT:<phase>}}     — per-skill task emission + JSONL write
  *   {{TASKS_SECTION_AGGREGATE}}        — autoplan aggregation across all phases
  *
- * Schema for the JSONL artifact lives in scripts/task-emission-schema.ts.
+ * JSONL artifact 的 schema 位于 scripts/task-emission-schema.ts。
  */
 
 import type { TemplateContext, ResolverFn } from './types';
@@ -17,38 +17,36 @@ export const generateTasksSectionEmit: ResolverFn = (_ctx: TemplateContext, args
     throw new Error(`TASKS_SECTION_EMIT requires one of ${[...VALID_PHASES].join(', ')} — got ${phase}`);
   }
 
-  return `## Implementation Tasks
+  return `## Implementation Tasks（实现任务）
 
-Before closing this review, synthesize the findings above into a flat list of
-build-actionable tasks. Each task derives from a specific finding — no padding.
-Emit the markdown section AND write a JSONL artifact that \`/autoplan\` can
-aggregate across phases.
+关闭此 review 前，把上面的 findings 综合成一个 flat list，列出 build-actionable tasks。每个 task 都必须来自具体 finding，不要 padding。
+输出 markdown section，并写入一个可供 \`/autoplan\` 跨 phases 聚合的 JSONL artifact。
 
-### Markdown section (always emit)
+### Markdown section（始终输出）
 
 \`\`\`markdown
 ## Implementation Tasks
-Synthesized from this review's findings. Each task derives from a specific
-finding above. Run with Claude Code or Codex; checkbox as you ship.
+由此 review 的 findings 综合而来。每个 task 都来自上方某个具体 finding。
+用 Claude Code 或 Codex 执行；shipping 时勾选 checkbox。
 
 - [ ] **T1 (P1, human: ~2h / CC: ~15min)** — <component> — <imperative title>
-  - Surfaced by: <section name> — <specific finding text or line reference>
+  - 来源：<section name> — <specific finding text or line reference>
   - Files: <paths to touch>
-  - Verify: <test command or manual check>
+  - Verify：<test command or manual check>
 - [ ] **T2 (P2, human: ~30min / CC: ~5min)** — ...
 \`\`\`
 
-Rules:
-- P1 blocks ship; P2 should land same branch; P3 is a follow-up TODO.
-- If a finding produced no actionable task, do not invent one.
-- If a section had zero findings, emit \`_No new tasks from <section>._\`
-- Effort uses the AI-compression table from CLAUDE.md.
+Rules（规则）：
+- P1 会 block ship；P2 应该在同一 branch 落地；P3 是 follow-up TODO。
+- 如果某个 finding 没有产生 actionable task，不要 invent one。
+- 如果某个 section 是 zero findings，输出 \`_No new tasks from <section>._\`
+- Effort 使用 CLAUDE.md 中的 AI-compression table。
 
-### JSONL artifact (always write, even if zero tasks)
+### JSONL artifact（始终写入，即使 zero tasks）
 
-\`/autoplan\` reads this file to aggregate across phases. Build each line with
-\`jq -nc\` so titles and source findings containing quotes, newlines, or
-backslashes serialize cleanly — never use hand-rolled \`echo\` / \`printf\`.
+\`/autoplan\` 会读取此 file 并跨 phases 聚合。每一行都用 \`jq -nc\` 构造，
+这样包含 quotes、newlines 或 backslashes 的 titles/source findings 能正确 serialize。
+绝不要 hand-roll \`echo\` / \`printf\`。
 
 \`\`\`bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
@@ -59,8 +57,8 @@ COMMIT=$(git rev-parse HEAD 2>/dev/null || echo unknown)
 BRANCH=$(git branch --show-current 2>/dev/null || echo unknown)
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 
-# Repeat ONE jq invocation per task identified during this review.
-# Substitute the placeholders inline with shell variables you set per task:
+# 对此 review 中识别出的每个 task 重复一次 jq invocation。
+# 用你为每个 task 设置的 shell variables inline 替换 placeholders：
 #   TASK_ID (T1, T2, ...), PRIORITY (P1/P2/P3), COMPONENT, TITLE,
 #   SOURCE_FINDING, EFFORT_HUMAN, EFFORT_CC, FILES_JSON (a JSON array literal
 #   like '["browse/src/sanitize.ts","browse/src/server.ts"]').
@@ -81,48 +79,44 @@ jq -nc \\
   >> "$TASKS_FILE"
 \`\`\`
 
-If \`jq\` is not installed, fall back to skipping the JSONL write and warn
-the user to install jq for autoplan aggregation. Never hand-roll JSONL.
+如果未安装 \`jq\`，fallback 为跳过 JSONL write，并 warn 用户安装 jq 以支持 autoplan aggregation。绝不要 hand-roll JSONL。
 
-If zero tasks were identified in this review, still touch the JSONL file
-(\`: > "$TASKS_FILE"\`) so the aggregator sees that the phase produced output
-this run (an empty file means "ran, no findings" — distinct from "didn't run").
+如果此 review 识别出 zero tasks，仍然 touch JSONL file（\`: > "$TASKS_FILE"\`），
+让 aggregator 知道此 phase 在本次 run 中产出过 output（empty file 表示 "ran, no findings"，不同于 "didn't run"）。
 `;
 };
 
 export const generateTasksSectionAggregate: ResolverFn = (_ctx: TemplateContext) => {
-  return `## Implementation Tasks aggregator
+  return `## Implementation Tasks aggregator（实现任务聚合器）
 
-Before rendering the Final Approval Gate output block below, aggregate the
-per-phase task lists each review skill wrote.
+渲染下方 Final Approval Gate output block 前，聚合每个 review skill 写入的 per-phase task lists。
 
 \`\`\`bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
 TASKS_DIR="\${HOME}/.gstack/projects/\${SLUG:-unknown}"
 BRANCH=$(git branch --show-current 2>/dev/null || echo unknown)
-# Commit window: last 5 commits on this branch. Drops stale standalone reviews.
+# Commit window：此 branch 最近 5 个 commits。丢弃 stale standalone reviews。
 COMMITS_RECENT=$(git log --format=%H -n 5 2>/dev/null | tr '\\n' '|' | sed 's/|$//')
 
 AGGREGATED_TASKS=""
 if command -v jq >/dev/null 2>&1; then
-  # Collect entries from all 4 phases, scoped to current branch + commit window.
-  # For each phase, keep only the latest run_id. Within the surviving set,
-  # dedupe by (component, sorted(files), title) — exact match only.
-  # Sort by priority (P1 > P2 > P3) then by phase order.
+  # 收集 4 个 phases 的 entries，并限定在 current branch + commit window。
+  # 每个 phase 只保留 latest run_id。在保留下来的集合中，
+  # 按 (component, sorted(files), title) dedupe — 仅 exact match。
+  # 先按 priority (P1 > P2 > P3) 排序，再按 phase order 排序。
   ALL_JSONL=$(mktemp -t autoplan-tasks.XXXXXXXX)
   for phase in ceo-review design-review eng-review devex-review; do
-    # Use find instead of glob expansion — zsh nomatch errors otherwise when
-    # a phase produced no JSONL files. Sorting by name keeps the order stable.
+    # 使用 find 而不是 glob expansion。否则当某个 phase 没有 JSONL files 时，
+    # zsh nomatch 会报错。按 name 排序保持顺序稳定。
     while IFS= read -r f; do
       [ -f "$f" ] || continue
-      # Filter to current branch + recent commits, then keep records for the
-      # latest run_id only. (Single phase may have multiple files if the user
-      # re-ran the review; aggregator takes the newest.)
+      # 过滤到 current branch + recent commits，然后仅保留 latest run_id 的 records。
+      # 如果用户 re-run review，同一个 phase 可能有多个 files；aggregator 取最新。
       jq -c --arg branch "$BRANCH" --arg commits "$COMMITS_RECENT" \\
         'select(.branch == $branch and ($commits | split("|") | index(.commit) != null))' \\
         "$f" 2>/dev/null >> "$ALL_JSONL" || true
     done < <(find "$TASKS_DIR" -maxdepth 1 -name "tasks-$phase-*.jsonl" 2>/dev/null | sort)
-    # Reduce to latest run_id per phase
+    # Reduce：每个 phase 仅保留 latest run_id
     if [ -s "$ALL_JSONL" ]; then
       jq -sc --arg phase "$phase" \\
         '[.[] | select(.phase == $phase)] | (max_by(.run_id) // null) as $latest_run | if $latest_run then map(select(.run_id == $latest_run.run_id)) else [] end | .[]' \\
@@ -134,12 +128,12 @@ if command -v jq >/dev/null 2>&1; then
     fi
   done
 
-  # Exact-match dedup by (component, sorted(files), title). Non-matches kept
-  # separately with a possible-duplicate marker injected by the renderer.
+  # 按 (component, sorted(files), title) exact-match dedup。Non-matches 保留，
+  # renderer 会注入 possible-duplicate marker。
   AGGREGATED_TASKS=$(jq -s \\
     'group_by([.component, (.files | sort), .title])
      | map(
-         # Take the highest-priority entry per group; tie-break by phase order
+         # 每组取 highest-priority entry；tie-break 使用 phase order
          sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"design-review":1,"eng-review":2,"devex-review":3}[.phase] // 99) | .[0]
        )
      | sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"design-review":1,"eng-review":2,"devex-review":3}[.phase] // 99)
@@ -148,21 +142,19 @@ if command -v jq >/dev/null 2>&1; then
        end' "$ALL_JSONL" 2>/dev/null | sed 's/^"//;s/"$//;s/\\\\n/\\n/g')
   rm -f "$ALL_JSONL"
 else
-  AGGREGATED_TASKS="_jq not installed — install jq to aggregate per-phase task lists. Skipping._"
+  AGGREGATED_TASKS="_未安装 jq — 请安装 jq 以聚合 per-phase task lists。已跳过。_"
 fi
 \`\`\`
 
-Inside the Final Approval Gate output template below, render the aggregated
-markdown in the \`### Implementation Tasks (aggregated across phases)\` section.
-Substitute the contents of \`$AGGREGATED_TASKS\` (the bash variable set above)
-before printing the message to the user. This is NOT a template placeholder
-— the agent does the substitution at runtime, not gen-skill-docs at build time.
+在下方 Final Approval Gate output template 中，把 aggregated markdown 渲染到
+\`### Implementation Tasks (aggregated across phases)\` section。
+打印给用户前，用上方 bash variable \`$AGGREGATED_TASKS\` 的内容替换。
+这不是 template placeholder；由 agent 在 runtime 替换，不是 gen-skill-docs 在 build time 替换。
 
-If \`$AGGREGATED_TASKS\` is empty (no JSONL files found — none of the review
-skills ran in this session), render:
+如果 \`$AGGREGATED_TASKS\` 为空（没有找到 JSONL files，即此 session 没有运行任何 review skills），渲染：
 
-\`_No per-phase task lists found in $TASKS_DIR for branch $BRANCH. Each review
-skill writes its own; if you ran one of them but no list appears here, check
-that jq is installed and the tasks-<phase>-*.jsonl files exist._\`
+\`_在 $TASKS_DIR 中未找到 branch $BRANCH 的 per-phase task lists。每个 review
+skill 会写入自己的 list；如果你运行过其中一个但这里没有 list，请检查
+jq 是否已安装，以及 tasks-<phase>-*.jsonl files 是否存在。_\`
 `;
 };

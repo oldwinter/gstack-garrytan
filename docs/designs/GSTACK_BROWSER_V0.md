@@ -1,30 +1,21 @@
-# GStack Browser V0 — The AI-Native Development Browser
+# GStack Browser V0 — The AI-Native Development Browser（AI-native 开发浏览器）
 
-**Date:** 2026-03-30
-**Author:** Garry Tan + Claude Code
-**Status:** Phase 1a shipped, Phase 1b in progress
-**Branch:** garrytan/gstack-as-browser
+**Date（日期）：** 2026-03-30
+**Author（作者）：** Garry Tan + Claude Code
+**Status（状态）：** Phase 1a 已 shipped，Phase 1b in progress
+**Branch（分支）：** garrytan/gstack-as-browser
 
-## The Thesis
+## Thesis（论点）
 
-Every other AI browser (Atlas, Dia, Comet, Chrome Auto Browse) starts with a
-consumer browser and bolts AI onto it. GStack Browser inverts this. It starts
-with Claude Code as the runtime and gives it a browser viewport.
+其他所有 AI browser（Atlas、Dia、Comet、Chrome Auto Browse）都是从 consumer browser 开始，再把 AI bolt onto it。GStack Browser 反过来。它从 Claude Code 这个 runtime 出发，再给它一个 browser viewport。
 
-The agent is the primary citizen. The browser is the canvas. Skills are
-first-class capabilities. You don't "use a browser with AI help." You use
-an AI that can see and interact with the web.
+Agent 是 primary citizen。Browser 是 canvas。Skills 是 first-class capabilities。你不是“使用一个带 AI help 的 browser”。你是在使用一个能看到并交互 web 的 AI。
 
-This is the IDE for the post-IDE era. Code lives in the terminal. The product
-lives in the browser. The AI works across both simultaneously. What Cursor did
-for text editors, GStack Browser does for the browser.
+这是 post-IDE era 的 IDE。Code 活在 terminal。Product 活在 browser。AI 同时跨两者工作。Cursor 为 text editors 做了什么，GStack Browser 就为 browser 做什么。
 
-## What It Is Today (Phase 1a, shipped)
+## 今天它是什么（Phase 1a, shipped）
 
-A double-clickable macOS .app that wraps Playwright's Chromium with the gstack
-sidebar extension baked in. You open it and Claude Code can see your screen,
-navigate pages, fill forms, take screenshots, inspect CSS, clean up overlays,
-and run any gstack skill. All without touching a terminal.
+一个可 double-click 的 macOS .app，把 Playwright 的 Chromium 和内置的 gstack sidebar extension 包在一起。打开后，Claude Code 能看到你的 screen、navigate pages、fill forms、take screenshots、inspect CSS、clean up overlays，并运行任何 gstack skill。全程不需要碰 terminal。
 
 ```
 GStack Browser.app (389MB, 189MB DMG)
@@ -35,177 +26,125 @@ GStack Browser.app (389MB, 189MB DMG)
 ```
 
 Launch → Chromium opens with sidebar → extension auto-connects to browse server
-→ agent ready in ~5 seconds.
+→ agent ready in ~5 seconds。
 
-## What It Will Be
+## 它将成为什么
 
-### Phase 1b: Developer UX (next)
+### Phase 1b：Developer UX（next）
 
-**Command Palette (Cmd+K):** The signature interaction. Opens a fuzzy-filtered
-skill picker. Type "/qa" to start QA testing, "/investigate" to debug, "/ship"
-to create a PR. Skills are fetched from the browse server, not hardcoded. The
-palette is the entry point to everything.
+**Command Palette（命令面板，Cmd+K）：** 核心交互。打开 fuzzy-filtered skill picker。输入 "/qa" 开始 QA testing，输入 "/investigate" debug，输入 "/ship" 创建 PR。Skills 从 browse server fetch，不是 hardcoded。Palette 是 everything 的入口。
 
-**Quick Screenshot (Cmd+Shift+S):** Capture the current viewport and pipe it into
-the sidebar chat with "What do you see?" context. The AI analyzes the screenshot
-and gives you actionable feedback. Visual bug reports in one keystroke.
+**Quick Screenshot（快速截图，Cmd+Shift+S）：** 捕获 current viewport，并连同 "What do you see?" context pipe 到 sidebar chat。AI 分析 screenshot 并给你可执行 feedback。一键生成 visual bug report。
 
-**Status Bar:** A persistent 30px bar at the bottom of every page. Shows agent
-status (idle/thinking), workspace name, current branch, and auto-detected dev
-servers. Click a dev server pill to navigate. Always-visible context about what
-the AI is doing.
+**Status Bar（状态栏）：** 每个 page 底部 persistent 30px bar。显示 agent status（idle/thinking）、workspace name、current branch 和 auto-detected dev servers。点击 dev server pill 即可 navigate。始终可见 AI 正在做什么的 context。
 
-**Auto-Detect Dev Servers:** On launch, scans common ports (3000, 3001, 4200,
-5173, 5174, 8000, 8080). If exactly one server is found, auto-navigates to it.
-Dev server pills in the status bar for one-click switching.
+**Auto-Detect Dev Servers（自动检测开发服务器）：** Launch 时扫描 common ports（3000、3001、4200、5173、5174、8000、8080）。如果只找到一个 server，auto-navigate 到它。Status bar 中的 dev server pills 支持一键切换。
 
-### Phase 2: BoomLooper Integration
+### Phase 2：BoomLooper Integration
 
-The sidebar connects to BoomLooper's Phoenix/Elixir APIs instead of a local
-`claude -p` subprocess. BoomLooper provides:
+Sidebar 连接到 BoomLooper 的 Phoenix/Elixir APIs，而不是 local `claude -p` subprocess。BoomLooper 提供：
 
-- **Multi-agent orchestration.** Spawn 5 agents in parallel, each with its own
-  browser tab. One runs QA, one does design review, one watches for regressions.
-- **Docker infrastructure.** Each agent gets an isolated container. The browser
-  inside the container tests the dev server. No port conflicts, no state leakage.
-- **Session persistence.** Agent conversations survive browser restarts. Pick up
-  where you left off.
-- **Team visibility.** Your teammates can watch what your agents are doing in
-  real-time. Like pair programming, but the pair is 5 AI agents and you're the
-  conductor.
+- **Multi-agent orchestration。** 并行 spawn 5 个 agents，每个都有自己的 browser tab。一个跑 QA，一个做 design review，一个 watch regressions。
+- **Docker infrastructure。** 每个 agent 获得 isolated container。Container 内的 browser 测试 dev server。无 port conflicts，无 state leakage。
+- **Session persistence。** Agent conversations 穿过 browser restarts。可以从离开的地方继续。
+- **Team visibility。** Teammates 可以 real-time watch 你的 agents 在做什么。像 pair programming，但 pair 是 5 个 AI agents，你是 conductor。
 
-### Phase 3: Browse as BoomLooper Tool
+### Phase 3：Browse as BoomLooper Tool
 
-The browse binary becomes an MCP tool in BoomLooper. Agents in Docker containers
-use browse commands to test dev servers, take screenshots, fill forms, and verify
-deployments. Cross-platform compilation (linux-arm64/x64) required.
+Browse binary 成为 BoomLooper 中的 MCP tool。Docker containers 中的 agents 使用 browse commands 测试 dev servers、take screenshots、fill forms、verify deployments。需要 cross-platform compilation（linux-arm64/x64）。
 
-### Phase 4: Chromium Fork (trigger-gated)
+### Phase 4：Chromium Fork（trigger-gated）
 
-When the extension side panel hits hard API limits, GStack Browser ships to
-external users, build infra exists, and the business justifies maintenance:
-fork Chromium. Brave's `chromium_src` override pattern, CC-powered 6-week
-rebases (2-4 hours with CC vs 1-2 weeks human). ~20-30 files modified.
+当 extension side panel 碰到 hard API limits、GStack Browser ship 给 external users、build infra 存在、business 足以 justify maintenance 时：fork Chromium。使用 Brave 的 `chromium_src` override pattern、CC-powered 6-week rebases（CC 2-4 hours vs human 1-2 weeks）。约 20-30 files modified。
 
-### Phase 5: Native Shell
+### Phase 5：Native Shell
 
-SwiftUI/AppKit app shell with native sidebar, isolated Chromium service. Full
-platform integration. May be superseded by Phase 4 if the Chromium fork includes
-a native sidebar.
+SwiftUI/AppKit app shell，带 native sidebar 和 isolated Chromium service。Full platform integration。如果 Chromium fork 包含 native sidebar，可能被 Phase 4 superseded。
 
-## Vision: What an AI Browser Can Do
+## Vision：AI Browser 能做什么
 
-### 1. See What You See
+### 1. 看见你所看见的
 
-The browser is the AI's eyes. Not through screenshots (though it can do that),
-but through DOM access, CSS inspection, network monitoring, and accessibility
-tree parsing. The AI understands the page structure, not just the pixels.
+Browser 是 AI 的 eyes。它不只是看 screenshots（虽然也能这么做），还会通过 DOM access、CSS inspection、network monitoring 和 accessibility tree parsing 理解页面。AI 理解的是 page structure，而不只是 pixels。
 
-**Today:** `snapshot` command returns an accessibility-tree representation of any
-page. The AI can "see" every button, link, form field, and text element. Element
-references (`@e1`, `@e2`) let the AI click, fill, and interact.
+**今天：** `snapshot` command 返回任意 page 的 accessibility-tree representation。AI 可以“see”每个 button、link、form field 和 text element。Element references（`@e1`、`@e2`）让 AI 能 click、fill 和 interact。
 
-**Next:** Real-time page observation. The AI notices when a page changes, when an
-error appears in the console, when a network request fails. Proactive debugging
-without being asked.
+**下一步：** Real-time page observation。AI 会注意到 page changes、console error 和 network request failure。无需被问就能 proactive debugging。
 
-**Future:** Visual understanding. The AI compares before/after screenshots to catch
-visual regressions. Pixel-level design review. "This button moved 3px left and the
-font changed from 14px to 13px."
+**未来：** Visual understanding。AI 对比 before/after screenshots 来抓 visual regressions。Pixel-level design review。“This button moved 3px left and the font changed from 14px to 13px.”
 
-### 2. Act on What It Sees
+### 2. 基于所见行动
 
-Not just reading pages, but interacting with them like a human user would.
+不只是读取 pages，而是像 human user 一样与它们交互。
 
-**Today:** Click, fill, select, hover, type, scroll, upload files, handle dialogs,
-navigate, manage tabs. All via simple commands through the browse server.
+**今天：** Click、fill、select、hover、type、scroll、upload files、handle dialogs、navigate、manage tabs。全部通过 browse server 的简单 commands。
 
-**Next:** Multi-step user flows. "Log in, go to settings, change the timezone,
-verify the confirmation message." The AI chains commands with verification at each
-step.
+**下一步：** Multi-step user flows。“登录、前往 settings、更改 timezone、验证 confirmation message。” AI 把 commands 串起来，并在每一步 verify。
 
-**Future:** Autonomous QA agent. "Test every link on this page. Fill every form.
-Try to break it." The AI runs exhaustive interaction testing without a script.
-Finds bugs a human tester would miss because it tries combinations humans don't
-think of.
+**未来：** Autonomous QA agent。“Test every link on this page. Fill every form. Try to break it.” AI 无需 script 就运行 exhaustive interaction testing。它会尝试 humans 想不到的 combinations，从而找到 human tester 会漏掉的 bugs。
 
-### 3. Write Code While Browsing
+### 3. 一边浏览一边写代码
 
-This is the key differentiator. The AI can see the bug in the browser AND fix it
-in the code simultaneously.
+这是 key differentiator。AI 可以在 browser 中看到 bug，同时在 code 中修复它。
 
-**Today:** The sidebar chat connects to Claude Code. You say "this button is
-misaligned" and the AI reads the CSS, identifies the issue, and proposes a fix.
-The `/design-review` skill takes screenshots, identifies visual issues, and
-commits fixes with before/after evidence.
+**今天：** Sidebar chat 连接到 Claude Code。你说“this button is misaligned”，AI 读取 CSS、识别 issue 并提出 fix。`/design-review` skill 会 take screenshots、识别 visual issues，并用 before/after evidence commit fixes。
 
-**Next:** Live reload loop. The AI edits CSS/HTML, the browser auto-reloads, the
-AI verifies the fix visually. No human in the loop for simple visual fixes.
-"Fix every spacing issue on this page" becomes a 30-second task.
+**下一步：** Live reload loop。AI 编辑 CSS/HTML，browser auto-reloads，AI visually verify fix。简单 visual fixes 不需要 human in the loop。“Fix every spacing issue on this page” 变成 30 秒 task。
 
-**Future:** Full-stack debugging. The AI sees a 500 error in the browser, reads
-the server logs, traces to the failing line, writes the fix, and verifies in the
-browser. One command: "This page is broken. Fix it."
+**未来：** Full-stack debugging。AI 在 browser 中看到 500 error，读取 server logs，trace 到 failing line，写 fix，并在 browser 中 verify。一个 command：“This page is broken. Fix it.”
 
-### 4. Understand the Whole Stack
+### 4. 理解整个 stack
 
-The browser isn't just a viewport. It's a window into the application's health.
+Browser 不只是 viewport。它是通向 application health 的窗口。
 
-**Today:**
-- Console log capture — every `console.log`, `console.error`, and warning
-- Network request monitoring — every XHR, fetch, websocket, and static asset
-- Performance metrics — Core Web Vitals, resource timing, paint events
-- Cookie and storage inspection — read and write localStorage, sessionStorage
-- CSS inspection — computed styles, box model, rule cascade
+**今天：**
+- Console log capture — 每个 `console.log`、`console.error` 和 warning
+- Network request monitoring — 每个 XHR、fetch、websocket 和 static asset
+- Performance metrics — Core Web Vitals、resource timing、paint events
+- Cookie and storage inspection — 读写 localStorage、sessionStorage
+- CSS inspection — computed styles、box model、rule cascade
 
-**Next:**
-- Network request replay — "replay this failing request with different params"
-- Performance regression detection — "this page is 200ms slower than yesterday"
-- Dependency auditing — "this page loads 47 third-party scripts"
-- Accessibility auditing — "this form has no labels, these colors fail contrast"
+**下一步：**
+- Network request replay — “用不同 params replay 这个 failing request”
+- Performance regression detection — “这个 page 比昨天慢 200ms”
+- Dependency auditing — “这个 page 加载了 47 个 third-party scripts”
+- Accessibility auditing — “这个 form 没有 labels，这些 colors 没通过 contrast”
 
-**Future:**
-- Full application telemetry — CPU, memory, GPU usage in real-time
-- Cross-browser testing — same test suite across Chrome, Firefox, Safari
-- Real user monitoring correlation — "this bug affects 12% of production users"
+**未来：**
+- Full application telemetry — 实时 CPU、memory、GPU usage
+- Cross-browser testing — 同一 test suite 跑 Chrome、Firefox、Safari
+- Real user monitoring correlation — “this bug affects 12% of production users”
 
-### 5. The Workspace Model
+### 5. Workspace Model
 
-The browser IS the workspace. Not a tab in a workspace. The workspace itself.
+Browser 就是 workspace。不是 workspace 里的一个 tab，而是 workspace 本身。
 
-**Today:** Each browser session is bound to a project directory. The sidebar shows
-the current branch. The status bar shows detected dev servers.
+**今天：** 每个 browser session 绑定到一个 project directory。Sidebar 显示 current branch。Status bar 显示 detected dev servers。
 
-**Next:** Multi-project support. Switch between projects without closing the
-browser. Each project gets its own set of tabs, its own agent, its own context.
-Like VSCode workspaces, but for the browser.
+**下一步：** Multi-project support。不关闭 browser 就能在 projects 间切换。每个 project 拥有自己的 tabs、agent 和 context。像 VSCode workspaces，但属于 browser。
 
-**Future:** Team workspaces. Multiple developers share a browser workspace. See
-each other's agents working. Collaborative debugging where one person navigates
-and the other watches the AI fix things in real-time.
+**未来：** Team workspaces。多个 developers 共享 browser workspace。看到彼此的 agents 正在工作。一个人 navigate，另一个人实时看 AI fix things，形成 collaborative debugging。
 
 ### 6. Skills as Browser Capabilities
 
-Every gstack skill becomes a browser capability.
+每个 gstack skill 都成为 browser capability。
 
-| Skill | Browser Capability |
+| Skill（技能） | Browser Capability（浏览器能力） |
 |-------|-------------------|
-| `/qa` | Test every page, find bugs, fix them, verify fixes |
+| `/qa` | 测试每个 page → 找 bugs → 修复 → 验证 fixes |
 | `/design-review` | Screenshot → analyze → fix CSS → screenshot again |
-| `/investigate` | See the error in browser → trace to code → fix → verify |
-| `/benchmark` | Measure page performance → detect regressions → alert |
-| `/canary` | Monitor deployed site → screenshot periodically → alert on changes |
-| `/ship` | Run tests → review diff → create PR → verify deployment in browser |
-| `/cso` | Audit page for XSS, open redirects, clickjacking in real browser |
+| `/investigate` | 在 browser 中看到 error → trace 到 code → fix → verify |
+| `/benchmark` | 测量 page performance → detect regressions → alert |
+| `/canary` | Monitor deployed site → periodic screenshot → alert on changes |
+| `/ship` | Run tests → review diff → create PR → 在 browser 中 verify deployment |
+| `/cso` | 在 real browser 中 audit page for XSS、open redirects、clickjacking |
 | `/office-hours` | Browse competitor sites → synthesize observations → design doc |
 
-The command palette (Cmd+K) is the hub. You don't need to know the skills exist.
-You type what you want, the fuzzy filter finds the right skill, and the AI runs it
-with the browser as context.
+Command palette（Cmd+K）是 hub。你不需要知道 skills 存在。输入你想要的东西，fuzzy filter 找到合适 skill，AI 带着 browser context 运行它。
 
-### 7. The Design Loop
+### 7. Design Loop（设计循环）
 
-AI-powered design is a loop, not a handoff.
+AI-powered design 是 loop，不是 handoff。
 
 ```
 Generate mockup (GPT Image API)
@@ -218,25 +157,24 @@ Generate mockup (GPT Image API)
   → Ship
 ```
 
-The browser closes the gap between "what it looks like in Figma" and "what it
-looks like in production." Because the AI can see both simultaneously.
+Browser 关闭了“Figma 里长什么样”和“production 中长什么样”之间的 gap。因为 AI 可以同时看到两者。
 
-### 8. The Security Loop
+### 8. Security Loop（安全循环）
 
-CSO review in a real browser, not just static analysis.
+在 real browser 中做 CSO review，而不只是 static analysis。
 
-- Inject XSS payloads into every input field, check if they execute
-- Test CSRF by replaying requests from a different origin
-- Check for open redirects by navigating to crafted URLs
-- Verify CSP headers are actually enforced (not just present)
-- Test auth flows by manipulating cookies and tokens in real-time
-- Check for clickjacking by loading the site in an iframe
+- 向每个 input field 注入 XSS payloads，检查是否 execute
+- 通过从 different origin replaying requests 测试 CSRF
+- 通过导航到 crafted URLs 检查 open redirects
+- 验证 CSP headers 是否真的 enforced（而不只是 present）
+- 通过实时 manipulating cookies 和 tokens 测试 auth flows
+- 通过把 site 加载到 iframe 中检查 clickjacking
 
-Static analysis catches patterns. Browser testing catches reality.
+Static analysis catches patterns。Browser testing catches reality。
 
-### 9. The Monitoring Loop
+### 9. Monitoring Loop（监控循环）
 
-Post-deploy canary monitoring, in a real browser.
+在 real browser 中做 post-deploy canary monitoring。
 
 ```
 Deploy → Browser loads production URL
@@ -246,10 +184,9 @@ Deploy → Browser loads production URL
   → Auto-rollback if critical error detected
 ```
 
-Synthetic monitoring with AI judgment. Not just "did the page return 200" but
-"does the page look right and work correctly."
+Synthetic monitoring with AI judgment。不只是“page 是否 return 200”，而是“page 看起来是否正确、工作是否正确”。
 
-## Architecture
+## 架构
 
 ```
 +-------------------------------------------------------+
@@ -286,91 +223,79 @@ Synthetic monitoring with AI judgment. Not just "did the page return 200" but
   +---------------------+    +-----------------------+
 ```
 
-## Competitive Landscape
+## Competitive Landscape（竞争格局）
 
-| Browser | Approach | Differentiator | Weakness |
+| Browser（浏览器） | Approach（路径） | Differentiator（差异点） | Weakness（弱点） |
 |---------|----------|---------------|----------|
-| **Atlas** | Chromium fork + AI layer | Agentic browser, "OWL" isolated Chromium | Consumer-focused, no code integration |
-| **Dia** | AI-native browser | Clean UI, built for AI interaction | No dev tools, no code editing |
-| **Comet** | AI browser | Multi-agent browsing | Early, unclear dev workflow |
-| **Chrome Auto Browse** | Extension | Google's own, deep Chrome integration | Extension-only, no code editing |
-| **Cursor** | VSCode fork + AI | Best-in-class code editing | No browser viewport |
-| **GStack Browser** | CC runtime + browser viewport | See bug in browser, fix in code, verify | Currently macOS-only, no consumer features |
+| **Atlas** | Chromium fork + AI layer | Agentic browser, "OWL" isolated Chromium | Consumer-focused，无 code integration |
+| **Dia** | AI-native browser | Clean UI，为 AI interaction 构建 | 无 dev tools，无 code editing |
+| **Comet** | AI browser | Multi-agent browsing | 早期阶段，dev workflow 不明确 |
+| **Chrome Auto Browse** | Extension | Google 自家，deep Chrome integration | Extension-only，无 code editing |
+| **Cursor** | VSCode fork + AI | Best-in-class code editing | 无 browser viewport |
+| **GStack Browser** | CC runtime + browser viewport | 在 browser 中看 bug，在 code 中修复，再 verify | 当前 macOS-only，无 consumer features |
 
-GStack Browser doesn't compete with consumer browsers. It competes with the
-workflow of switching between browser and editor. The goal is to make that switch
-invisible.
+GStack Browser 不和 consumer browsers 竞争。它竞争的是在 browser 和 editor 之间切换的 workflow。目标是让这种切换消失。
 
-## Design System
+## Design System（设计系统）
 
 From DESIGN.md:
-- **Primary accent:** Amber-500 (#F59E0B) — agent active, focus states, pulse
-- **Background:** Zinc-950 (#09090B) through Zinc-800 (#27272A) — dark, dense
-- **Typography:** JetBrains Mono (code/status), DM Sans (UI/labels)
-- **Border radius:** 8px (md), 12px (lg), full (pills)
-- **Motion:** Pulse animation on agent active, 200ms transitions
-- **Layout:** Sidebar (right), status bar (bottom), palette (centered overlay)
+- **Primary accent:** Amber-500 (#F59E0B) — agent active、focus states、pulse
+- **Background:** Zinc-950 (#09090B) through Zinc-800 (#27272A) — dark、dense
+- **Typography:** JetBrains Mono（code/status）、DM Sans（UI/labels）
+- **Border radius:** 8px（md）、12px（lg）、full（pills）
+- **Motion:** agent active 时 pulse animation、200ms transitions
+- **Layout:** Sidebar（right）、status bar（bottom）、palette（centered overlay）
 
-## Implementation Status
+## Implementation Status（实现状态）
 
-| Component | Status | Notes |
+| Component（组件） | Status（状态） | Notes（说明） |
 |-----------|--------|-------|
 | .app bundle | **SHIPPED** | 389MB, launches in ~5s |
 | DMG packaging | **SHIPPED** | 189MB compressed |
 | `GSTACK_CHROMIUM_PATH` | **SHIPPED** | Custom Chromium binary support |
 | `BROWSE_EXTENSIONS_DIR` | **SHIPPED** | Extension path override |
-| Auth via `/health` | **SHIPPED** | Replaces .auth.json file approach, auto-refreshes on server restart |
+| Auth via `/health` | **SHIPPED** | 取代 .auth.json file approach，在 server restart 时 auto-refresh |
 | Build script | **SHIPPED** | `scripts/build-app.sh` |
-| Model routing | **SHIPPED** | Sonnet for actions, Opus for analysis (`pickSidebarModel`) |
+| Model routing | **SHIPPED** | actions 用 Sonnet，analysis 用 Opus（`pickSidebarModel`） |
 | Debug logging | **SHIPPED** | 40+ silent catches → prefixed console logging across 4 files |
-| No idle timeout (headed) | **SHIPPED** | Browser stays alive as long as window is open |
+| No idle timeout (headed) | **SHIPPED** | 只要 window 打开，browser 就保持 alive |
 | Cookie import button | **SHIPPED** | One-click in sidebar footer, opens `/cookie-picker` |
-| Sidebar arrow hint | **SHIPPED** | Points to sidebar, hides only when sidebar actually opens |
-| Architecture doc | **SHIPPED** | `docs/designs/SIDEBAR_MESSAGE_FLOW.md` |
+| Sidebar arrow hint | **SHIPPED** | 指向 sidebar，只有 sidebar 真的打开时才隐藏 |
+| 架构文档 | **SHIPPED** | `docs/designs/SIDEBAR_MESSAGE_FLOW.md` |
 | Command palette | Planned | Phase 1b |
 | Quick screenshot | Planned | Phase 1b |
 | Status bar | Planned | Phase 1b |
 | Dev server detection | Planned | Phase 1b |
-| BoomLooper integration | Future | Phase 2 |
-| Cross-platform | Future | Phase 3 |
+| BoomLooper integration | Future（未来） | Phase 2 |
+| Cross-platform | Future（未来） | Phase 3 |
 | Chromium fork | Trigger-gated | Phase 4 |
 | Native shell | Deferred | Phase 5 |
 
-## The 12-Month Vision
+## 12-Month Vision（12 个月愿景）
 
 ```
-TODAY (Phase 1)               6 MONTHS (Phase 2-3)          12 MONTHS (Phase 4-5)
-─────────────                 ──────────────────            ────────────────────
-macOS .app wrapper            BoomLooper multi-agent         Chromium fork OR
-Extension sidebar             Docker containers              Native SwiftUI shell
-Local claude -p agent         Team workspaces                Cross-platform
-Single project                Linux/x64 browse               Auto-update
-Manual skill invocation       Autonomous QA loops            Skill marketplace
+今天（Phase 1）               6 个月（Phase 2-3）             12 个月（Phase 4-5）
+─────────────                 ──────────────────              ────────────────────
+macOS .app wrapper            BoomLooper multi-agent           Chromium fork 或
+Extension sidebar             Docker containers                Native SwiftUI shell
+本地 claude -p agent          Team workspaces                  Cross-platform
+单个 project                  Linux/x64 browse                 Auto-update
+手动 skill invocation         Autonomous QA loops              Skill marketplace
                               Performance monitoring          Plugin API
                               Real-time collaboration         Enterprise features
 ```
 
-The 12-month ideal: you open GStack Browser, it detects your project, starts
-your dev server, runs your test suite, and reports what's broken. You say "fix
-it" and the AI fixes every bug, verifies each fix visually, and creates a PR.
-You review the PR in the same browser, approve it, and the AI deploys it and
-monitors the canary. All in one window.
+12 个月 ideal：你打开 GStack Browser，它检测你的 project、启动你的 dev server、运行 test suite，并报告哪里 broken。你说“fix it”，AI 修复每个 bug、visually verify 每个 fix，并创建 PR。你在同一个 browser 中 review PR、approve 它，然后 AI deploy 并 monitor canary。全部在一个 window 中完成。
 
-That's the browser as AI workspace. Not a browser with AI bolted on. An AI
-with a browser bolted on.
+这就是 browser as AI workspace。不是 bolt on AI 的 browser，而是 bolt on browser 的 AI。
 
-## Review History
+## Review History（评审历史）
 
-This plan went through 4 reviews:
+这个 plan 经历了 4 次 reviews：
 
-1. **CEO Review** (`/plan-ceo-review`, SELECTIVE EXPANSION) — 9 scope proposals,
-   3 accepted (Cmd+K, Cmd+Shift+S, status bar), 5 deferred, 1 skipped
-2. **Design Review** (`/plan-design-review`) — scored 5/10 → 8/10, 9 design
-   decisions added, 2 approved mockups generated
-3. **Eng Review** (`/plan-eng-review`) — 4 issues found, 0 critical gaps,
-   test plan produced
-4. **Codex Review** (outside voice) — 9 findings, 3 critical gaps caught
-   (server bundling, auth file location, project binding). All resolved.
+1. **CEO Review**（`/plan-ceo-review`, SELECTIVE EXPANSION）— 9 个 scope proposals，3 accepted（Cmd+K、Cmd+Shift+S、status bar）、5 deferred、1 skipped
+2. **Design Review**（`/plan-design-review`）— score 5/10 → 8/10，新增 9 个 design decisions，生成 2 个 approved mockups
+3. **Eng Review**（`/plan-eng-review`）— 发现 4 issues，0 critical gaps，产出 test plan
+4. **Codex Review**（outside voice）— 9 findings，抓到 3 critical gaps（server bundling、auth file location、project binding）。全部 resolved。
 
-The Codex review caught 3 real architecture gaps that survived 3 prior reviews.
-Cross-model review works.
+Codex review 抓到了 3 个真实 architecture gaps，而它们穿过了前 3 次 reviews。Cross-model review works。

@@ -1,51 +1,55 @@
 <!-- AUTO-GENERATED from greptile.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 10: Address Greptile review comments (if PR exists)
+## Step 10：处理 Greptile review comments（如果 PR 存在）
 
-**Dispatch the fetch + classification as a subagent** using the Agent tool with `subagent_type: "general-purpose"`. The subagent pulls every Greptile comment, runs the escalation detection algorithm, and classifies each comment. Parent receives a structured list and handles user interaction + file edits.
+**使用 Agent tool 以 `subagent_type: "general-purpose"` 将 fetch + classification dispatch 为 subagent。**
+Subagent 拉取每条 Greptile comment，运行 escalation detection algorithm，并分类每条 comment。
+Parent 接收 structured list，并处理 user interaction + file edits。
 
-**Subagent prompt:**
+**Subagent prompt：**
 
-> You are classifying Greptile review comments for a /ship workflow. Read `.claude/skills/review/greptile-triage.md` and follow the fetch, filter, classify, and **escalation detection** steps. Do NOT fix code, do NOT reply to comments, do NOT commit — report only.
+> 你正在为 /ship workflow 分类 Greptile review comments。阅读 `.claude/skills/review/greptile-triage.md`，并遵循 fetch、filter、classify 和 **escalation detection** steps。不要 fix code，不要 reply comments，不要 commit，只 report。
 >
-> For each comment, assign: `classification` (`valid_actionable`, `already_fixed`, `false_positive`, `suppressed`), `escalation_tier` (1 or 2), the file:line or [top-level] tag, body summary, and permalink URL.
+> 对每条 comment，分配：`classification`（`valid_actionable`、`already_fixed`、`false_positive`、`suppressed`）、`escalation_tier`（1 或 2）、file:line 或 [top-level] tag、body summary 和 permalink URL。
 >
-> If no PR exists, `gh` fails, the API errors, or there are zero comments, output: `{"total":0,"comments":[]}` and stop.
+> 如果没有 PR、`gh` fails、API errors，或 comments 为 0，输出：`{"total":0,"comments":[]}` 并停止。
 >
-> Otherwise, output a single JSON object on the LAST LINE of your response:
+> 否则，在 response 的 LAST LINE 输出单个 JSON object：
 > `{"total":N,"comments":[{"classification":"...","escalation_tier":N,"ref":"file:line","summary":"...","permalink":"url"},...]}`
 
-**Parent processing:**
+**Parent processing（父流程处理）：**
 
-Parse the LAST line as JSON.
+将 LAST line parse 为 JSON。
 
-If `total` is 0, skip this step silently. Continue to Step 12.
+如果 `total` 为 0，静默跳过此 step。继续 Step 12。
 
-Otherwise, print: `+ {total} Greptile comments ({valid_actionable} valid, {already_fixed} already fixed, {false_positive} FP)`.
+否则，打印：`+ {total} Greptile comments ({valid_actionable} valid, {already_fixed} already fixed, {false_positive} FP)`。
 
-For each comment in `comments`:
+对 `comments` 中每条 comment：
 
-**VALID & ACTIONABLE:** Use AskUserQuestion with:
-- The comment (file:line or [top-level] + body summary + permalink URL)
+**VALID & ACTIONABLE：**使用 AskUserQuestion，包含：
+- Comment（file:line 或 [top-level] + body summary + permalink URL）
 - `RECOMMENDATION: Choose A because [one-line reason]`
-- Options: A) Fix now, B) Acknowledge and ship anyway, C) It's a false positive
-- If user chooses A: apply the fix, commit the fixed files (`git add <fixed-files> && git commit -m "fix: address Greptile review — <brief description>"`), reply using the **Fix reply template** from greptile-triage.md (include inline diff + explanation), and save to both per-project and global greptile-history (type: fix).
-- If user chooses C: reply using the **False Positive reply template** from greptile-triage.md (include evidence + suggested re-rank), save to both per-project and global greptile-history (type: fp).
+- Options: A) Fix now, B) Acknowledge and ship anyway, C) It's a false positive（保留 exact labels）
+- 如果用户选择 A：apply fix，commit fixed files（`git add <fixed-files> && git commit -m "fix: address Greptile review — <brief description>"`），使用 greptile-triage.md 中的 **Fix reply template** 回复（包含 inline diff + explanation），并保存到 per-project 和 global greptile-history（type: fix）。
+- 如果用户选择 C：使用 greptile-triage.md 中的 **False Positive reply template** 回复（包含 evidence + suggested re-rank），并保存到 per-project 和 global greptile-history（type: fp）。
 
-**VALID BUT ALREADY FIXED:** Reply using the **Already Fixed reply template** from greptile-triage.md — no AskUserQuestion needed:
-- Include what was done and the fixing commit SHA
-- Save to both per-project and global greptile-history (type: already-fixed)
+**VALID BUT ALREADY FIXED：**使用 greptile-triage.md 中的 **Already Fixed reply template** 回复：
+无需 AskUserQuestion。
+- 包含已完成内容和 fixing commit SHA
+- 保存到 per-project 和 global greptile-history（type: already-fixed）
 
-**FALSE POSITIVE:** Use AskUserQuestion:
-- Show the comment and why you think it's wrong (file:line or [top-level] + body summary + permalink URL)
-- Options:
+**FALSE POSITIVE：**使用 AskUserQuestion：
+- 展示 comment 以及你为什么认为它错了（file:line 或 [top-level] + body summary + permalink URL）
+- Options（保留 exact labels）：
   - A) Reply to Greptile explaining the false positive (recommended if clearly wrong)
   - B) Fix it anyway (if trivial)
   - C) Ignore silently
-- If user chooses A: reply using the **False Positive reply template** from greptile-triage.md (include evidence + suggested re-rank), save to both per-project and global greptile-history (type: fp)
+- 如果用户选择 A：使用 greptile-triage.md 中的 **False Positive reply template** 回复（包含 evidence + suggested re-rank），保存到 per-project 和 global greptile-history（type: fp）
 
-**SUPPRESSED:** Skip silently — these are known false positives from previous triage.
+**SUPPRESSED：**静默跳过：这些是 previous triage 中的 known false positives。
 
-**After all comments are resolved:** If any fixes were applied, the tests from Step 5 are now stale. **Re-run tests** (Step 5) before continuing to Step 12. If no fixes were applied, continue to Step 12.
+**所有 comments resolved 后：**如果应用了任何 fixes，Step 5 的 tests 现在 stale。继续 Step 12 前，
+**重新运行 tests**（Step 5）。如果没有应用 fixes，继续 Step 12。
 
 ---

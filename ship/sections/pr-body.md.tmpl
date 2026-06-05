@@ -1,117 +1,133 @@
-## Step 18: Documentation sync (via subagent, before PR creation)
+## Step 18：Documentation sync（通过 subagent，在 PR creation 前）
 
-**Dispatch /document-release as a subagent** using the Agent tool with `subagent_type: "general-purpose"`. The subagent gets a fresh context window — zero rot from the preceding 17 steps. It also runs the **full** `/document-release` workflow (with CHANGELOG clobber protection, doc exclusions, risky-change gates, named staging, race-safe PR body editing) rather than a weaker reimplementation.
+**使用 Agent tool 以 `subagent_type: "general-purpose"` 将 /document-release dispatch 为 subagent。**
+Subagent 会获得 fresh context window：不会受前 17 steps 的 context rot 影响。它还会运行
+**完整** `/document-release` workflow（包含 CHANGELOG clobber protection、doc exclusions、
+risky-change gates、named staging、race-safe PR body editing），而不是较弱的 reimplementation。
 
-**Sequencing:** This step runs AFTER Step 17 (Push) and BEFORE Step 19 (Create PR). The PR is created once from final HEAD with the `## Documentation` section baked into the initial body. No create-then-re-edit dance.
+**Sequencing（顺序）：**此 step 在 Step 17（Push）之后、Step 19（Create PR）之前运行。
+PR 会从 final HEAD 创建一次，且 `## Documentation` section 已 baked into initial body。
+没有 create-then-re-edit dance。
 
-**Subagent prompt:**
+**Subagent prompt：**
 
-> You are executing the /document-release workflow after a code push. Read the full skill file `${HOME}/.claude/skills/gstack/document-release/SKILL.md` and execute its complete workflow end-to-end, including CHANGELOG clobber protection, doc exclusions, risky-change gates, and named staging. Do NOT attempt to edit the PR body — no PR exists yet. Branch: `<branch>`, base: `<base>`.
+> 你正在 code push 后执行 /document-release workflow。阅读完整 skill file `${HOME}/.claude/skills/gstack/document-release/SKILL.md`，并端到端执行其完整 workflow，包括 CHANGELOG clobber protection、doc exclusions、risky-change gates 和 named staging。不要尝试编辑 PR body，因为 PR 还不存在。Branch：`<branch>`，base：`<base>`。
 >
-> After completing the workflow, output a single JSON object on the LAST LINE of your response (no other text after it):
+> 完成 workflow 后，在 response 的 LAST LINE 输出单个 JSON object（之后不要再输出其他 text）：
 > `{"files_updated":["README.md","CLAUDE.md",...],"commit_sha":"abc1234","pushed":true,"documentation_section":"<markdown block for PR body's ## Documentation section>"}`
 >
-> If no documentation files needed updating, output:
+> 如果没有 documentation files 需要更新，输出：
 > `{"files_updated":[],"commit_sha":null,"pushed":false,"documentation_section":null}`
 
-**Parent processing:**
+**Parent processing（父流程处理）：**
 
-1. Parse the LAST line of the subagent's output as JSON.
-2. Store `documentation_section` — Step 19 embeds it in the PR body (or omits the section if null).
-3. If `files_updated` is non-empty, print: `Documentation synced: {files_updated.length} files updated, committed as {commit_sha}`.
-4. If `files_updated` is empty, print: `Documentation is current — no updates needed.`
+1. 将 subagent output 的 LAST line parse 为 JSON。
+2. 存储 `documentation_section`：Step 19 会将它嵌入 PR body（如果为 null 则省略该 section）。
+3. 如果 `files_updated` 非空，打印：`Documentation synced: {files_updated.length} files updated, committed as {commit_sha}`。
+4. 如果 `files_updated` 为空，打印：`Documentation is current — no updates needed.`
 
-**If the subagent fails or returns invalid JSON:** Print a warning and proceed to Step 19 without a `## Documentation` section. Do not block /ship on subagent failure. The user can run `/document-release` manually after the PR lands.
+**如果 subagent fails 或返回 invalid JSON：**打印 warning，并在没有 `## Documentation`
+section 的情况下继续 Step 19。不要因 subagent failure 阻塞 /ship。用户可以在 PR lands 后手动运行
+`/document-release`。
 
 ---
 
-## Step 19: Create PR/MR
+## Step 19：Create PR/MR
 
-**Idempotency check:** Check if a PR/MR already exists for this branch.
+**Idempotency check（幂等检查）：**检查此 branch 是否已有 PR/MR。
 
-**If GitHub:**
+**如果是 GitHub：**
 ```bash
 gh pr view --json url,number,state -q 'if .state == "OPEN" then "PR #\(.number): \(.url)" else "NO_PR" end' 2>/dev/null || echo "NO_PR"
 ```
 
-**If GitLab:**
+**如果是 GitLab：**
 ```bash
 glab mr view -F json 2>/dev/null | jq -r 'if .state == "opened" then "MR_EXISTS" else "NO_MR" end' 2>/dev/null || echo "NO_MR"
 ```
 
-If an **open** PR/MR already exists: **update** the PR body using `gh pr edit --body-file "$PR_BODY_FILE"` (GitHub) or `glab mr update -d ...` (GitLab). Always regenerate the PR body from scratch using this run's fresh results (test output, coverage audit, review findings, adversarial review, TODOS summary, documentation_section from Step 18). Never reuse stale PR body content from a prior run. **Run the same redaction scan-at-sink (PR body + title) as the create path (Step 19) before editing — scan the temp file, then `gh pr edit --body-file` from it.**
+如果已经存在 **open** PR/MR：使用 `gh pr edit --body-file "$PR_BODY_FILE"`（GitHub）
+或 `glab mr update -d ...`（GitLab）**update** PR body。始终用本次 run 的 fresh results
+从零 regenerate PR body（test output、coverage audit、review findings、adversarial review、
+TODOS summary、Step 18 的 documentation_section）。绝不复用 prior run 的 stale PR body content。
+**Editing 前运行与 create path（Step 19）相同的 redaction scan-at-sink（PR body + title）：
+scan temp file，然后从该文件 `gh pr edit --body-file`。**
 
-**Always update the PR title to start with `v$NEW_VERSION`.** PR titles use the workspace-aware format `v<NEW_VERSION> <type>: <summary>` — version ALWAYS first, no exceptions, no "custom title kept intentionally" escape hatch. The shared helper `bin/gstack-pr-title-rewrite.sh` is the single source of truth for the rule.
+**始终更新 PR title，使其以 `v$NEW_VERSION` 开头。**PR titles 使用 workspace-aware format
+`v<NEW_VERSION> <type>: <summary>`：version 永远在前，无例外，也没有
+"custom title kept intentionally" escape hatch。Shared helper `bin/gstack-pr-title-rewrite.sh`
+是此 rule 的 single source of truth。
 
-1. Read the current title: `CURRENT=$(gh pr view --json title -q .title)` (or `glab mr view -F json | jq -r .title`).
-2. Compute the corrected title: `NEW_TITLE=$(~/.claude/skills/gstack/bin/gstack-pr-title-rewrite.sh "$NEW_VERSION" "$CURRENT")`. The helper handles three cases: title already correct (no-op), title has a different `v<X.Y.Z.W>` prefix (replace it), or title has no version prefix (prepend one).
-3. If `NEW_TITLE` differs from `CURRENT`, run `gh pr edit --title "$NEW_TITLE"` (or `glab mr update -t "$NEW_TITLE"`).
-4. **Self-check:** re-fetch the title and assert it starts with `v$NEW_VERSION `. If it does not, retry the edit once. If still wrong, surface the failure to the user.
+1. 读取 current title：`CURRENT=$(gh pr view --json title -q .title)`（或 `glab mr view -F json | jq -r .title`）。
+2. 计算 corrected title：`NEW_TITLE=$(~/.claude/skills/gstack/bin/gstack-pr-title-rewrite.sh "$NEW_VERSION" "$CURRENT")`。helper 处理三种情况：title 已正确（no-op）、title 有不同的 `v<X.Y.Z.W>` prefix（replace）、或 title 没有 version prefix（prepend）。
+3. 如果 `NEW_TITLE` 不同于 `CURRENT`，运行 `gh pr edit --title "$NEW_TITLE"`（或 `glab mr update -t "$NEW_TITLE"`）。
+4. **Self-check：**re-fetch title，并 assert 它以 `v$NEW_VERSION ` 开头。如果不是，重试一次 edit。如果仍然错误，向用户暴露 failure。
 
-This keeps the title truthful when Step 12's queue-drift detection rebumps a stale version, and forces the format on PRs that were created without it.
+这会在 Step 12 的 queue-drift detection rebumps stale version 时保持 title truthful，
+并强制修正此前未按格式创建的 PR。
 
-Print the existing URL and continue to Step 20.
+打印 existing URL 并继续 Step 20。
 
-If no PR/MR exists: create a pull request (GitHub) or merge request (GitLab) using the platform detected in Step 0.
+如果 PR/MR 不存在：使用 Step 0 检测到的平台创建 pull request（GitHub）或 merge request（GitLab）。
 
-The PR/MR body should contain these sections:
+PR/MR body 应包含这些 sections：
 
 ```
-## Summary
-<Summarize ALL changes being shipped. Run `git log <base>..HEAD --oneline` to enumerate
-every commit. Exclude the VERSION/CHANGELOG metadata commit (that's this PR's bookkeeping,
-not a substantive change). Group the remaining commits into logical sections (e.g.,
-"**Performance**", "**Dead Code Removal**", "**Infrastructure**"). Every substantive commit
-must appear in at least one section. If a commit's work isn't reflected in the summary,
-you missed it.>
+## Summary（摘要）
+<总结本次 ship 的全部 substantive changes。运行 `git log <base>..HEAD --oneline` 枚举
+每个 commit。排除 VERSION/CHANGELOG metadata commit（那是此 PR 的 bookkeeping，
+不是 substantive change）。把剩余 commits 分组成 logical sections（例如
+"**Performance**"、"**Dead Code Removal**"、"**Infrastructure**"）。每个 substantive commit
+都必须至少出现在一个 section 中。如果某个 commit 的 work 没反映到 summary，
+说明你漏掉了。>
 
-## Test Coverage
-<coverage diagram from Step 7, or "All new code paths have test coverage.">
-<If Step 7 ran: "Tests: {before} → {after} (+{delta} new)">
+## Test Coverage（测试覆盖）
+<Step 7 的 coverage diagram，或 "All new code paths have test coverage.">
+<如果 Step 7 已运行："Tests: {before} → {after} (+{delta} new)">
 
-## Pre-Landing Review
-<findings from Step 9 code review, or "No issues found.">
+## Pre-Landing Review（落地前审查）
+<Step 9 code review 的 findings，或 "No issues found.">
 
-## Design Review
-<If design review ran: "Design Review (lite): N findings — M auto-fixed, K skipped. AI Slop: clean/N issues.">
-<If no frontend files changed: "No frontend files changed — design review skipped.">
+## Design Review（设计审查）
+<如果 design review 已运行："Design Review (lite): N findings — M auto-fixed, K skipped. AI Slop: clean/N issues.">
+<如果没有 frontend files changed："No frontend files changed — design review skipped.">
 
-## Eval Results
-<If evals ran: suite names, pass/fail counts, cost dashboard summary. If skipped: "No prompt-related files changed — evals skipped.">
+## Eval Results（eval 结果）
+<如果 evals 已运行：suite names、pass/fail counts、cost dashboard summary。如果 skipped："No prompt-related files changed — evals skipped.">
 
-## Greptile Review
-<If Greptile comments were found: bullet list with [FIXED] / [FALSE POSITIVE] / [ALREADY FIXED] tag + one-line summary per comment>
-<If no Greptile comments found: "No Greptile comments.">
-<If no PR existed during Step 10: omit this section entirely>
+## Greptile Review（Greptile 审查）
+<如果找到 Greptile comments：bullet list，每条带 [FIXED] / [FALSE POSITIVE] / [ALREADY FIXED] tag + 一行 summary>
+<如果没有 Greptile comments："No Greptile comments.">
+<如果 Step 10 时 PR 不存在：完全 omit this section>
 
-## Scope Drift
-<If scope drift ran: "Scope Check: CLEAN" or list of drift/creep findings>
-<If no scope drift: omit this section>
+## Scope Drift（范围漂移）
+<如果 scope drift 已运行："Scope Check: CLEAN" 或 drift/creep findings list>
+<如果没有 scope drift：omit this section>
 
-## Plan Completion
-<If plan file found: completion checklist summary from Step 8>
-<If no plan file: "No plan file detected.">
-<If plan items deferred: list deferred items>
+## Plan Completion（计划完成度）
+<如果找到 plan file：Step 8 的 completion checklist summary>
+<如果没有 plan file："No plan file detected.">
+<如果有 plan items deferred：列出 deferred items>
 
-## Linked Spec
-<Auto-detect: look for /spec archives matching this branch via:
+## Linked Spec（关联 spec）
+<Auto-detect：通过以下命令查找匹配此 branch 的 /spec archives：
   eval "$(${ctx.paths.binDir}/gstack-paths)"
   eval "$(${ctx.paths.binDir}/gstack-slug)"
   CURRENT_BRANCH=$(git branch --show-current)
   SPEC_ARCHIVES="$GSTACK_STATE_ROOT/projects/$SLUG/specs"
-  # Find newest archive whose spec_branch frontmatter matches current branch (or one of its
-  # parents — if spec spawned worktree spec/<slug>-$$, the spawned worktree IS where /ship runs).
+  # 找到 spec_branch frontmatter 匹配 current branch 的 newest archive（或其 parent 之一；
+  # 如果 spec spawned worktree spec/<slug>-$$，该 spawned worktree 就是 /ship 运行处）。
   SPEC_FILE=$(grep -l "^spec_branch: $CURRENT_BRANCH$" "$SPEC_ARCHIVES"/*.md 2>/dev/null | head -1)
-  [ -z "$SPEC_FILE" ] && exit  # no spec; omit this section entirely
+  [ -z "$SPEC_FILE" ] && exit  # no spec；完全 omit this section
   SPEC_ISSUE=$(grep "^spec_issue_number:" "$SPEC_FILE" | cut -d' ' -f2)
-  [ -z "$SPEC_ISSUE" ] && exit  # spec archive exists but no issue number; omit
+  [ -z "$SPEC_ISSUE" ] && exit  # spec archive 存在但无 issue number；omit
 
-  # CONDITIONAL Closes #N (codex F4): only add when Plan Completion above is "complete".
-  # If the plan completion gate from Step 8 reports any deferred or failed items, emit:
+  # CONDITIONAL Closes #N (codex F4)：只在上方 Plan Completion 为 "complete" 时添加。
+  # 如果 Step 8 的 plan completion gate 报告任何 deferred 或 failed items，emit：
   #   "Linked to #$SPEC_ISSUE (partial delivery — NOT auto-closing; close manually after follow-up)"
-  # If Plan Completion is fully complete, emit:
+  # 如果 Plan Completion fully complete，emit：
   #   "Closes #$SPEC_ISSUE"
-  # and include the Closes #N line in the PR body so GitHub auto-closes on merge.>
+  # 并在 PR body 中包含 Closes #N line，让 GitHub 在 merge 时 auto-close。>
 
 <Format:
   Closes #<N>
@@ -119,43 +135,42 @@ you missed it.>
   This PR delivers the spec at <archive path relative to repo root>.
   Spec filed: <spec_filed_at from frontmatter>>
 
-<If partial delivery, emit instead:
+<如果是 partial delivery，改为 emit：
   Linked to #<N> (partial delivery — not auto-closing).
-  Deferred items: <list from Plan Completion>.
+  Deferred items: <来自 Plan Completion 的 list>.
   Close #<N> manually after follow-up lands.>
 
-<If no /spec archive matches this branch: omit this entire section.>
+<如果没有 /spec archive 匹配此 branch：完全 omit this section。>
 
-## Verification Results
-<If verification ran: summary from Step 8.1 (N PASS, M FAIL, K SKIPPED)>
-<If skipped: reason (no plan, no server, no verification section)>
-<If not applicable: omit this section>
+## Verification Results（验证结果）
+<如果 verification 已运行：Step 8.1 的 summary（N PASS, M FAIL, K SKIPPED）>
+<如果 skipped：reason（no plan, no server, no verification section）>
+<如果 not applicable：omit this section>
 
-## TODOS
-<If items marked complete: bullet list of completed items with version>
-<If no items completed: "No TODO items completed in this PR.">
-<If TODOS.md created or reorganized: note that>
-<If TODOS.md doesn't exist and user skipped: omit this section>
+## TODOS（待办）
+<如果 items marked complete：带 version 的 completed items bullet list>
+<如果没有 items completed："No TODO items completed in this PR.">
+<如果 TODOS.md created 或 reorganized：说明这一点>
+<如果 TODOS.md 不存在且用户 skipped：omit this section>
 
-## Documentation
-<Embed the `documentation_section` string returned by Step 18's subagent here, verbatim.>
-<If Step 18 returned `documentation_section: null` (no docs updated), omit this section entirely.>
+## Documentation（文档）
+<在这里原样嵌入 Step 18 subagent 返回的 `documentation_section` string。>
+<如果 Step 18 返回 `documentation_section: null`（no docs updated），完全 omit this section。>
 
-## Test plan
+## Test plan（测试计划）
 - [x] All Rails tests pass (N runs, 0 failures)
 - [x] All Vitest tests pass (N tests)
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
-#### Redaction scan (PR body + title) — runs before create AND edit
+#### Redaction scan（PR body + title）：create 和 edit 前都运行
 
-The PR body is world-readable on a public repo. Scan-at-sink before sending:
-write the composed body to a temp file, scan THAT file with the shared engine,
-and pass the same file to `gh`/`glab`. Wrap any Codex / Greptile / eval output
-sections in tool-attributed fences (` ```codex-review ` / ` ```greptile `) so the
-engine WARN-degrades the example credentials those tools quote instead of blocking
-the PR (a live-format credential inside the fence still blocks).
+Public repo 上的 PR body 是 world-readable。发送前 scan-at-sink：将 composed body
+写入 temp file，用 shared engine 扫描那个 file，并将同一个 file 传给 `gh`/`glab`。
+将任何 Codex / Greptile / eval output sections 包在 tool-attributed fences
+（` ```codex-review ` / ` ```greptile `）中，让 engine 对这些 tools quote 的 example credentials
+降级为 WARN，而不是阻塞 PR（fence 内的 live-format credential 仍会 block）。
 
 ```bash
 REDACT_VIS=$(~/.claude/skills/gstack/bin/gstack-config get redact_repo_visibility 2>/dev/null)
@@ -174,10 +189,10 @@ esac
 printf '%s' "v$NEW_VERSION <type>: <summary>" | ~/.claude/skills/gstack/bin/gstack-redact --repo-visibility "$REDACT_VIS" --json
 ```
 
-HIGH blocks (exit 3, no skip). MEDIUM → AskUserQuestion (PII subset offers
-`--auto-redact`). Same scan runs before the `gh pr edit --body` path (Step 17).
+HIGH blocks（exit 3，无 skip）。MEDIUM -> AskUserQuestion（PII subset 提供 `--auto-redact`）。
+同一 scan 会在 `gh pr edit --body` path（Step 17）前运行。
 
-**If GitHub:** create from the SCANNED file (exact bytes scanned = bytes sent):
+**如果是 GitHub：**从 SCANNED file 创建（scanned 的 exact bytes = sent 的 bytes）：
 
 ```bash
 # PR title MUST start with v$NEW_VERSION — enforced on every run, no exceptions.
@@ -186,7 +201,7 @@ gh pr create --base <base> --title "v$NEW_VERSION <type>: <summary>" --body-file
 rm -f "$PR_BODY_FILE"
 ```
 
-**If GitLab:**
+**如果是 GitLab：**
 
 ```bash
 # MR title MUST start with v$NEW_VERSION — enforced on every run, no exceptions.
@@ -197,9 +212,10 @@ EOF
 )"
 ```
 
-**If neither CLI is available:**
-Print the branch name, remote URL, and instruct the user to create the PR/MR manually via the web UI. Do not stop — the code is pushed and ready.
+**如果两个 CLI 都不可用：**
+打印 branch name、remote URL，并指示用户通过 web UI 手动创建 PR/MR。不要停止：
+code 已 push 且 ready。
 
-**Output the PR/MR URL** — then proceed to Step 20.
+**输出 PR/MR URL**，然后继续 Step 20。
 
 ---

@@ -3,11 +3,11 @@ name: claude
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Claude Code CLI wrapper for non-Claude hosts - three modes. Review: independent
-  diff review via claude -p. Challenge: adversarial failure-mode review. Consult:
-  ask Claude about the repo with read-only file tools. Use when asked for "claude
-  review", "claude challenge", "ask claude", "second opinion from claude", or
-  "outside voice". (gstack)
+  面向 non-Claude hosts 的 Claude Code CLI wrapper - 三种模式。Review：通过
+  claude -p 做 independent diff review。Challenge：adversarial failure-mode
+  review。Consult：用 read-only file tools 询问 Claude 关于 repo 的问题。
+  当用户要求 "claude review"、"claude challenge"、"ask claude"、
+  "second opinion from claude" 或 "outside voice" 时使用。(gstack)
 triggers:
   - claude review
   - claude challenge
@@ -22,27 +22,26 @@ allowed-tools:
 
 {{BASE_BRANCH_DETECT}}
 
-# /claude - Claude Outside Voice
+# /claude - Claude Outside Voice（Claude 外部视角）
 
-You are running the `/claude` skill from a non-Claude host. This wraps `claude -p`
-to get an independent Claude Code second opinion without allowing nested Claude to
-modify files.
+你正在从 non-Claude host 运行 `/claude` skill。它封装 `claude -p`，
+用于获取独立的 Claude Code second opinion，同时不允许 nested Claude 修改文件。
 
-The generated external invocation name is `gstack-claude`.
+生成的 external invocation name 是 `gstack-claude`。
 
 ---
 
-## Step 0: Check Claude CLI
+## Step 0: 检查 Claude CLI
 
 ```bash
 CLAUDE_BIN=$(command -v claude 2>/dev/null || echo "")
 [ -z "$CLAUDE_BIN" ] && echo "NOT_FOUND" || echo "FOUND: $CLAUDE_BIN"
 ```
 
-If `NOT_FOUND`, stop and tell the user:
-"Claude CLI not found. Install Claude Code, then re-run this skill."
+如果是 `NOT_FOUND`，停止并告诉用户：
+"未找到 Claude CLI。请安装 Claude Code，然后重新运行此 skill。"
 
-Check auth:
+检查 auth：
 
 ```bash
 if [ -f "$HOME/.claude/.credentials.json" ] || [ -n "${ANTHROPIC_API_KEY:-}" ]; then
@@ -52,46 +51,45 @@ else
 fi
 ```
 
-If `AUTH_MISSING`, stop and tell the user:
-"No Claude authentication found. Run `claude` interactively to log in, or export `ANTHROPIC_API_KEY`, then re-run this skill."
+如果是 `AUTH_MISSING`，停止并告诉用户：
+"未找到 Claude authentication。请交互式运行 `claude` 登录，或导出 `ANTHROPIC_API_KEY`，然后重新运行此 skill。"
 
 ---
 
-## Safety Boundary
+## Safety Boundary（安全边界）
 
-Nested Claude must stay focused on the user's repository and must not run gstack
-skills from inside this skill.
+Nested Claude 必须专注于用户的 repository，并且不得从此 skill 内部运行 gstack
+skills。
 
-All `claude -p` calls MUST include:
+所有 `claude -p` 调用 MUST include：
 
 - `--disable-slash-commands`
-- Review/challenge: `--tools ""`
-- Consult: `--allowedTools Read,Grep,Glob --disallowedTools Bash,Edit,Write`
+- Review/challenge：`--tools ""`
+- Consult：`--allowedTools Read,Grep,Glob --disallowedTools Bash,Edit,Write`
 
-Never pass `Bash`, `Edit`, or `Write` to nested Claude in this skill.
+在这个 skill 中，永远不要把 `Bash`、`Edit` 或 `Write` 传给 nested Claude。
 
-All prompts MUST be written to a temp file and fed through stdin. Never interpolate
-user text directly into the shell command.
-
----
-
-## Step 1: Detect Mode
-
-Parse the user's input:
-
-1. `/claude review` or `/claude review <instructions>` - **Review mode** (Step 2A)
-2. `/claude challenge` or `/claude challenge <focus>` - **Challenge mode** (Step 2B)
-3. `/claude` with no arguments, or `/claude <anything else>` - **Consult mode** (Step 2C)
-
-If no mode is obvious and a diff exists, ask whether to review, challenge, or consult.
+所有 prompts MUST 写入 temp file，并通过 stdin 输入。永远不要把 user text 直接插入 shell command。
 
 ---
 
-## Shared Helpers
+## Step 1: 检测模式
 
-Use these shell snippets in every mode.
+解析用户输入：
 
-Create temp files:
+1. `/claude review` 或 `/claude review <instructions>` - **Review mode**（Step 2A）
+2. `/claude challenge` 或 `/claude challenge <focus>` - **Challenge mode**（Step 2B）
+3. 无 arguments 的 `/claude`，或 `/claude <anything else>` - **Consult mode**（Step 2C）
+
+如果 mode 不明显且存在 diff，询问用户要 review、challenge 还是 consult。
+
+---
+
+## Shared Helpers（共享辅助片段）
+
+每种 mode 都使用这些 shell snippets。
+
+创建 temp files：
 
 ```bash
 PROMPT_FILE=$(mktemp /tmp/gstack-claude-prompt-XXXXXX)
@@ -99,13 +97,13 @@ RESP_FILE=$(mktemp /tmp/gstack-claude-response-XXXXXX.json)
 ERR_FILE=$(mktemp /tmp/gstack-claude-error-XXXXXX.txt)
 ```
 
-Cleanup at the end of every mode:
+每种 mode 结束时清理：
 
 ```bash
 rm -f "$PROMPT_FILE" "$RESP_FILE" "$ERR_FILE"
 ```
 
-Parse JSON output:
+解析 JSON output：
 
 ```bash
 python3 - "$RESP_FILE" <<'PY'
@@ -137,16 +135,16 @@ if session_id:
 PY
 ```
 
-If stderr contains `auth`, `login`, or `unauthorized`, tell the user:
+如果 stderr 包含 `auth`、`login` 或 `unauthorized`，告诉用户：
 "Claude authentication failed. Run `claude` interactively to authenticate or export `ANTHROPIC_API_KEY`."
 
 ---
 
-## Step 2A: Review Mode
+## Step 2A：Review Mode（审查模式）
 
-Review the current branch diff with nested Claude in tool-less mode.
+用 nested Claude 以 tool-less mode review 当前 branch diff。
 
-1. Fetch base and capture diff:
+1. Fetch base 并捕获 diff：
 
 ```bash
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
@@ -156,16 +154,16 @@ git fetch origin <base> --quiet 2>/dev/null || true
 git diff "origin/<base>" > "$DIFF_FILE" 2>/dev/null || git diff "<base>" > "$DIFF_FILE"
 ```
 
-If the diff file is empty, stop and say:
-"Nothing to review - no changes against the base branch."
+如果 diff file 为空，停止并说明：
+"无需 review：相对 base branch 没有 changes。"
 
-2. Write the prompt file:
+2. 写入 prompt file：
 
 ```bash
 cat > "$PROMPT_FILE" <<'EOF'
-You are a brutally honest Claude Code reviewer. Review this git diff for bugs,
-production failure modes, security issues, missing tests, and maintainability
-problems. Be direct. No compliments. Reference files and changed code where possible.
+你是一个 brutally honest Claude Code reviewer。Review 这个 git diff，寻找 bugs、
+production failure modes、security issues、missing tests 和 maintainability
+problems。直接，不要 compliments。尽可能引用 files 和 changed code。
 
 Additional user instructions, if any:
 <custom review instructions>
@@ -175,13 +173,13 @@ EOF
 cat "$DIFF_FILE" >> "$PROMPT_FILE"
 ```
 
-3. Run Claude:
+3. 运行 Claude：
 
 ```bash
 cat "$PROMPT_FILE" | claude -p --output-format json --disable-slash-commands --tools "" > "$RESP_FILE" 2>"$ERR_FILE"
 ```
 
-4. Present the parsed output:
+4. 展示解析后的 output：
 
 ```
 CLAUDE SAYS (code review):
@@ -190,7 +188,7 @@ CLAUDE SAYS (code review):
 ============================================================
 ```
 
-5. Cleanup:
+5. 清理：
 
 ```bash
 rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESP_FILE" "$ERR_FILE"
@@ -198,20 +196,20 @@ rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESP_FILE" "$ERR_FILE"
 
 ---
 
-## Step 2B: Challenge Mode
+## Step 2B：Challenge Mode（挑战模式）
 
-Run an adversarial failure-mode review with nested Claude in tool-less mode.
+用 nested Claude 以 tool-less mode 运行 adversarial failure-mode review。
 
-1. Capture the diff using the same diff commands from Review mode.
+1. 使用 Review mode 中相同的 diff commands 捕获 diff。
 
-2. Write the prompt:
+2. 写入 prompt：
 
 ```bash
 cat > "$PROMPT_FILE" <<'EOF'
-You are an adversarial Claude Code reviewer. Try to break this change before users do.
-Find edge cases, race conditions, security holes, resource leaks, silent data
-corruption, bad error handling, and operational failure modes. Be thorough. No
-compliments. If the user provided a focus area, prioritize it.
+你是一个 adversarial Claude Code reviewer。请在 users 遇到问题前尝试打破这个 change。
+找出 edge cases、race conditions、security holes、resource leaks、silent data
+corruption、bad error handling 和 operational failure modes。要 thorough，不要
+compliments。如果用户提供了 focus area，优先处理它。
 
 Focus area, if any:
 <focus>
@@ -221,13 +219,13 @@ EOF
 cat "$DIFF_FILE" >> "$PROMPT_FILE"
 ```
 
-3. Run Claude:
+3. 运行 Claude：
 
 ```bash
 cat "$PROMPT_FILE" | claude -p --output-format json --disable-slash-commands --tools "" > "$RESP_FILE" 2>"$ERR_FILE"
 ```
 
-4. Present the parsed output:
+4. 展示解析后的 output：
 
 ```
 CLAUDE SAYS (adversarial challenge):
@@ -236,7 +234,7 @@ CLAUDE SAYS (adversarial challenge):
 ============================================================
 ```
 
-5. Cleanup:
+5. 清理：
 
 ```bash
 rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESP_FILE" "$ERR_FILE"
@@ -244,48 +242,47 @@ rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESP_FILE" "$ERR_FILE"
 
 ---
 
-## Step 2C: Consult Mode
+## Step 2C：Consult Mode（咨询模式）
 
-Ask Claude about the repository. Consult mode may inspect files, but only with
-read-only tools.
+询问 Claude 关于 repository 的问题。Consult mode 可以 inspect files，但只能使用
+read-only tools。
 
-1. Check for an existing Claude session:
+1. 检查 existing Claude session：
 
 ```bash
 cat .context/claude-session-id 2>/dev/null || echo "NO_SESSION"
 ```
 
-If a session exists, ask the user whether to continue it or start fresh.
+如果 session 存在，询问用户是继续它还是 start fresh。
 
-2. Write the prompt:
+2. 写入 prompt：
 
 ```bash
 cat > "$PROMPT_FILE" <<'EOF'
-You are Claude Code acting as an independent outside voice for this repository.
-Answer the user's question directly. You may inspect repository files with Read,
-Grep, and Glob only. Do not use Bash. Do not edit or write files. Do not invoke
-slash commands or gstack skills.
+你是 Claude Code，作为这个 repository 的独立外部声音。
+直接回答用户的问题。你只能用 Read、Grep 和 Glob 检查 repository files。
+不要使用 Bash。不要编辑或写入 files。不要调用 slash commands 或 gstack skills。
 
 USER QUESTION:
 <user prompt>
 EOF
 ```
 
-3. Run Claude.
+3. 运行 Claude。
 
-For a new session:
+对于 new session：
 
 ```bash
 cat "$PROMPT_FILE" | claude -p --output-format json --disable-slash-commands --allowedTools Read,Grep,Glob --disallowedTools Bash,Edit,Write > "$RESP_FILE" 2>"$ERR_FILE"
 ```
 
-For a resumed session:
+对于 resumed session：
 
 ```bash
 cat "$PROMPT_FILE" | claude -p --resume "<session-id>" --output-format json --disable-slash-commands --allowedTools Read,Grep,Glob --disallowedTools Bash,Edit,Write > "$RESP_FILE" 2>"$ERR_FILE"
 ```
 
-4. Parse and save the session id:
+4. 解析并保存 session id：
 
 ```bash
 SESSION_ID=$(python3 - "$RESP_FILE" <<'PY'
@@ -303,7 +300,7 @@ if [ -n "$SESSION_ID" ]; then
 fi
 ```
 
-5. Present the parsed output:
+5. 展示解析后的 output：
 
 ```
 CLAUDE SAYS (consult):
@@ -313,7 +310,7 @@ CLAUDE SAYS (consult):
 Session saved - run /claude again to continue this conversation.
 ```
 
-6. Cleanup:
+6. 清理：
 
 ```bash
 rm -f "$PROMPT_FILE" "$RESP_FILE" "$ERR_FILE"
@@ -321,21 +318,21 @@ rm -f "$PROMPT_FILE" "$RESP_FILE" "$ERR_FILE"
 
 ---
 
-## Error Handling
+## Error Handling（错误处理）
 
-- **Binary not found:** Stop with install instructions.
-- **Auth missing:** Stop with login/API key instructions.
-- **Auth failure from stderr:** Surface the stderr line and ask the user to re-authenticate.
-- **JSON parse failure:** Show raw stdout from `$RESP_FILE` and stderr from `$ERR_FILE`.
-- **Empty response:** Tell the user "Claude returned no response. Check stderr for errors."
-- **Resume failure:** Delete `.context/claude-session-id` and retry with a fresh session.
+- **Binary not found:** 停止并给出 install instructions。
+- **Auth missing:** 停止并给出 login/API key instructions。
+- **Auth failure from stderr:** 展示 stderr line，并要求用户 re-authenticate。
+- **JSON parse failure:** 展示 `$RESP_FILE` 的 raw stdout 和 `$ERR_FILE` 的 stderr。
+- **Empty response:** 告诉用户 "Claude 没有返回 response。请检查 stderr 中的 errors。"
+- **Resume failure:** 删除 `.context/claude-session-id`，并用 fresh session 重试。
 
 ---
 
-## Important Rules
+## Important Rules（重要规则）
 
-- Nested Claude is read-only in consult mode and tool-less in review/challenge.
-- Always include `--disable-slash-commands`.
-- Never pass nested Claude `Bash`, `Edit`, or `Write`.
-- Never interpolate user text into a shell command.
-- Present Claude's response faithfully, then add any host-agent synthesis after it.
+- Nested Claude 在 consult mode 下是 read-only，在 review/challenge 下是 tool-less。
+- 始终包含 `--disable-slash-commands`。
+- 永远不要把 `Bash`、`Edit` 或 `Write` 传给 nested Claude。
+- 永远不要把 user text 插入 shell command。
+- 忠实呈现 Claude 的 response，然后再补充任何 host-agent synthesis。

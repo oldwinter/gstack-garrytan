@@ -1,23 +1,26 @@
-## Step 7: Test Coverage Audit
+## Step 7：Test Coverage Audit（测试覆盖审计）
 
-**Dispatch this step as a subagent** using the Agent tool with `subagent_type: "general-purpose"`. The subagent runs the coverage audit in a fresh context window — the parent only sees the conclusion, not intermediate file reads. This is context-rot defense.
+**使用 Agent tool 以 `subagent_type: "general-purpose"` 将此 step dispatch 为 subagent。**
+Subagent 在 fresh context window 中运行 coverage audit；parent 只看到 conclusion，
+不看 intermediate file reads。这是 context-rot defense。
 
-**Subagent prompt:** Pass the following instructions to the subagent, with `<base>` substituted with the base branch:
+**Subagent prompt：**将以下 instructions 传给 subagent，并用 base branch 替换 `<base>`：
 
-> You are running a ship-workflow test coverage audit. Run `git diff <base>...HEAD` as needed. Do not commit or push — report only.
+> 你正在运行 ship-workflow test coverage audit。按需运行 `git diff <base>...HEAD`。不要 commit 或 push，只 report。
 >
 > {{TEST_COVERAGE_AUDIT_SHIP}}
 >
-> After your analysis, output a single JSON object on the LAST LINE of your response (no other text after it):
+> 分析完成后，在 response 的 LAST LINE 输出单个 JSON object（之后不要再输出其他 text）：
 > `{"coverage_pct":N,"gaps":N,"diagram":"<full markdown coverage diagram for PR body>","tests_added":["path",...]}`
 
-**Parent processing:**
+**Parent processing（父流程处理）：**
 
-1. Read the subagent's final output. Parse the LAST line as JSON.
-2. Store `coverage_pct` (for Step 20 metrics), `gaps` (user summary), `tests_added` (for the commit).
-3. Embed `diagram` verbatim in the PR body's `## Test Coverage` section (Step 19).
-4. Print a one-line summary: `Coverage: {coverage_pct}%, {gaps} gaps. {tests_added.length} tests added.`
+1. 读取 subagent final output。将 LAST line parse 为 JSON。
+2. 存储 `coverage_pct`（用于 Step 20 metrics）、`gaps`（user summary）、`tests_added`（用于 commit）。
+3. 将 `diagram` 原样嵌入 PR body 的 `## Test Coverage` section（Step 19）。
+4. 打印一行 summary：`Coverage: {coverage_pct}%, {gaps} gaps. {tests_added.length} tests added.`
 
-**If the subagent fails, times out, or returns invalid JSON:** Fall back to running the audit inline in the parent. Do not block /ship on subagent failure — partial results are better than none.
+**如果 subagent fails、times out 或返回 invalid JSON：**fallback 到在 parent 中 inline 运行 audit。
+不要因为 subagent failure 阻塞 /ship：partial results better than none。
 
 ---

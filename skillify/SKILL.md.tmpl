@@ -2,13 +2,12 @@
 name: skillify
 version: 1.0.0
 description: |
-  Codify the most recent successful /scrape flow into a permanent
-  browser-skill on disk. Future /scrape calls with the same intent run
-  the codified script in ~200ms instead of re-driving the page. Walks
-  back through the conversation, synthesizes script.ts + script.test.ts
-  + fixture, runs the test in a temp dir, and asks before committing.
-  Use when asked to "skillify", "codify", "save this scrape", or
-  "make this permanent". (gstack)
+  将最近一次 successful /scrape flow codify 成磁盘上的 permanent browser-skill。
+  之后相同 intent 的 /scrape calls 会运行 codified script，约 200ms 返回，
+  而不是重新驱动 page。回溯 conversation，合成 script.ts + script.test.ts + fixture，
+  在 temp dir 中运行 test，并在 committing 前询问用户。
+  当用户要求 "skillify"、"codify"、"save this scrape" 或
+  "make this permanent" 时使用。（gstack）
 allowed-tools:
   - Bash
   - Read
@@ -23,66 +22,58 @@ triggers:
 
 {{PREAMBLE}}
 
-# /skillify — codify the last scrape into a permanent skill
+# /skillify — 将上一次 scrape codify 成 permanent skill
 
-The productivity multiplier. `/scrape` discovered how to pull the data;
-`/skillify` writes it as deterministic Playwright-via-`browse-client`
-code so the next `/scrape` call on the same intent runs in ~200ms.
+这是 productivity multiplier。`/scrape` 已发现如何拉取 data；`/skillify` 将它写成
+deterministic Playwright-via-`browse-client` code，让同一 intent 的下一次 `/scrape`
+call 在约 200ms 内运行。
 
-Without this command, `/scrape` is a slow wrapper around `$B`. With it,
-every successful scrape is a one-time cost.
+没有此 command，`/scrape` 只是 `$B` 的慢速 wrapper。有了它，每次 successful scrape 都是一次性成本。
 
-## Iron contract — never write a half-broken skill to disk
+## Iron contract — 绝不把 half-broken skill 写到磁盘
 
-Skills are user-trust artifacts. A broken skill in `$B skill list` makes
-agents reach for the wrong tool and erodes confidence. This skill writes
-to a temp dir, runs the auto-generated test there, and only renames into
-the final tier path on (a) test pass + (b) explicit user approval. On
-either failure, the temp dir is removed entirely. There is no "almost
-shipped" state.
+Skills 是 user-trust artifacts。`$B skill list` 中的 broken skill 会让 agents 选择错误工具，
+并削弱信任。此 skill 先写入 temp dir，在那里运行 auto-generated test；只有在
+(a) test pass + (b) explicit user approval 都满足时，才 rename 到 final tier path。
+任一失败时，temp dir 都会被完整移除。不存在 "almost shipped" state。
 
 ---
 
-## Step 1 — Provenance guard (D1)
+## Step 1 — Provenance guard（D1）
 
-Walk back through the conversation, **at most 10 agent turns**, looking
-for the most recent `/scrape` invocation that:
+回溯 conversation，**最多 10 个 agent turns**，寻找最近一次满足条件的 `/scrape` invocation：
 
-- Was bounded (you can identify the user's intent line and the trailing
-  JSON the prototype produced)
-- Produced a JSON result the user did not subsequently invalidate
-  (e.g., did not say "that's wrong", did not ask you to retry)
+- Bounded（你能识别用户的 intent line，以及 prototype 产生的 trailing JSON）
+- 产生了用户之后未 invalidate 的 JSON result
+  （例如没有说 "that's wrong"，也没有要求你 retry）
 
-If you cannot find one, refuse with exactly this message:
+如果找不到，使用精确 message 拒绝：
 
 > "No recent /scrape result found in this conversation. Run /scrape
 > <intent> first, then say /skillify."
 
-Stop. Do not synthesize from chat fragments. Do not synthesize from a
-match-path /scrape result (matched skills are already codified — there's
-nothing to skillify).
+停止。不要从 chat fragments synthesize。不要从 match-path /scrape result synthesize
+（matched skills 已经 codified；没有需要 skillify 的东西）。
 
-If you find a candidate but the user is currently three turns past it
-discussing something unrelated, ask once before proceeding:
+如果找到 candidate，但用户当前已经在三轮后讨论无关内容，继续前先问一次：
 
 > "The last successful /scrape was '<intent line>' a few turns back.
 > Skillify that one?"
 
-A "yes" lets you continue. Anything else: refuse with the message above.
+"yes" 允许继续。其他任何回答：用上面的 message 拒绝。
 
-## Step 2 — Propose name + triggers
+## Step 2 — 提议 name + triggers
 
-From the prototype intent, extract:
+从 prototype intent 中提取：
 
-- A short skill name: lowercase letters/digits/dashes, ≤32 chars,
-  starts with a letter, no consecutive dashes. E.g.,
+- 短 skill name：lowercase letters/digits/dashes，<=32 chars，
+  以字母开头，无连续 dashes。例如：
   `lobsters-frontpage`, `gh-issue-list`, `pypi-package-stats`.
-- 3–5 trigger phrases the agent should match against in future `/scrape`
-  calls. Mix the canonical phrase ("scrape lobsters frontpage") with
-  paraphrases ("top posts on lobste.rs", "lobsters front page").
-- The host (just the hostname, e.g. `lobste.rs`).
+- 3-5 个 trigger phrases，供 agent 在未来 `/scrape` calls 中匹配。混合 canonical phrase
+  （"scrape lobsters frontpage"）和 paraphrases（"top posts on lobste.rs"、"lobsters front page"）。
+- Host（仅 hostname，例如 `lobste.rs`）。
 
-Then **AskUserQuestion** to confirm:
+然后用 **AskUserQuestion** 确认：
 
 ```
 D<N> — Skill name + tier
@@ -101,30 +92,26 @@ B) Keep "<proposed-name>" but at project tier — <project>/.gstack/browser-skil
 C) Rename it (free-form — say the new name)
 ```
 
-**Tier-shadowing check.** Before showing the question, run `$B skill list`
-and check for an existing skill at the same name. If found, add to the
-question:
+**Tier-shadowing check。**展示问题前，运行 `$B skill list`，检查是否已有同名 skill。
+如果找到，将以下内容添加到问题中：
 
 > "Note: a <tier> skill named '<name>' already exists. Picking the same
 > name at a higher tier (project > global > bundled) shadows it; picking
 > the same tier collides and will be refused at write time. Pick a
 > different name to coexist."
 
-## Step 3 — Synthesize `script.ts` (D2)
+## Step 3 — Synthesize `script.ts`（D2）
 
-**Use only the final-attempt `$B` calls** that produced the JSON the
-user accepted, plus the user's intent string. Drop:
+**只使用 final-attempt `$B` calls**：也就是产生用户接受的 JSON 的 calls，加上用户的 intent string。丢弃：
 
-- Failed selector attempts (the four selectors you tried before the
-  working one)
-- Unrelated `$B` commands from earlier turns
-- All conversation prose, summaries, your own reasoning
+- Failed selector attempts（working one 之前尝试过的四个 selectors）
+- 早先 turns 中 unrelated `$B` commands
+- 所有 conversation prose、summaries、你自己的 reasoning
 
-The script imports the SDK from `./_lib/browse-client` (a sibling copy,
-written in step 6) and exports a parser function so `script.test.ts` can
-exercise it against the bundled fixture without spinning up the daemon.
+Script 从 `./_lib/browse-client` import SDK（step 6 写入的 sibling copy），并 export parser function，
+让 `script.test.ts` 可以针对 bundled fixture exercise 它，而无需 spin up daemon。
 
-Mirror the bundled reference at `browser-skills/hackernews-frontpage/script.ts`:
+Mirror bundled reference：`browser-skills/hackernews-frontpage/script.ts`：
 
 ```ts
 import { browse } from './_lib/browse-client';
@@ -150,31 +137,27 @@ async function main(): Promise<void> {
 }
 ```
 
-The parser MUST be a pure function. If your prototype used multiple `$B`
-calls (e.g., goto + click "Next" + html), keep all of them in `main()`
-but extract the parsing into pure helpers. The fixture-replay tests in
-step 5 only exercise the pure parts.
+Parser 必须是 pure function。如果 prototype 使用了多个 `$B` calls（例如 goto + click "Next" + html），
+将它们保留在 `main()` 中，但把 parsing 提取到 pure helpers。Step 5 中的 fixture-replay tests
+只 exercise pure parts。
 
-## Step 4 — Capture the fixture
+## Step 4 — Capture fixture（捕获 fixture）
 
 ```bash
 $B goto "<TARGET_URL>"
 $B html > /tmp/skillify-fixture-$$.html
 ```
 
-The fixture filename inside the staged dir is
-`fixtures/<host-with-dashes>-<YYYY-MM-DD>.html`, where the date is today.
-E.g. `fixtures/lobste-rs-2026-04-27.html`.
+Staged dir 内的 fixture filename 是 `fixtures/<host-with-dashes>-<YYYY-MM-DD>.html`，
+date 使用今天。例如 `fixtures/lobste-rs-2026-04-27.html`。
 
-Read the file you wrote, store its contents in a variable, and use it
-when staging in step 7.
+读取你写入的 file，将其 contents 存到变量中，并在 step 7 staging 时使用。
 
-## Step 5 — Write `script.test.ts`
+## Step 5 — 写入 `script.test.ts`
 
-Mirror `browser-skills/hackernews-frontpage/script.test.ts`. The test
-must include at least one ★★ assertion — parsed output has the expected
-shape AND non-empty key fields — not a smoke ★ assertion. Smoke tests
-that only check `parseFromHtml` doesn't throw are insufficient.
+Mirror `browser-skills/hackernews-frontpage/script.test.ts`。Test 必须至少包含一个 ★★ assertion：
+parsed output 有 expected shape 且 key fields 非空，而不是 smoke ★ assertion。
+只检查 `parseFromHtml` 不 throw 的 smoke tests 不够。
 
 ```ts
 import { describe, it, expect } from 'bun:test';
@@ -200,21 +183,20 @@ describe('<name> parser', () => {
 });
 ```
 
-## Step 6 — Resolve the canonical SDK path + read it
+## Step 6 — Resolve canonical SDK path + read it
 
-The canonical SDK lives at `<gstack-install>/browse/src/browse-client.ts`.
-The bundled-skill loader walks the install tree to find it; mirror that.
+Canonical SDK 位于 `<gstack-install>/browse/src/browse-client.ts`。
+Bundled-skill loader 会 walk install tree 来找到它；mirror 这个行为。
 
-Resolve the gstack install dir. Two reliable signals (in order):
+Resolve gstack install dir。两个可靠 signals（按顺序）：
 
-1. The bundled `hackernews-frontpage` skill — look at its tier path from
-   `$B skill list` (the `bundled` row). The skill dir is
-   `<gstack-install>/browser-skills/hackernews-frontpage/`, so the install
-   dir is two `dirname` calls above its `_lib/browse-client.ts`.
-2. The active gstack skills install at `~/.claude/skills/gstack/`. Read
-   the symlink target if it's a symlink, otherwise use the path directly.
+1. Bundled `hackernews-frontpage` skill：从 `$B skill list`（`bundled` row）查看其 tier path。
+   Skill dir 是 `<gstack-install>/browser-skills/hackernews-frontpage/`，
+   因此 install dir 是其 `_lib/browse-client.ts` 往上两次 `dirname`。
+2. Active gstack skills install：`~/.claude/skills/gstack/`。如果是 symlink，读取 symlink target；
+   否则直接使用 path。
 
-Example (run as Bun, not bash, to avoid shell-redirect parsing issues):
+Example（以 Bun 运行，不要用 bash，以避免 shell-redirect parsing issues）：
 
 ```ts
 import * as fs from 'fs';
@@ -238,14 +220,14 @@ function resolveSdkPath(): string {
 const sdkContents = fs.readFileSync(resolveSdkPath(), 'utf-8');
 ```
 
-Read the SDK contents into a variable. The staging step writes it as
-`_lib/browse-client.ts` byte-identical to the canonical. Phase 1 decision
-#4 — each skill is fully self-contained, no version drift possible.
+将 SDK contents 读入变量。Staging step 会将其作为 `_lib/browse-client.ts` 写入，
+并与 canonical byte-identical。Phase 1 decision #4：每个 skill 都 fully self-contained，
+不可能发生 version drift。
 
-## Step 7 — Stage the skill (D3 atomic write)
+## Step 7 — Stage skill（D3 atomic write）
 
-Use the helper at `browse/src/browser-skill-write.ts`. Construct an inline
-TypeScript snippet (or shell out to a small Bun one-liner) that calls:
+使用 `browse/src/browser-skill-write.ts` 中的 helper。构造 inline TypeScript snippet
+（或 shell out 到一个小 Bun one-liner）来调用：
 
 ```ts
 import { stageSkill } from '<gstack-install>/browse/src/browser-skill-write';
@@ -263,8 +245,7 @@ const stagedDir = stageSkill({
 console.log(stagedDir);
 ```
 
-The SKILL.md content for `<name>` follows the Phase 1 frontmatter
-contract:
+`<name>` 的 SKILL.md content 遵循 Phase 1 frontmatter contract：
 
 ```yaml
 ---
@@ -283,11 +264,11 @@ triggers:
 
 # <Name> scraper
 
-<2-3 sentences on what the script does, what URL it hits, and what
-shape of JSON it returns. NO conversation context. NO chat fragments.
-This is a durable on-disk artifact — keep it tight.>
+<2-3 sentences，说明 script 做什么、访问哪个 URL、返回什么
+shape of JSON。NO conversation context。NO chat fragments。
+这是 durable on-disk artifact；保持简洁。>
 
-## Usage
+## Usage（用法）
 
 \`\`\`
 $ $B skill run <name>
@@ -295,53 +276,46 @@ $ $B skill run <name>
 \`\`\`
 ```
 
-Capture `stagedDir` (the path returned by `stageSkill`). You'll pass it
-to `$B skill test` next, then to `commitSkill` or `discardStaged`.
+捕获 `stagedDir`（`stageSkill` 返回的 path）。接下来把它传给 `$B skill test`，
+然后传给 `commitSkill` 或 `discardStaged`。
 
-## Step 8 — Run `$B skill test` against the staged dir
+## Step 8 — 针对 staged dir 运行 `$B skill test`
 
 ```bash
 $B skill test "<name>" --dir "<stagedDir>"
 ```
 
-If `$B skill test` does not yet accept `--dir`, fall back to invoking the
-test runner directly against the staged path:
+如果 `$B skill test` 尚不接受 `--dir`，fallback 到直接针对 staged path 调用 test runner：
 
 ```bash
 ( cd "<stagedDir>" && bun test script.test.ts )
 ```
 
-If the test fails:
+如果 test 失败：
 
-1. Read the test output. If the failure is a fixable parser bug,
-   rewrite `script.ts` and `script.test.ts` (still inside the staged
-   dir) and retry — at most twice. Show the diff to the user before
-   each retry.
-2. If still failing after two retries, OR the failure is an
-   environmental issue (SDK import, daemon connection):
+1. 阅读 test output。如果 failure 是可修 parser bug，重写 `script.ts` 和 `script.test.ts`
+   （仍在 staged dir 内）并 retry：最多两次。每次 retry 前向用户展示 diff。
+2. 如果两次 retry 后仍 failing，或 failure 是 environmental issue（SDK import、daemon connection）：
 
    ```ts
    import { discardStaged } from '<gstack-install>/browse/src/browser-skill-write';
    discardStaged('<stagedDir>');
    ```
 
-   Report the failure to the user, show them the staged `script.ts` for
-   reference, and stop. No on-disk artifact.
+   向用户报告 failure，展示 staged `script.ts` 供 reference，然后停止。不会留下 on-disk artifact。
 
-## Step 9 — Approval gate
+## Step 9 — Approval gate（批准门）
 
-Tests passed. Now ask the user before committing:
+Tests passed。现在 committing 前询问用户：
 
 ```
 D<N> — Commit skill "<name>" at <resolved-tier-path>?
 Project/branch/task: codified /scrape "<intent>" — tests pass against fixture.
-ELI10: The script ran clean against the snapshot we captured. Saying yes
-moves the staged folder into ~/.gstack/browser-skills/ where /scrape
-will find it next time. Saying no removes the staged folder and nothing
-lands on disk.
-Stakes if we pick wrong: yes commits an artifact you have to manually rm
-later if you regret it ($B skill rm <name> --global). No throws away
-~30s of synthesis work.
+ELI10: Script 已经在我们捕获的 snapshot 上 clean run。选择 yes 会把 staged folder
+移入 ~/.gstack/browser-skills/，下次 /scrape 会在那里找到它。选择 no 会移除
+staged folder，且不会有任何东西落盘。
+Stakes if we pick wrong: yes 会 commit 一个 artifact；如果之后后悔，需要手动 rm
+（$B skill rm <name> --global）。No 会丢掉约 30s synthesis work。
 Recommendation: A — tests passed, the script is self-contained, this is
 the productivity payoff for the prototype.
 Note: options differ in kind, not coverage — no completeness score.
@@ -350,13 +324,12 @@ B) Look at the script first (I'll print SKILL.md + script.ts and re-ask)
 C) Discard — don't commit
 ```
 
-If the user picks B, print the staged `SKILL.md` and `script.ts` (NOT
-the fixture or _lib/), then re-ask the same A/B/C question (without B
-this time — they already saw it).
+如果用户选择 B，打印 staged `SKILL.md` 和 `script.ts`（不要打印 fixture 或 _lib/），
+然后重新询问同一个 A/B/C question（这次不带 B：他们已经看过了）。
 
-## Step 10 — Commit (atomic) or discard
+## Step 10 — Commit（atomic）或 discard
 
-If the user approved:
+如果用户 approved：
 
 ```ts
 import { commitSkill } from '<gstack-install>/browse/src/browser-skill-write';
@@ -368,67 +341,59 @@ const dest = commitSkill({
 console.log(`Committed: ${dest}`);
 ```
 
-If `commitSkill` throws "already exists" (tier-shadowing collision the
-user dismissed in step 2), report and ask whether to:
+如果 `commitSkill` throws "already exists"（用户在 step 2 忽略的 tier-shadowing collision），
+报告并询问是否要：
 
-- Pick a different name (back to step 2)
-- `$B skill rm <name>` then retry
+- 选择 different name（回到 step 2）
+- `$B skill rm <name>` 后 retry
 - Discard
 
-If the user rejected in step 9:
+如果用户在 step 9 rejected：
 
 ```ts
 import { discardStaged } from '<gstack-install>/browse/src/browser-skill-write';
 discardStaged('<stagedDir>');
 ```
 
-Report: "Discarded. No skill was written to disk."
+Report："Discarded. No skill was written to disk."
 
 ## Step 11 — Confirm + verify
 
-After a successful commit, run one verification:
+Successful commit 后，运行一次 verification：
 
 ```bash
 $B skill list | grep <name>
 $B skill run <name>    # should match the JSON the prototype produced
 ```
 
-If the post-commit run does not match the prototype output, something
-in synthesis drifted. Surface this to the user — they may want to
-`$B skill rm <name>` and retry. Do NOT silently roll back; the user
-deserves to see the discrepancy.
+如果 post-commit run 不匹配 prototype output，说明 synthesis 中有 drift。向用户明确说明：
+他们可能想要 `$B skill rm <name>` 并 retry。不要 silent rollback；用户应该看到 discrepancy。
 
-End the skill with one line: "Skill '<name>' committed at <tier>. Future
+用一行结束 skill："Skill '<name>' committed at <tier>. Future
 /scrape calls matching '<canonical-trigger>' will run in ~200ms."
 
 ---
 
-## Limits (be honest)
+## Limits（be honest）
 
-- **Bun runtime required.** The codified skill runs as a Bun process
-  (`bun run script.ts`). Phase 1 design carry-over (Codex finding #7).
-  Real fix lands in Phase 4 (self-contained binary or Node fallback).
-  For now: the skill works on any machine that has gstack installed,
-  which means it has Bun.
-- **Fixture-replay tests are point-in-time.** When the target site
-  rotates HTML, the fixture goes stale and the test passes against an
-  outdated snapshot. Phase 4 will add fixture-staleness detection.
-- **Synthesis is best-effort.** You're writing a script from your own
-  conversation memory. If the prototype was complex (multi-page, JS
-  hydration, lazy load) the codified script may need a hand-edit before
-  it's reliable. The post-commit verify step catches obvious drift.
-- **Single-target only.** One `$B goto` URL per skill. Multi-page
-  crawls are out of scope — write a separate skill per target, or
-  parameterize via `args:` if the URL pattern is regular.
+- **需要 Bun runtime。**Codified skill 作为 Bun process 运行（`bun run script.ts`）。
+  Phase 1 design carry-over（Codex finding #7）。真正 fix 会在 Phase 4 落地
+  （self-contained binary 或 Node fallback）。目前：skill 可在任何安装了 gstack 的机器上工作，
+  也就意味着它有 Bun。
+- **Fixture-replay tests 是 point-in-time。**当 target site 轮换 HTML 时，fixture 会 stale，
+  test 会 against outdated snapshot pass。Phase 4 会添加 fixture-staleness detection。
+- **Synthesis 是 best-effort。**你是从自己的 conversation memory 写 script。如果 prototype 很复杂
+  （multi-page、JS hydration、lazy load），codified script 可能需要 hand-edit 才可靠。
+  Post-commit verify step 会捕捉明显 drift。
+- **Single-target only。**每个 skill 一个 `$B goto` URL。Multi-page crawls 不在 scope：
+  为每个 target 写 separate skill，或在 URL pattern 规则时通过 `args:` parameterize。
 
-## What this skill does NOT do
+## 此 skill 不做什么
 
-- Codify match-path /scrape results (matched skills are already codified)
-- Codify mutating flows (those are /automate's job — Phase 2 P0)
-- Run skills (that's `$B skill run` — codified skills are run via /scrape's
-  match path or directly)
-- Edit existing skills ($EDITOR + the skill dir is the surface — `$B skill
-  show <name>` finds the path)
-- Tombstone or remove ($B skill rm)
+- Codify match-path /scrape results（matched skills 已经 codified）
+- Codify mutating flows（那是 /automate 的工作：Phase 2 P0）
+- Run skills（那是 `$B skill run`：codified skills 通过 /scrape 的 match path 或直接运行）
+- Edit existing skills（surface 是 $EDITOR + skill dir；`$B skill show <name>` 可找到 path）
+- Tombstone 或 remove（$B skill rm）
 
 {{LEARNINGS_LOG}}

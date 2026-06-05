@@ -1,72 +1,52 @@
-# gstack development
+# gstack development（gstack 开发）
 
-## Commands
-
-```bash
-bun install          # install dependencies
-bun test             # run free tests (browse + snapshot + skill validation)
-bun run test:evals   # run paid evals: LLM judge + E2E (diff-based, ~$4/run max)
-bun run test:evals:all  # run ALL paid evals regardless of diff
-bun run test:gate    # run gate-tier tests only (CI default, blocks merge)
-bun run test:periodic  # run periodic-tier tests only (weekly cron / manual)
-bun run test:e2e     # run E2E tests only (diff-based, ~$3.85/run max)
-bun run test:e2e:all # run ALL E2E tests regardless of diff
-bun run eval:select  # show which tests would run based on current diff
-bun run dev <cmd>    # run CLI in dev mode, e.g. bun run dev goto https://example.com
-bun run build        # gen docs + compile binaries
-bun run gen:skill-docs  # regenerate SKILL.md files from templates
-bun run skill:check  # health dashboard for all skills
-bun run dev:skill    # watch mode: auto-regen + validate on change
-bun run eval:list    # list all eval runs from ~/.gstack-dev/evals/
-bun run eval:compare # compare two eval runs (auto-picks most recent)
-bun run eval:summary # aggregate stats across all eval runs
-bun run slop          # full slop-scan report (all files)
-bun run slop:diff     # slop findings in files changed on this branch only
-```
-
-`test:evals` requires `ANTHROPIC_API_KEY`. Codex E2E tests (`test/codex-e2e.test.ts`)
-use Codex's own auth from `~/.codex/` config — no `OPENAI_API_KEY` env var needed.
-
-**Env keys in Conductor workspaces.** The `GSTACK_*` env-shim (v1.39.2.0+,
-`lib/conductor-env-shim.ts`) promotes `GSTACK_ANTHROPIC_API_KEY` /
-`GSTACK_OPENAI_API_KEY` to their canonical names inside gstack's TS binaries.
-Tests run through gstack entrypoints inherit this promotion automatically.
-Don't echo the key value to stdout, logs, or shell history. When passing to a
-test's Agent SDK, do NOT pass `env: {...}` to `runAgentSdkTest` — the SDK's
-auth pipeline doesn't pick up the key the same way when env is supplied as an
-object (confirmed failure mode). Mutate `process.env.ANTHROPIC_API_KEY`
-ambiently before the call and restore in `finally`.
-
-E2E tests stream progress in real-time (tool-by-tool via `--output-format stream-json
---verbose`). Results are persisted to `~/.gstack-dev/evals/` with auto-comparison
-against the previous run.
-
-**Diff-based test selection:** `test:evals` and `test:e2e` auto-select tests based
-on `git diff` against the base branch. Each test declares its file dependencies in
-`test/helpers/touchfiles.ts`. Changes to global touchfiles (session-runner, eval-store,
-touchfiles.ts itself) trigger all tests. Use `EVALS_ALL=1` or the `:all` script
-variants to force all tests. Run `eval:select` to preview which tests would run.
-
-**Two-tier system:** Tests are classified as `gate` or `periodic` in `E2E_TIERS`
-(in `test/helpers/touchfiles.ts`). CI runs only gate tests (`EVALS_TIER=gate`);
-periodic tests run weekly via cron or manually. Use `EVALS_TIER=gate` or
-`EVALS_TIER=periodic` to filter. When adding new E2E tests, classify them:
-1. Safety guardrail or deterministic functional test? -> `gate`
-2. Quality benchmark, Opus model test, or non-deterministic? -> `periodic`
-3. Requires external service (Codex, Gemini)? -> `periodic`
-
-## Testing
+## Commands（命令）
 
 ```bash
-bun test             # run before every commit — free, <2s
-bun run test:evals   # run before shipping — paid, diff-based (~$4/run max)
+bun install          # 安装依赖
+bun test             # 运行免费测试（browse + snapshot + skill validation）
+bun run test:evals   # 运行付费 evals：LLM judge + E2E（基于 diff，最多约 ~$4/run）
+bun run test:evals:all  # 无视 diff，运行所有付费 evals
+bun run test:gate    # 仅运行 gate-tier tests（CI 默认，阻止 merge）
+bun run test:periodic  # 仅运行 periodic-tier tests（weekly cron / manual）
+bun run test:e2e     # 仅运行 E2E tests（基于 diff，最多约 ~$3.85/run）
+bun run test:e2e:all # 无视 diff，运行所有 E2E tests
+bun run eval:select  # 根据当前 diff 显示会运行哪些 tests
+bun run dev <cmd>    # 以 dev mode 运行 CLI，例如 bun run dev goto https://example.com
+bun run build        # 生成 docs + 编译 binaries
+bun run gen:skill-docs  # 从 templates 重新生成 SKILL.md files
+bun run skill:check  # 所有 skills 的 health dashboard
+bun run dev:skill    # watch mode：变更时自动 regen + validate
+bun run eval:list    # 列出 ~/.gstack-dev/evals/ 中的所有 eval runs
+bun run eval:compare # 比较两个 eval runs（自动选择最近两次）
+bun run eval:summary # 聚合所有 eval runs 的 stats
+bun run slop          # 完整 slop-scan report（所有文件）
+bun run slop:diff     # 仅检查当前 branch changed files 的 slop findings
 ```
 
-`bun test` runs skill validation, gen-skill-docs quality checks, and browse
-integration tests. `bun run test:evals` runs LLM-judge quality evals and E2E
-tests via `claude -p`. Both must pass before creating a PR.
+`test:evals` 需要 `ANTHROPIC_API_KEY`。Codex E2E tests（`test/codex-e2e.test.ts`）使用 `~/.codex/` config 中 Codex 自己的 auth，不需要 `OPENAI_API_KEY` env var。
 
-## Project structure
+**Conductor workspaces 中的 env keys。** `GSTACK_*` env-shim（v1.39.2.0+，`lib/conductor-env-shim.ts`）会在 gstack 的 TS binaries 内把 `GSTACK_ANTHROPIC_API_KEY` / `GSTACK_OPENAI_API_KEY` 提升为 canonical names。通过 gstack entrypoints 运行的 tests 会自动继承这个提升。不要把 key value echo 到 stdout、logs 或 shell history。传给 test 的 Agent SDK 时，不要把 `env: {...}` 传给 `runAgentSdkTest`，因为以 object 形式提供 env 时，SDK 的 auth pipeline 不会以同样方式获取 key（已确认的 failure mode）。应在调用前 ambiently 修改 `process.env.ANTHROPIC_API_KEY`，并在 `finally` 中 restore。
+
+E2E tests 会实时 stream progress（通过 `--output-format stream-json --verbose`，逐 tool 输出）。结果持久化到 `~/.gstack-dev/evals/`，并自动与上一次 run 比较。
+
+**Diff-based test selection：**`test:evals` 和 `test:e2e` 会根据相对 base branch 的 `git diff` 自动选择 tests。每个 test 在 `test/helpers/touchfiles.ts` 中声明文件依赖。global touchfiles（session-runner、eval-store、touchfiles.ts 本身）的变更会触发所有 tests。使用 `EVALS_ALL=1` 或 `:all` script variants 可强制运行所有 tests。运行 `eval:select` 可预览会运行哪些 tests。
+
+**Two-tier system：**Tests 在 `E2E_TIERS`（位于 `test/helpers/touchfiles.ts`）中分类为 `gate` 或 `periodic`。CI 只运行 gate tests（`EVALS_TIER=gate`）；periodic tests 每周通过 cron 或手动运行。使用 `EVALS_TIER=gate` 或 `EVALS_TIER=periodic` 过滤。新增 E2E tests 时这样分类：
+1. Safety guardrail 或 deterministic functional test？-> `gate`
+2. Quality benchmark、Opus model test 或 non-deterministic？-> `periodic`
+3. 需要 external service（Codex、Gemini）？-> `periodic`
+
+## Testing（测试）
+
+```bash
+bun test             # 每次 commit 前运行，免费，<2s
+bun run test:evals   # ship 前运行，付费，基于 diff（最多约 $4/run）
+```
+
+`bun test` 会运行 skill validation、gen-skill-docs quality checks 和 browse integration tests。`bun run test:evals` 会运行 LLM-judge quality evals，并通过 `claude -p` 运行 E2E tests。创建 PR 前两者都必须通过。
+
+## Project structure（项目结构）
 
 ```
 gstack/
@@ -76,30 +56,30 @@ gstack/
 │   │   └── snapshot.ts  # SNAPSHOT_FLAGS metadata array
 │   ├── test/        # Integration tests + fixtures
 │   └── dist/        # Compiled binary
-├── hosts/           # Typed host configs (one per AI agent)
+├── hosts/           # Typed host configs（每个 AI agent 一个）
 │   ├── claude.ts    # Primary host config
 │   ├── codex.ts, factory.ts, kiro.ts  # Existing hosts
 │   ├── opencode.ts, slate.ts, cursor.ts, openclaw.ts  # IDE hosts
 │   ├── hermes.ts, gbrain.ts  # Agent runtime hosts
-│   └── index.ts     # Registry: exports all, derives Host type
+│   └── index.ts     # Registry：exports all，derives Host type
 ├── scripts/         # Build + DX tooling
-│   ├── gen-skill-docs.ts  # Template → SKILL.md generator (config-driven)
+│   ├── gen-skill-docs.ts  # Template -> SKILL.md generator（config-driven）
 │   ├── host-config.ts     # HostConfig interface + validator
-│   ├── host-config-export.ts  # Shell bridge for setup script
-│   ├── host-adapters/     # Host-specific adapters (OpenClaw tool mapping)
-│   ├── resolvers/   # Template resolver modules (preamble, design, review, gbrain, etc.)
+│   ├── host-config-export.ts  # setup script 的 shell bridge
+│   ├── host-adapters/     # Host-specific adapters（OpenClaw tool mapping）
+│   ├── resolvers/   # Template resolver modules（preamble、design、review、gbrain 等）
 │   ├── skill-check.ts     # Health dashboard
 │   └── dev-skill.ts       # Watch mode
 ├── test/            # Skill validation + eval tests
-│   ├── helpers/     # skill-parser.ts, session-runner.ts, llm-judge.ts, eval-store.ts
-│   ├── fixtures/    # Ground truth JSON, planted-bug fixtures, eval baselines
-│   ├── skill-validation.test.ts  # Tier 1: static validation (free, <1s)
-│   ├── gen-skill-docs.test.ts    # Tier 1: generator quality (free, <1s)
-│   ├── skill-llm-eval.test.ts   # Tier 3: LLM-as-judge (~$0.15/run)
-│   └── skill-e2e-*.test.ts       # Tier 2: E2E via claude -p (~$3.85/run, split by category)
-├── qa-only/         # /qa-only skill (report-only QA, no fixes)
-├── plan-design-review/  # /plan-design-review skill (report-only design audit)
-├── design-review/    # /design-review skill (design audit + fix loop)
+│   ├── helpers/     # skill-parser.ts、session-runner.ts、llm-judge.ts、eval-store.ts
+│   ├── fixtures/    # Ground truth JSON、planted-bug fixtures、eval baselines
+│   ├── skill-validation.test.ts  # Tier 1：static validation（free，<1s）
+│   ├── gen-skill-docs.test.ts    # Tier 1：generator quality（free，<1s）
+│   ├── skill-llm-eval.test.ts   # Tier 3：LLM-as-judge（~$0.15/run）
+│   └── skill-e2e-*.test.ts       # Tier 2：E2E via claude -p（~$3.85/run，按 category 拆分）
+├── qa-only/         # /qa-only skill（report-only QA，不修复）
+├── plan-design-review/  # /plan-design-review skill（report-only design audit）
+├── design-review/    # /design-review skill（design audit + fix loop）
 ├── ship/            # Ship workflow skill
 ├── review/          # PR review skill
 ├── plan-ceo-review/ # /plan-ceo-review skill
@@ -113,658 +93,349 @@ gstack/
 ├── investigate/     # /investigate skill (systematic root-cause debugging)
 ├── spec/            # /spec skill (five-phase spec → GitHub issue, optional agent spawn, /ship auto-closes)
 ├── retro/           # Retrospective skill (includes /retro global cross-project mode)
-├── bin/             # CLI utilities (gstack-repo-mode, gstack-slug, gstack-config, etc.)
-├── document-release/ # /document-release skill (post-ship doc updates + Diataxis coverage map)
-├── document-generate/ # /document-generate skill (Diataxis doc generator: tutorial/how-to/reference/explanation)
-├── cso/             # /cso skill (OWASP Top 10 + STRIDE security audit)
-├── design-consultation/ # /design-consultation skill (design system from scratch)
-├── design-shotgun/  # /design-shotgun skill (visual design exploration)
-├── open-gstack-browser/  # /open-gstack-browser skill (launch GStack Browser)
-├── connect-chrome/  # symlink → open-gstack-browser (backwards compat)
-├── design/          # Design binary CLI (GPT Image API)
-│   ├── src/         # CLI + commands (generate, variants, compare, serve, etc.)
+├── bin/             # CLI utilities（gstack-repo-mode、gstack-slug、gstack-config 等）
+├── document-release/ # /document-release skill（post-ship doc updates + Diataxis coverage map）
+├── document-generate/ # /document-generate skill（Diataxis doc generator：tutorial/how-to/reference/explanation）
+├── cso/             # /cso skill（OWASP Top 10 + STRIDE security audit）
+├── design-consultation/ # /design-consultation skill（从零构建设计系统）
+├── design-shotgun/  # /design-shotgun skill（visual design exploration）
+├── open-gstack-browser/  # /open-gstack-browser skill（启动 GStack Browser）
+├── connect-chrome/  # symlink -> open-gstack-browser（backwards compat）
+├── design/          # Design binary CLI（GPT Image API）
+│   ├── src/         # CLI + commands（generate、variants、compare、serve 等）
 │   ├── test/        # Integration tests
 │   └── dist/        # Compiled binary
-├── extension/       # Chrome extension (side panel + activity feed + CSS inspector)
-├── lib/             # Shared libraries (worktree.ts)
+├── extension/       # Chrome extension（side panel + activity feed + CSS inspector）
+├── lib/             # Shared libraries（worktree.ts）
 ├── docs/designs/    # Design documents
-├── setup-deploy/    # /setup-deploy skill (one-time deploy config)
+├── setup-deploy/    # /setup-deploy skill（one-time deploy config）
 ├── .github/         # CI workflows + Docker image
-│   ├── workflows/   # evals.yml (E2E on Ubicloud), skill-docs.yml, actionlint.yml
-│   └── docker/      # Dockerfile.ci (pre-baked toolchain + Playwright/Chromium)
-├── contrib/         # Contributor-only tools (never installed for users)
+│   ├── workflows/   # evals.yml（E2E on Ubicloud）、skill-docs.yml、actionlint.yml
+│   └── docker/      # Dockerfile.ci（pre-baked toolchain + Playwright/Chromium）
+├── contrib/         # Contributor-only tools（永不为用户安装）
 │   └── add-host/    # /gstack-contrib-add-host skill
-├── setup            # One-time setup: build binary + symlink skills
-├── SKILL.md         # Generated from SKILL.md.tmpl (don't edit directly)
-├── SKILL.md.tmpl    # Template: edit this, run gen:skill-docs
-├── ETHOS.md         # Builder philosophy (Boil the Lake, Search Before Building)
-└── package.json     # Build scripts for browse
+├── setup            # One-time setup：build binary + symlink skills
+├── SKILL.md         # 从 SKILL.md.tmpl 生成（不要直接编辑）
+├── SKILL.md.tmpl    # Template：编辑此文件，运行 gen:skill-docs
+├── ETHOS.md         # Builder philosophy（Boil the Lake、Search Before Building）
+└── package.json     # browse 的 build scripts
 ```
 
-## SKILL.md workflow
+## SKILL.md workflow（SKILL.md 工作流）
 
-SKILL.md files are **generated** from `.tmpl` templates. To update docs:
+SKILL.md files 由 `.tmpl` templates **生成**。更新 docs 时：
 
-1. Edit the `.tmpl` file (e.g. `SKILL.md.tmpl` or `browse/SKILL.md.tmpl`)
-2. Run `bun run gen:skill-docs` (or `bun run build` which does it automatically)
-3. Commit both the `.tmpl` and generated `.md` files
+1. 编辑 `.tmpl` file（例如 `SKILL.md.tmpl` 或 `browse/SKILL.md.tmpl`）
+2. 运行 `bun run gen:skill-docs`（或运行会自动执行它的 `bun run build`）
+3. 同时 commit `.tmpl` 和生成的 `.md` files
 
-To add a new browse command: add it to `browse/src/commands.ts` and rebuild.
-To add a snapshot flag: add it to `SNAPSHOT_FLAGS` in `browse/src/snapshot.ts` and rebuild.
+新增 browse command：添加到 `browse/src/commands.ts` 并 rebuild。新增 snapshot flag：添加到 `browse/src/snapshot.ts` 中的 `SNAPSHOT_FLAGS` 并 rebuild。
 
-**Token ceiling:** Generated SKILL.md files trip a warning above 160KB (~40K tokens).
-This is a "watch for feature bloat" guardrail, not a hard gate. Modern flagship
-models have 200K-1M context windows, so 40K is 4-20% of window, and prompt caching
-makes the marginal cost of larger skills small. The ceiling exists to catch runaway
-preamble/resolver growth, not to force compression on carefully-tuned big skills
-(`ship`, `plan-ceo-review`, `office-hours` legitimately pack 25-35K tokens of
-behavior). If you blow past 40K, the right fix is usually: (1) look at WHAT grew,
-(2) if one resolver added 10K+ in a single PR, question whether it belongs inline
-or as a reference doc, (3) only compress carefully-tuned prose as a last resort —
-cuts to the coverage audit, review army, or voice directive have real quality cost.
+**Token ceiling：**生成的 SKILL.md files 超过 160KB（约 40K tokens）会触发 warning。这是 “watch for feature bloat” guardrail，不是 hard gate。现代旗舰 models 有 200K-1M context windows，因此 40K 只占 window 的 4-20%，prompt caching 也让更大 skills 的 marginal cost 很小。ceiling 用来捕捉 runaway preamble/resolver growth，不是强迫 carefully-tuned big skills 压缩（`ship`、`plan-ceo-review`、`office-hours` 合理地包含 25-35K tokens 的 behavior）。如果超过 40K，正确修复通常是：（1）看清楚是什么增长了；（2）如果某个 resolver 在一个 PR 中增加 10K+，质疑它是否应该 inline 或改成 reference doc；（3）只有作为 last resort 才压缩 carefully-tuned prose，因为删减 coverage audit、review army 或 voice directive 会有真实 quality cost。
 
-**Merge conflicts on SKILL.md files:** NEVER resolve conflicts on generated SKILL.md
-files by accepting either side. Instead: (1) resolve conflicts on the `.tmpl` templates
-and `scripts/gen-skill-docs.ts` (the sources of truth), (2) run `bun run gen:skill-docs`
-to regenerate all SKILL.md files, (3) stage the regenerated files. Accepting one side's
-generated output silently drops the other side's template changes.
+**SKILL.md files 的 merge conflicts：**永远不要通过接受任一 side 来解决 generated SKILL.md files 的 conflicts。应当：（1）解决 `.tmpl` templates 和 `scripts/gen-skill-docs.ts`（sources of truth）上的 conflicts；（2）运行 `bun run gen:skill-docs` 重新生成所有 SKILL.md files；（3）stage regenerated files。接受某一 side 的 generated output 会静默丢掉另一 side 的 template changes。
 
-## Platform-agnostic design
+## Platform-agnostic design（平台无关设计）
 
-Skills must NEVER hardcode framework-specific commands, file patterns, or directory
-structures. Instead:
+Skills 永远不要 hardcode framework-specific commands、file patterns 或 directory structures。应当：
 
-1. **Read CLAUDE.md** for project-specific config (test commands, eval commands, etc.)
-2. **If missing, AskUserQuestion** — let the user tell you or let gstack search the repo
-3. **Persist the answer to CLAUDE.md** so we never have to ask again
+1. **读取 CLAUDE.md** 获取 project-specific config（test commands、eval commands 等）
+2. **如果缺失，AskUserQuestion**，让用户告诉你，或让 gstack 搜索 repo
+3. **把答案持久化到 CLAUDE.md**，以后不必再问
 
-This applies to test commands, eval commands, deploy commands, and any other
-project-specific behavior. The project owns its config; gstack reads it.
+这适用于 test commands、eval commands、deploy commands，以及任何 project-specific behavior。项目拥有自己的 config；gstack 读取它。
 
-## Writing SKILL templates
+## Writing SKILL templates（编写 SKILL templates）
 
-SKILL.md.tmpl files are **prompt templates read by Claude**, not bash scripts.
-Each bash code block runs in a separate shell — variables do not persist between blocks.
+SKILL.md.tmpl files 是 **Claude 读取的 prompt templates**，不是 bash scripts。每个 bash code block 都在独立 shell 中运行，variables 不会在 blocks 之间持久化。
 
-Rules:
-- **Use natural language for logic and state.** Don't use shell variables to pass
-  state between code blocks. Instead, tell Claude what to remember and reference
-  it in prose (e.g., "the base branch detected in Step 0").
-- **Don't hardcode branch names.** Detect `main`/`master`/etc dynamically via
-  `gh pr view` or `gh repo view`. Use `{{BASE_BRANCH_DETECT}}` for PR-targeting
-  skills. Use "the base branch" in prose, `<base>` in code block placeholders.
-- **Keep bash blocks self-contained.** Each code block should work independently.
-  If a block needs context from a previous step, restate it in the prose above.
-- **Express conditionals as English.** Instead of nested `if/elif/else` in bash,
-  write numbered decision steps: "1. If X, do Y. 2. Otherwise, do Z."
+Rules（规则）:
+- **用自然语言表达 logic 和 state。**不要用 shell variables 在 code blocks 之间传 state。改为告诉 Claude 要记住什么，并在 prose 中引用它（例如 “the base branch detected in Step 0”）。
+- **不要 hardcode branch names。**通过 `gh pr view` 或 `gh repo view` 动态检测 `main`/`master` 等。PR-targeting skills 使用 `{{BASE_BRANCH_DETECT}}`。prose 中使用 “the base branch”，code block placeholders 中使用 `<base>`。
+- **保持 bash blocks self-contained。**每个 code block 都应独立工作。如果 block 需要上一 step 的 context，请在上方 prose 中重述。
+- **用英文表达 conditionals。**不要在 bash 中嵌套 `if/elif/else`，写 numbered decision steps：“1. If X, do Y. 2. Otherwise, do Z.”
 
-## Writing style (V1)
+## Writing style（V1 写作风格）
 
-Default output from every tier-≥2 skill follows the Writing Style section in
-`scripts/resolvers/preamble.ts`: jargon glossed on first use (curated list in
-`scripts/jargon-list.json`, baked at gen-skill-docs time), questions framed in
-outcome terms ("what breaks for your users if...") not implementation terms,
-short sentences, decisions close with user impact. Power users who want the
-tighter V0 prose set `gstack-config set explain_level terse` (binary switch,
-no middle mode). See `docs/designs/PLAN_TUNING_V1.md` for the full design
-rationale. The review pacing overhaul that originally tried to ride alongside
-writing-style was extracted to V1.1 — see `docs/designs/PACING_UPDATES_V0.md`.
+每个 tier-≥2 skill 的默认输出遵循 `scripts/resolvers/preamble.ts` 中的 Writing Style section：首次使用时解释 jargon（精选列表在 `scripts/jargon-list.json`，gen-skill-docs time baked in），问题用 outcome terms 表述（“what breaks for your users if...”）而不是 implementation terms，短句，decision 以 user impact 收尾。想使用更紧凑 V0 prose 的 power users 可设置 `gstack-config set explain_level terse`（binary switch，无 middle mode）。完整 design rationale 见 `docs/designs/PLAN_TUNING_V1.md`。最初尝试与 writing-style 并行的 review pacing overhaul 已抽出为 V1.1，见 `docs/designs/PACING_UPDATES_V0.md`。
 
-## Browser interaction
+## Browser interaction（浏览器交互）
 
-When you need to interact with a browser (QA, dogfooding, cookie setup), use the
-`/browse` skill or run the browse binary directly via `$B <command>`. NEVER use
-`mcp__claude-in-chrome__*` tools — they are slow, unreliable, and not what this
-project uses.
+需要与浏览器交互时（QA、dogfooding、cookie setup），使用 `/browse` skill，或通过 `$B <command>` 直接运行 browse binary。永远不要使用 `mcp__claude-in-chrome__*` tools，它们慢、不可靠，也不是本项目使用的路径。
 
-**Sidebar architecture:** Before modifying `sidepanel.js`, `background.js`,
-`content.js`, `terminal-agent.ts`, or sidebar-related server endpoints,
-read `docs/designs/SIDEBAR_MESSAGE_FLOW.md`. The sidebar has one primary
-surface — the **Terminal** pane (interactive `claude` PTY) — with
-Activity / Refs / Inspector as debug overlays behind the footer's
-`debug` toggle. The chat queue path was ripped once the PTY proved out;
-`sidebar-agent.ts` and the `/sidebar-command` / `/sidebar-chat` /
-`/sidebar-agent/event` endpoints are gone. The doc covers the WS auth
-flow, dual-token model, and threat-model boundary — silent failures
-here usually trace to not understanding the cross-component flow.
+**Sidebar architecture：**修改 `sidepanel.js`、`background.js`、`content.js`、`terminal-agent.ts` 或 sidebar-related server endpoints 前，先读 `docs/designs/SIDEBAR_MESSAGE_FLOW.md`。sidebar 只有一个 primary surface：**Terminal** pane（interactive `claude` PTY）；Activity / Refs / Inspector 是 footer `debug` toggle 后面的 debug overlays。PTY 证明可行后，chat queue path 已被移除；`sidebar-agent.ts` 和 `/sidebar-command` / `/sidebar-chat` / `/sidebar-agent/event` endpoints 已不存在。该文档覆盖 WS auth flow、dual-token model 和 threat-model boundary；这里的 silent failures 通常源于不理解 cross-component flow。
 
-**Embedder terminal-agent ownership** (v1.42.1.0+, identity-based kill v1.44.0.0+).
-`buildFetchHandler` in `browse/src/server.ts` accepts `ServerConfig.ownsTerminalAgent?:
-boolean` (default `true`). When `true`, factory shutdown runs the full teardown:
-identity-based kill via `killAgentByRecord(readAgentRecord(stateDir))` from
-`browse/src/terminal-agent-control.ts` plus `safeUnlinkQuiet` on
-`<stateDir>/terminal-port`, `<stateDir>/terminal-internal-token`, and
-`<stateDir>/terminal-agent-pid` (the per-boot agent record introduced in v1.44).
-Embedders (e.g. the gbrowser phoenix overlay) that pre-launch their own PTY
-server must pass `false` so their discovery files survive gstack teardown cycles.
-The flag is the third caller-owned teardown gate in `ServerConfig` (alongside
-`xvfb?` and `proxyBridge?`); polarity is inverted (explicit bool vs presence) and
-documented in the field's JSDoc. CLI `start()` always passes `true` explicitly —
-the static-grep test in `browse/test/server-embedder-terminal-port.test.ts` fails
-CI if a refactor drops it. Pre-v1.44 used `pkill -f terminal-agent\.ts` (regex
-match) which would kill sibling gstack sessions on the same host; the new
-`browse/test/terminal-agent-pid-identity.test.ts` static-grep tripwire fails CI
-if any source file re-introduces `pkill ... terminal-agent` or `spawnSync('pkill', ...)`.
+**Embedder terminal-agent ownership**（v1.42.1.0+，identity-based kill v1.44.0.0+）。`browse/src/server.ts` 中的 `buildFetchHandler` 接受 `ServerConfig.ownsTerminalAgent?: boolean`（默认 `true`）。当它为 `true` 时，factory shutdown 会运行完整 teardown：通过 `browse/src/terminal-agent-control.ts` 中的 `killAgentByRecord(readAgentRecord(stateDir))` 做 identity-based kill，并对 `<stateDir>/terminal-port`、`<stateDir>/terminal-internal-token`、`<stateDir>/terminal-agent-pid`（v1.44 引入的 per-boot agent record）运行 `safeUnlinkQuiet`。预启动自己 PTY server 的 embedders（例如 gbrowser phoenix overlay）必须传 `false`，让 discovery files 在 gstack teardown cycles 后仍然保留。该 flag 是 `ServerConfig` 中第三个 caller-owned teardown gate（与 `xvfb?` 和 `proxyBridge?` 并列）；polarity 反转（explicit bool vs presence），并在字段 JSDoc 中记录。CLI `start()` 始终显式传 `true`；如果重构丢掉它，`browse/test/server-embedder-terminal-port.test.ts` 中的 static-grep test 会让 CI 失败。v1.44 前使用 `pkill -f terminal-agent\.ts`（regex match），会杀掉同 host 上的 sibling gstack sessions；新的 `browse/test/terminal-agent-pid-identity.test.ts` static-grep tripwire 会在任何 source file 重新引入 `pkill ... terminal-agent` 或 `spawnSync('pkill', ...)` 时让 CI 失败。
 
-**WebSocket auth uses Sec-WebSocket-Protocol, not cookies.** Browsers
-can't set `Authorization` on a WebSocket upgrade, but they CAN set
-`Sec-WebSocket-Protocol` via `new WebSocket(url, [token])`. The agent
-reads it, validates against `validTokens`, and MUST echo the protocol
-back in the upgrade response — without the echo, Chromium closes the
-connection immediately. `Set-Cookie: gstack_pty=...` is kept as a
-fallback for non-browser callers (the cross-port `SameSite=Strict`
-cookie path doesn't survive from a chrome-extension origin).
+**WebSocket auth 使用 Sec-WebSocket-Protocol，而不是 cookies。** Browsers 无法在 WebSocket upgrade 上设置 `Authorization`，但可以通过 `new WebSocket(url, [token])` 设置 `Sec-WebSocket-Protocol`。agent 读取它，对 `validTokens` 校验，并且必须在 upgrade response 中 echo protocol；没有 echo 时 Chromium 会立即关闭连接。`Set-Cookie: gstack_pty=...` 作为 non-browser callers 的 fallback 保留（从 chrome-extension origin 出发的 cross-port `SameSite=Strict` cookie path 无法存活）。
 
-**Cross-pane PTY injection.** The toolbar's Cleanup button and the
-Inspector's "Send to Code" action both pipe text into the live claude
-PTY via `window.gstackInjectToTerminal(text)`, exposed by
-`sidepanel-terminal.js`. No `/sidebar-command` POST — the live REPL is
-the only execution surface in the sidebar now.
+**Cross-pane PTY injection。** toolbar 的 Cleanup button 和 Inspector 的 "Send to Code" action 都会通过 `sidepanel-terminal.js` 暴露的 `window.gstackInjectToTerminal(text)` 将文本 pipe 到 live claude PTY。不再有 `/sidebar-command` POST；live REPL 现在是 sidebar 中唯一 execution surface。
 
-**`/health` MUST NOT surface any shell-grant token.** It already leaks
-`AUTH_TOKEN` to localhost callers in headed mode (a v1.1+ TODO). Don't
-make that worse by adding the PTY session token there. PTY auth flows
-through `POST /pty-session` only.
+**`/health` 绝不能暴露任何 shell-grant token。** 它在 headed mode 中已经向 localhost callers 泄露 `AUTH_TOKEN`（v1.1+ TODO）。不要通过在那里添加 PTY session token 让情况更糟。PTY auth 只通过 `POST /pty-session` 流转。
 
-**Transport-layer security** (v1.6.0.0+). When `pair-agent` starts an ngrok tunnel,
-the daemon binds two HTTP listeners: a local listener (127.0.0.1, full command
-surface, never forwarded) and a tunnel listener (locked allowlist: `/connect`,
-`/command` with a scoped token + 26-command browser-driving allowlist,
-`/sidebar-chat`). ngrok forwards only the tunnel port. Root tokens over the tunnel
-return 403. SSE endpoints use a 30-minute HttpOnly `gstack_sse` cookie minted via
-`POST /sse-session` (never valid against `/command`). Tunnel-surface rejections go
-to `~/.gstack/security/attempts.jsonl` via `tunnel-denial-log.ts`. Before editing
-`server.ts`, `sse-session-cookie.ts`, or `tunnel-denial-log.ts`, read
-[ARCHITECTURE.md](ARCHITECTURE.md#dual-listener-tunnel-architecture-v1600) —
-the module boundary (no imports from `token-registry.ts` into `sse-session-cookie.ts`)
-is load-bearing for scope isolation.
+**Transport-layer security**（v1.6.0.0+）。当 `pair-agent` 启动 ngrok tunnel 时，daemon 绑定两个 HTTP listeners：local listener（127.0.0.1，完整 command surface，永不 forward）和 tunnel listener（locked allowlist：`/connect`、带 scoped token + 26-command browser-driving allowlist 的 `/command`、`/sidebar-chat`）。ngrok 只 forward tunnel port。通过 tunnel 使用 root token 会返回 403。SSE endpoints 使用通过 `POST /sse-session` mint 的 30 分钟 HttpOnly `gstack_sse` cookie（永不对 `/command` 有效）。Tunnel-surface rejections 通过 `tunnel-denial-log.ts` 写入 `~/.gstack/security/attempts.jsonl`。编辑 `server.ts`、`sse-session-cookie.ts` 或 `tunnel-denial-log.ts` 前，先读 [ARCHITECTURE.md](ARCHITECTURE.md#dual-listener-tunnel-architecture-v1600)。module boundary（`sse-session-cookie.ts` 不 import `token-registry.ts`）对 scope isolation 是 load-bearing。
 
-**Unicode sanitization at server egress** (v1.38.0.0+). Every server egress that
-ships page-content-derived strings MUST go through `JSON.stringify(payload,
-sanitizeReplacer)` for object payloads or `sanitizeLoneSurrogates(body)` for text
-bodies. Lone UTF-16 surrogate halves from CDP page content otherwise reach the
-Anthropic API as `\uD800`-style escapes and trigger a 400. Wired at four egress
-points today: `handleCommandInternal` (HTTP + batch via a sanitizing wrapper around
-`handleCommandInternalImpl`) and both SSE producers (`/activity/stream`,
-`/inspector/events`). Post-stringify regex is a no-op — `JSON.stringify` has
-already escaped the surrogate before regex could match, so the replacer must run
-inside the encoding pipeline. Before adding a new SSE/WebSocket writer or HTTP
-response in `server.ts`, read
-[ARCHITECTURE.md](ARCHITECTURE.md#unicode-sanitization-at-server-egress-v13800).
-`browse/test/server-sanitize-surrogates.test.ts` pins the wiring with invariant
-tests, so bypasses fail CI.
+**Unicode sanitization at server egress**（v1.38.0.0+）。每个发送 page-content-derived strings 的 server egress 都必须使用 object payload 的 `JSON.stringify(payload, sanitizeReplacer)`，或 text body 的 `sanitizeLoneSurrogates(body)`。否则来自 CDP page content 的 lone UTF-16 surrogate halves 会以 `\uD800` 风格 escape 到达 Anthropic API，并触发 400。当前 wiring 在四个 egress points：`handleCommandInternal`（HTTP + batch，经 `handleCommandInternalImpl` 外层 sanitizing wrapper）和两个 SSE producers（`/activity/stream`、`/inspector/events`）。Post-stringify regex 是 no-op，因为 `JSON.stringify` 已经在 regex 匹配前 escape surrogate；replacer 必须在 encoding pipeline 内运行。在 `server.ts` 中新增 SSE/WebSocket writer 或 HTTP response 前，先读 [ARCHITECTURE.md](ARCHITECTURE.md#unicode-sanitization-at-server-egress-v13800)。`browse/test/server-sanitize-surrogates.test.ts` 用 invariant tests 固定 wiring，绕过会让 CI 失败。
 
-**SSE endpoint helper** (v1.51.0.0+). New SSE endpoints in `server.ts` MUST route
-through `createSseEndpoint(req, config)` from `browse/src/sse-helpers.ts`. The
-helper owns the cleanup contract (abort + enqueue-throw + heartbeat-throw, all
-idempotent) and bakes in `sanitizeLoneSurrogates` on every JSON.stringify, so
-new subscribers can't accidentally regress either invariant. Inline
-`ReadableStream` wiring leaked subscribers when the TCP connection died without
-firing `req.signal.abort` (Chromium MV3 service-worker suspend, intermediate
-proxy half-close). `/activity/stream`, `/inspector/events`, and `/memory`
-(SSE-eligible) all route through it. `browse/test/sse-helpers.test.ts` pins the
-cleanup contract.
+**SSE endpoint helper**（v1.51.0.0+）。`server.ts` 中的新 SSE endpoints 必须通过 `browse/src/sse-helpers.ts` 的 `createSseEndpoint(req, config)` route。helper 拥有 cleanup contract（abort + enqueue-throw + heartbeat-throw，全部 idempotent），并在每个 JSON.stringify 中 baked in `sanitizeLoneSurrogates`，因此新 subscribers 不会意外回归任一 invariant。Inline `ReadableStream` wiring 曾在 TCP connection 死亡但未触发 `req.signal.abort` 时泄漏 subscribers（Chromium MV3 service-worker suspend、intermediate proxy half-close）。`/activity/stream`、`/inspector/events` 和 `/memory`（SSE-eligible）都通过它 route。`browse/test/sse-helpers.test.ts` 固定 cleanup contract。
 
-**CDP session lifecycle** (v1.51.0.0+). Direct `page.context().newCDPSession(page)`
-calls outside `browse/src/cdp-bridge.ts` fail CI via the static-grep tripwire in
-`browse/test/cdp-session-cleanup.test.ts`. Use `withCdpSession(page, async (s) => {...})`
-for one-shot CDP work (try/finally detach) or `getOrCreateCdpSession(page, cache)`
-for cached sessions tied to a page's lifetime (close-detach via `Map<page, session>`).
-Three sites migrated: cdp-bridge frame events, write-commands archive capture,
-cdp-inspector. The helpers prevent the per-session leak class where successful-path
-detach happened but error-path detach was missed.
+**CDP session lifecycle**（v1.51.0.0+）。在 `browse/src/cdp-bridge.ts` 外直接调用 `page.context().newCDPSession(page)` 会通过 `browse/test/cdp-session-cleanup.test.ts` 中的 static-grep tripwire 让 CI 失败。一次性 CDP work 使用 `withCdpSession(page, async (s) => {...})`（try/finally detach）；与 page lifetime 绑定的 cached sessions 使用 `getOrCreateCdpSession(page, cache)`（通过 `Map<page, session>` close-detach）。已迁移三处：cdp-bridge frame events、write-commands archive capture、cdp-inspector。helpers 防止 successful-path detach 有而 error-path detach 漏掉的 per-session leak class。
 
-**Setup symlink hardening** (v1.38.0.0+). Every link site in `setup` MUST route
-through the `_link_or_copy SRC DST` helper near the `IS_WINDOWS` detection. On
-Windows without Developer Mode, plain `ln -snf` produces frozen file copies that
-don't refresh on `git pull` — silent staleness across every host adapter. The
-helper preserves `ln -snf` on Unix and switches to `cp -R` / `cp -f` on Windows.
-`test/setup-windows-fallback.test.ts` enforces a static invariant: a single raw
-`ln` call outside the helper body fails CI. Windows users get a one-line note
-from `_print_windows_copy_note_once` reminding them to re-run `./setup` after
-every `git pull`.
+**Setup symlink hardening**（v1.38.0.0+）。`setup` 中每个 link site 都必须通过 `IS_WINDOWS` detection 附近的 `_link_or_copy SRC DST` helper。在没有 Developer Mode 的 Windows 上，普通 `ln -snf` 会产生不会随 `git pull` 刷新的 frozen file copies，导致每个 host adapter silent staleness。helper 在 Unix 上保留 `ln -snf`，在 Windows 上切换到 `cp -R` / `cp -f`。`test/setup-windows-fallback.test.ts` enforce static invariant：helper body 外任何一个 raw `ln` call 都会让 CI 失败。Windows users 会从 `_print_windows_copy_note_once` 得到一行 note，提醒他们每次 `git pull` 后重新运行 `./setup`。
 
-**Sidebar security stack** (layered defense against prompt injection):
+**Sidebar security stack（sidebar 安全栈）**（针对 prompt injection 的 layered defense）：
 
-| Layer | Module | Lives in |
+| Layer | Module | 位置 |
 |-------|--------|----------|
-| L1-L3 | `content-security.ts` | both server and agent — datamarking, hidden element strip, ARIA regex, URL blocklist, envelope wrapping |
+| L1-L3 | `content-security.ts` | server 和 agent 两侧 — datamarking、hidden element strip、ARIA regex、URL blocklist、envelope wrapping |
 | L4 | `security-classifier.ts` (TestSavantAI ONNX) | **sidebar-agent only** |
 | L4b | `security-classifier.ts` (Claude Haiku transcript) | **sidebar-agent only** |
 | L5 | `security.ts` (canary) | both — inject in compiled, check in agent |
 | L6 | `security.ts` (combineVerdict ensemble) | both |
 
-**Critical constraint:** `security-classifier.ts` CANNOT be imported from the
-compiled browse binary. `@huggingface/transformers` v4 requires `onnxruntime-node`
-which fails to `dlopen` from Bun compile's temp extract dir. Only `security.ts`
-(pure-string operations — canary, verdict combiner, attack log, status) is safe
-for `server.ts`. See `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-04-19-prompt-injection-guard.md`
-§"Pre-Impl Gate 1 Outcome" for full architectural decision.
+**Critical constraint（关键约束）：**`security-classifier.ts` 不能从 compiled browse binary import。`@huggingface/transformers` v4 需要 `onnxruntime-node`，它会在 Bun compile 的 temp extract dir 中 `dlopen` 失败。只有 `security.ts`（pure-string operations：canary、verdict combiner、attack log、status）对 `server.ts` 是安全的。完整 architectural decision 见 `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-04-19-prompt-injection-guard.md` §"Pre-Impl Gate 1 Outcome"。
 
-**Thresholds** (in `security.ts`):
-- `BLOCK: 0.85` — single-layer score that would cause BLOCK if cross-confirmed
-- `WARN: 0.75` — cross-confirm threshold. When L4 AND L4b both >= 0.75 → BLOCK
-- `LOG_ONLY: 0.40` — gates transcript classifier (skip Haiku when all layers < 0.40)
-- `SOLO_CONTENT_BLOCK: 0.92` — single-layer threshold for label-less content classifiers
-  (testsavant, deberta). Intentionally higher than `BLOCK` because these layers can't
-  distinguish "this is an injection" from "this looks like phishing aimed at the user."
-  The transcript classifier keeps a separate, label-gated solo path at `BLOCK` (0.85).
+**Thresholds**（在 `security.ts` 中）：
+- `BLOCK: 0.85`：single-layer score，如果 cross-confirmed 会导致 BLOCK
+- `WARN: 0.75`：cross-confirm threshold。当 L4 和 L4b 都 >= 0.75 时 -> BLOCK
+- `LOG_ONLY: 0.40`：gates transcript classifier（所有 layers < 0.40 时跳过 Haiku）
+- `SOLO_CONTENT_BLOCK: 0.92`：label-less content classifiers（testsavant、deberta）的 single-layer threshold。故意高于 `BLOCK`，因为这些 layers 无法区分“这是 injection”和“这看起来像针对用户的 phishing”。transcript classifier 保留独立的 label-gated solo path，阈值为 `BLOCK`（0.85）。
 
-**Ensemble rule:** BLOCK only when the ML content classifier AND the transcript
-classifier both report >= WARN. Single-layer high confidence degrades to WARN —
-this is the Stack Overflow instruction-writing FP mitigation. Canary leak
-always BLOCKs (deterministic).
+**Ensemble rule（ensemble 规则）：**只有 ML content classifier 和 transcript classifier 都报告 >= WARN 时才 BLOCK。Single-layer high confidence 降级为 WARN，这是 Stack Overflow instruction-writing FP mitigation。Canary leak 始终 BLOCK（deterministic）。
 
-**Env knobs:**
-- `GSTACK_SECURITY_OFF=1` — emergency kill switch. Classifier stays off even if
-  warmed. Canary is still injected; just the ML scan is skipped.
-- `GSTACK_SECURITY_ENSEMBLE=deberta` — opt-in DeBERTa-v3 ensemble. Adds
-  ProtectAI DeBERTa-v3-base-injection-onnx as L4c classifier for cross-model
-  agreement. 721MB first-run download. With ensemble enabled, BLOCK requires
-  2-of-3 ML classifiers agreeing at >= WARN (testsavant, deberta, transcript).
-  Without ensemble (default), BLOCK requires testsavant + transcript at >= WARN.
-- Classifier model cache: `~/.gstack/models/testsavant-small/` (112MB, first run only)
-  plus `~/.gstack/models/deberta-v3-injection/` (721MB, only when ensemble enabled)
-- Attack log: `~/.gstack/security/attempts.jsonl` (salted sha256 + domain only,
-  rotates at 10MB, 5 generations)
-- Per-device salt: `~/.gstack/security/device-salt` (0600)
-- Session state: `~/.gstack/security/session-state.json` (cross-process, atomic)
+**Env knobs（环境开关）：**
+- `GSTACK_SECURITY_OFF=1`：emergency kill switch。Classifier 即使已 warmed 也保持 off。Canary 仍会 inject，只跳过 ML scan。
+- `GSTACK_SECURITY_ENSEMBLE=deberta`：opt-in DeBERTa-v3 ensemble。添加 ProtectAI DeBERTa-v3-base-injection-onnx 作为 L4c classifier，用于 cross-model agreement。首次下载 721MB。启用 ensemble 时，BLOCK 需要 2-of-3 ML classifiers 在 >= WARN 达成一致（testsavant、deberta、transcript）。未启用 ensemble（默认）时，BLOCK 需要 testsavant + transcript >= WARN。
+- Classifier model cache：`~/.gstack/models/testsavant-small/`（112MB，仅首次运行）加 `~/.gstack/models/deberta-v3-injection/`（721MB，仅启用 ensemble 时）
+- Attack log：`~/.gstack/security/attempts.jsonl`（仅 salted sha256 + domain，10MB rotate，5 generations）
+- Per-device salt：`~/.gstack/security/device-salt`（0600）
+- Session state：`~/.gstack/security/session-state.json`（cross-process，atomic）
 
-## Dev symlink awareness
+## Dev symlink awareness（开发 symlink 感知）
 
-When developing gstack, `.claude/skills/gstack` may be a symlink back to this
-working directory (gitignored). This means skill changes are **live immediately**,
-great for rapid iteration, risky during big refactors where half-written skills
-could break other Claude Code sessions using gstack concurrently.
+开发 gstack 时，`.claude/skills/gstack` 可能是指回当前 working directory 的 symlink（gitignored）。这意味着 skill changes 会**立即 live**，适合快速迭代；但大型 refactors 时有风险，因为半写完的 skills 可能破坏并发使用 gstack 的其他 Claude Code sessions。
 
-**Check once per session:** Run `ls -la .claude/skills/gstack` to see if it's a
-symlink or a real copy. If it's a symlink to your working directory, be aware that:
-- Template changes + `bun run gen:skill-docs` immediately affect all gstack invocations
-- Breaking changes to SKILL.md.tmpl files can break concurrent gstack sessions
-- During large refactors, remove the symlink (`rm .claude/skills/gstack`) so the
-  global install at `~/.claude/skills/gstack/` is used instead
+**每个 session 检查一次：**运行 `ls -la .claude/skills/gstack`，确认它是 symlink 还是真实 copy。如果它 symlink 到你的 working directory，注意：
+- Template changes + `bun run gen:skill-docs` 会立即影响所有 gstack invocations
+- 对 SKILL.md.tmpl files 的 breaking changes 会破坏 concurrent gstack sessions
+- 大型 refactors 期间，移除 symlink（`rm .claude/skills/gstack`），让系统改用 `~/.claude/skills/gstack/` 的 global install
 
-**Prefix setting:** Setup creates real directories (not symlinks) at the top level
-with a SKILL.md symlink inside (e.g., `qa/SKILL.md -> gstack/qa/SKILL.md`). This
-ensures Claude discovers them as top-level skills, not nested under `gstack/`.
-Names are either short (`qa`) or namespaced (`gstack-qa`), controlled by
-`skill_prefix` in `~/.gstack/config.yaml`. Pass `--no-prefix` or `--prefix` to
-skip the interactive prompt.
+**Prefix setting（前缀设置）：**Setup 会在 top level 创建真实 directories（不是 symlinks），并在里面放一个 SKILL.md symlink（例如 `qa/SKILL.md -> gstack/qa/SKILL.md`）。这确保 Claude 把它们发现为 top-level skills，而不是嵌套在 `gstack/` 下。名称可以是 short（`qa`）或 namespaced（`gstack-qa`），由 `~/.gstack/config.yaml` 中的 `skill_prefix` 控制。传 `--no-prefix` 或 `--prefix` 可跳过 interactive prompt。
 
-**Note:** Vendoring gstack into a project's repo is deprecated. Use global install
-+ `./setup --team` instead. See README.md for team mode instructions.
+**Note（说明）：**不再推荐把 gstack vendoring 到项目 repo 中。请使用 global install + `./setup --team`。team mode instructions 见 README.md。
 
-**For plan reviews:** When reviewing plans that modify skill templates or the
-gen-skill-docs pipeline, consider whether the changes should be tested in isolation
-before going live (especially if the user is actively using gstack in other windows).
+**For plan reviews（针对 plan reviews）：**review 会修改 skill templates 或 gen-skill-docs pipeline 的 plans 时，考虑这些变更是否应在 live 前隔离测试，尤其当用户正在其他窗口主动使用 gstack 时。
 
-**Upgrade migrations:** When a change modifies on-disk state (directory structure,
-config format, stale files) in ways that could break existing user installs, add a
-migration script to `gstack-upgrade/migrations/`. Read CONTRIBUTING.md's "Upgrade
-migrations" section for the format and testing requirements. The upgrade skill runs
-these automatically after `./setup` during `/gstack-upgrade`.
+**Upgrade migrations：**当变更修改 on-disk state（directory structure、config format、stale files），且可能破坏现有 user installs 时，添加 migration script 到 `gstack-upgrade/migrations/`。格式和测试要求见 CONTRIBUTING.md 的 "Upgrade migrations" section。upgrade skill 在 `/gstack-upgrade` 期间、`./setup` 后会自动运行这些脚本。
 
-## Compiled binaries — NEVER commit browse/dist/ or design/dist/
+## Compiled binaries（编译产物）— NEVER commit browse/dist/ or design/dist/
 
-The `browse/dist/` and `design/dist/` directories contain compiled Bun binaries
-(`browse`, `find-browse`, `design`, ~58MB each). These are Mach-O arm64 only — they
-do NOT work on Linux, Windows, or Intel Macs. The `./setup` script already builds
-from source for every platform, so the checked-in binaries are redundant. They are
-tracked by git due to a historical mistake and should eventually be removed with
-`git rm --cached`.
+`browse/dist/` 和 `design/dist/` directories 包含 compiled Bun binaries（`browse`、`find-browse`、`design`，每个约 58MB）。它们仅适用于 Mach-O arm64，**不能**在 Linux、Windows 或 Intel Macs 上工作。`./setup` script 已经会为每个平台从 source build，因此 checked-in binaries 是冗余的。它们因历史错误被 git tracked，最终应使用 `git rm --cached` 移除。
 
-**NEVER stage or commit these files.** They show up as modified in `git status`
-because they're tracked despite `.gitignore` — ignore them. When staging files,
-always use specific filenames (`git add file1 file2`) — never `git add .` or
-`git add -A`, which will accidentally include the binaries.
+**永远不要 stage 或 commit 这些文件。**它们会出现在 `git status` 中，因为尽管 `.gitignore` 存在，它们仍被 tracked；忽略它们。staging files 时，始终使用具体文件名（`git add file1 file2`），永远不要 `git add .` 或 `git add -A`，否则会意外包含 binaries。
 
-## Redaction guard (PII / secrets / legal content)
+## Redaction guard（PII / secrets / legal content 脱敏防线）
 
-Shared redaction engine catches credentials, PII, and legal/damaging content
-before it reaches an external sink (codex dispatch, GitHub issue/PR body, pushed
-commit). It is a **guardrail, not airtight enforcement** — `git push --no-verify`,
-direct `gh issue create`, and `GSTACK_REDACT_PREPUSH=skip` all bypass it. It
-catches accidents and carelessness, the 99% case. Do not claim it stops a
-determined leaker (a CHANGELOG line that does would fail a hostile screenshotter).
+Shared redaction engine 会在内容到达 external sink（codex dispatch、GitHub issue/PR body、pushed commit）之前捕捉 credentials、PII 和 legal/damaging content。它是**护栏，不是 airtight enforcement**：`git push --no-verify`、直接 `gh issue create` 和 `GSTACK_REDACT_PREPUSH=skip` 都会绕过它。它捕捉的是 accidents 和 carelessness，也就是 99% case。不要声称它能阻止 determined leaker（这样写在 CHANGELOG 里会被 hostile screenshotter 击穿）。
 
-- **Engine + taxonomy:** `lib/redact-patterns.ts` (the single source of truth —
-  3 tiers; HIGH = genuinely-secret credentials that block, MEDIUM = PII/legal/
-  internal + high-FP credential shapes that confirm via AskUserQuestion, LOW =
-  FYI) and `lib/redact-engine.ts` (pure `scan()` + `applyRedactions()`).
-  Calibration matters: a gate that cries wolf gets ignored, so context-variable
-  shapes (Stripe `pk_live_`, Google `AIza`, JWT, env `*_KEY=`) sit at MEDIUM.
-- **CLI:** `bin/gstack-redact` (exit 0 clean / 2 MEDIUM / 3 HIGH; `--json`,
-  `--auto-redact`, `--repo-visibility`, `--from-file`). `bin/gstack-redact-prepush`
-  is the opt-in git hook.
-- **Skill docs are generated** from `scripts/resolvers/redact-doc.ts`
-  (`{{REDACT_TAXONOMY_TABLE}}`, `{{REDACT_INVOCATION_BLOCK:<sink>}}`) so /spec,
-  /cso, /ship, /document-release, /document-generate never drift from the engine.
-- **Scan-at-sink:** always scan the EXACT bytes that will be sent — write to a
-  temp file, scan that file, pass the SAME file to `gh`/`git`. Never scan a string
-  then re-render (that reopens a scan-vs-send gap).
-- **Visibility (no tier promotion):** resolve once per run, order = local config
-  (`gstack-config get redact_repo_visibility`, ~/.gstack so never committed) → gh
-  → glab → unknown(=public-strict). Public repos get STERNER per-finding
-  confirmation (no batch-acknowledge, no silent-proceed); MEDIUM is never
-  auto-promoted to HIGH.
-- **Tool-attributed fences:** wrap Codex/Greptile/eval output in ` ```codex-review `
-  / ` ```greptile ` fences so example credentials those tools quote WARN-degrade
-  instead of blocking. A live-format credential inside the fence still blocks.
-- **Config keys:** `redact_repo_visibility` (public|private|unknown, local-only
-  override for repos gh/glab can't read), `redact_prepush_hook` (true|false).
-  There is intentionally NO key to disable HIGH blocking.
-- **Audit:** the /spec semantic pass appends a content-free record (categories +
-  body sha256, no spec text) to `~/.gstack/security/semantic-reviews.jsonl` (0600).
+- **Engine + taxonomy：**`lib/redact-patterns.ts`（single source of truth，3 tiers；HIGH = 真正 secret credentials，会 block；MEDIUM = PII/legal/internal + high-FP credential shapes，需要通过 AskUserQuestion confirm；LOW = FYI）和 `lib/redact-engine.ts`（pure `scan()` + `applyRedactions()`）。Calibration 很重要：cry wolf 的 gate 会被忽略，所以 context-variable shapes（Stripe `pk_live_`、Google `AIza`、JWT、env `*_KEY=`）位于 MEDIUM。
+- **CLI：**`bin/gstack-redact`（exit 0 clean / 2 MEDIUM / 3 HIGH；`--json`、`--auto-redact`、`--repo-visibility`、`--from-file`）。`bin/gstack-redact-prepush` 是 opt-in git hook。
+- **Skill docs are generated（skill docs 由生成器生成）** from `scripts/resolvers/redact-doc.ts`（`{{REDACT_TAXONOMY_TABLE}}`、`{{REDACT_INVOCATION_BLOCK:<sink>}}`），因此 /spec、/cso、/ship、/document-release、/document-generate 不会与 engine drift。
+- **Scan-at-sink：**始终 scan 即将发送的 EXACT bytes：写入 temp file，scan 该 file，把同一个 file 传给 `gh`/`git`。不要 scan 一个 string 后再 re-render，那会重新打开 scan-vs-send gap。
+- **Visibility（no tier promotion）：**每次 run 解析一次，顺序 = local config（`gstack-config get redact_repo_visibility`，在 ~/.gstack 中，永不 commit）→ gh → glab → unknown（=public-strict）。Public repos 需要更严格的 per-finding confirmation（no batch-acknowledge、no silent-proceed）；MEDIUM 永远不会 auto-promoted to HIGH。
+- **Tool-attributed fences：**把 Codex/Greptile/eval output 包在 ` ```codex-review ` / ` ```greptile ` fences 中，让这些工具引用的 example credentials WARN-degrade 而不是 blocking。fence 内 live-format credential 仍会 block。
+- **Config keys：**`redact_repo_visibility`（public|private|unknown，对 gh/glab 无法读取的 repos 做 local-only override）、`redact_prepush_hook`（true|false）。故意没有 disable HIGH blocking 的 key。
+- **Audit：**/spec semantic pass 会向 `~/.gstack/security/semantic-reviews.jsonl`（0600）append content-free record（categories + body sha256，无 spec text）。
 
-## Commit style
+## Commit style（提交风格）
 
-**Always bisect commits.** Every commit should be a single logical change. When
-you've made multiple changes (e.g., a rename + a rewrite + new tests), split them
-into separate commits before pushing. Each commit should be independently
-understandable and revertable.
+**Always bisect commits（始终拆分可 bisect 的 commits）。**每个 commit 都应是单一 logical change。当你做了多个变更（例如 rename + rewrite + new tests），push 前把它们拆成 separate commits。每个 commit 都应 independently understandable and revertable。
 
-Examples of good bisection:
-- Rename/move separate from behavior changes
-- Test infrastructure (touchfiles, helpers) separate from test implementations
-- Template changes separate from generated file regeneration
-- Mechanical refactors separate from new features
+好的 bisection 示例：
+- Rename/move 与 behavior changes 分开
+- Test infrastructure（touchfiles、helpers）与 test implementations 分开
+- Template changes 与 generated file regeneration 分开
+- Mechanical refactors 与 new features 分开
 
-When the user says "bisect commit" or "bisect and push," split staged/unstaged
-changes into logical commits and push.
+当用户说 “bisect commit” 或 “bisect and push” 时，把 staged/unstaged changes 拆成 logical commits 并 push。
 
-## Slop-scan: AI code quality, not AI code hiding
+## Slop-scan：AI code quality，不是隐藏 AI code
 
-We use [slop-scan](https://github.com/benvinegar/slop-scan) to catch patterns where
-AI-generated code is genuinely worse than what a human would write. We are NOT trying
-to pass as human code. We are AI-coded and proud of it. The goal is code quality.
+我们使用 [slop-scan](https://github.com/benvinegar/slop-scan) 捕捉那些 AI-generated code 确实比人类会写出的代码更差的模式。我们不是试图伪装成人类写的 code。我们就是 AI-coded，并且以此为傲。目标是 code quality。
 
 ```bash
 npx slop-scan scan .          # human-readable report
 npx slop-scan scan . --json   # machine-readable for diffing
 ```
 
-Config: `slop-scan.config.json` at repo root (currently excludes `**/vendor/**`).
+Config：repo root 下的 `slop-scan.config.json`（当前排除 `**/vendor/**`）。
 
-### What to fix (genuine quality improvements)
+### 应该修复什么（真正的 quality improvements）
 
-- **Empty catches around file ops** — use `safeUnlink()` (ignores ENOENT, rethrows
-  EPERM/EIO). A swallowed EPERM in cleanup means silent data loss.
-- **Empty catches around process kills** — use `safeKill()` (ignores ESRCH, rethrows
-  EPERM). A swallowed EPERM means you think you killed something you didn't.
-- **Redundant `return await`** — remove when there's no enclosing try block. Saves a
-  microtask, signals intent.
-- **Typed exception catches** — `catch (err) { if (!(err instanceof TypeError)) throw err }`
-  is genuinely better than `catch {}` when the try block does URL parsing or DOM work.
-  You know what error you expect, so say so.
+- **File ops 周围的 empty catches**：使用 `safeUnlink()`（忽略 ENOENT，重新抛出 EPERM/EIO）。cleanup 中吞掉 EPERM 意味着 silent data loss。
+- **Process kills 周围的 empty catches**：使用 `safeKill()`（忽略 ESRCH，重新抛出 EPERM）。吞掉 EPERM 意味着你以为杀掉了某个进程，但其实没有。
+- **冗余的 `return await`**：没有 enclosing try block 时移除。节省一个 microtask，也传达 intent。
+- **Typed exception catches**：当 try block 做 URL parsing 或 DOM work 时，`catch (err) { if (!(err instanceof TypeError)) throw err }` 确实比 `catch {}` 更好。你知道预期的 error，就写出来。
 
-### What NOT to fix (linter gaming, not quality)
+### 不要修复什么（linter gaming，不是 quality）
 
-- **String-matching on error messages** — `err.message.includes('closed')` is brittle.
-  Playwright/Chrome can change wording anytime. If a fire-and-forget operation can fail
-  for ANY reason and you don't care, `catch {}` is the correct pattern.
-- **Adding comments to exempt pass-through wrappers** — "alias for active session" above
-  a method just to trip slop-scan's exemption rule is noise, not documentation.
-- **Converting extension catch-and-log to selective rethrow** — Chrome extensions crash
-  entirely on uncaught errors. If the catch logs and continues, that IS the right pattern
-  for extension code. Don't make it throw.
-- **Tightening best-effort cleanup paths** — shutdown, emergency cleanup, and disconnect
-  code should use `safeUnlinkQuiet()` (swallows ALL errors). A cleanup path that throws
-  on EPERM means the rest of cleanup doesn't run. That's worse.
+- **对 error messages 做 string-matching**：`err.message.includes('closed')` 很脆。Playwright/Chrome 随时可能改 wording。如果一个 fire-and-forget operation 可能因为任何原因失败，而你并不关心，`catch {}` 就是正确模式。
+- **为了豁免 pass-through wrappers 而加 comments**：在 method 上方写 "alias for active session" 只为触发 slop-scan 的 exemption rule，是 noise，不是 documentation。
+- **把 extension catch-and-log 改成 selective rethrow**：Chrome extensions 遇到 uncaught errors 会整体 crash。如果 catch 会 log 并继续，这对 extension code 来说就是正确模式。不要让它 throw。
+- **收紧 best-effort cleanup paths**：shutdown、emergency cleanup 和 disconnect code 应使用 `safeUnlinkQuiet()`（吞掉所有 errors）。cleanup path 在 EPERM 上 throw 会导致剩余 cleanup 不运行，更糟。
 
-### Utilities in `browse/src/error-handling.ts`
+### `browse/src/error-handling.ts` 中的 utilities
 
-| Function | Use when | Behavior |
+| Function | 使用场景 | 行为 |
 |----------|----------|----------|
-| `safeUnlink(path)` | Normal file deletion | Ignores ENOENT, rethrows others |
-| `safeUnlinkQuiet(path)` | Shutdown/emergency cleanup | Swallows all errors |
-| `safeKill(pid, signal)` | Sending signals | Ignores ESRCH, rethrows others |
-| `isProcessAlive(pid)` | Boolean process checks | Returns true/false, never throws |
+| `safeUnlink(path)` | Normal file deletion | 忽略 ENOENT，重新抛出其他错误 |
+| `safeUnlinkQuiet(path)` | Shutdown/emergency cleanup | 吞掉所有 errors |
+| `safeKill(pid, signal)` | Sending signals | 忽略 ESRCH，重新抛出其他错误 |
+| `isProcessAlive(pid)` | Boolean process checks | 返回 true/false，永不 throw |
 
-### Score tracking
+### Score tracking（分数追踪）
 
-Baseline (2026-04-09, before cleanup): 100 findings, 432.8 score, 2.38 score/file.
-After cleanup: 90 findings, 358.1 score, 1.96 score/file.
+Baseline（2026-04-09，cleanup 前）：100 findings，432.8 score，2.38 score/file。
+Cleanup 后：90 findings，358.1 score，1.96 score/file。
 
-Don't chase the number. Fix patterns that represent actual code quality problems.
-Accept findings where the "sloppy" pattern is the correct engineering choice.
+不要追数字。修复代表真实 code quality problems 的模式。当 “sloppy” pattern 是正确 engineering choice 时，接受对应 findings。
 
-## Community PR guardrails
+## Community PR guardrails（社区 PR 防护栏）
 
-When reviewing or merging community PRs, **always AskUserQuestion** before accepting
-any commit that:
+Review 或 merge community PRs 时，接受任何属于以下类别的 commit 前，**始终 AskUserQuestion**：
 
-1. **Touches ETHOS.md** — this file is Garry's personal builder philosophy. No edits
-   from external contributors or AI agents, period.
-2. **Removes or softens promotional material** — YC references, founder perspective,
-   and product voice are intentional. PRs that frame these as "unnecessary" or
-   "too promotional" must be rejected.
-3. **Changes Garry's voice** — the tone, humor, directness, and perspective in skill
-   templates, CHANGELOG, and docs are not generic. PRs that rewrite voice to be
-   more "neutral" or "professional" must be rejected.
+1. **Touches ETHOS.md**：这个文件是 Garry 的个人 builder philosophy。外部 contributors 或 AI agents 都不得编辑，句号。
+2. **移除或软化 promotional material**：YC references、founder perspective 和 product voice 都是 intentional。把这些说成 “unnecessary” 或 “too promotional” 的 PRs 必须拒绝。
+3. **改变 Garry's voice**：skill templates、CHANGELOG 和 docs 中的 tone、humor、directness 和 perspective 不是 generic 的。把 voice 改得更 “neutral” 或 “professional” 的 PRs 必须拒绝。
 
-Even if the agent strongly believes a change improves the project, these three
-categories require explicit user approval via AskUserQuestion. No exceptions.
-No auto-merging. No "I'll just clean this up."
+即使 agent 强烈认为某个 change 改进了项目，这三类也必须通过 AskUserQuestion 获得 explicit user approval。没有例外。不要 auto-merge。不要说 “I'll just clean this up.”
 
-## Checking out PRs from garrytan-agents
+## Checking out PRs from garrytan-agents（检出 garrytan-agents PR）
 
-When the user says "check out <PR link>" and the PR is from `garrytan-agents/gstack`
-(or any other fork that is NOT a collaborator on `garrytan/gstack`), do NOT just
-`gh pr checkout`. Fork PRs don't receive base-repo secrets (`ANTHROPIC_API_KEY`,
-`OPENAI_API_KEY`, etc.), so the eval/E2E CI jobs fail with empty-env auth errors
-regardless of what's set on the base repo.
+当用户说 “check out <PR link>”，并且 PR 来自 `garrytan-agents/gstack`（或任何不是 `garrytan/gstack` collaborator 的 fork）时，不要直接 `gh pr checkout`。Fork PRs 收不到 base-repo secrets（`ANTHROPIC_API_KEY`、`OPENAI_API_KEY` 等），因此 eval/E2E CI jobs 会因为 empty-env auth errors 失败，不管 base repo 上设置了什么。
 
-**Workflow:** push the branch to `garrytan/gstack` (the base repo) and re-target
-the PR from there.
+**Workflow：**把 branch push 到 `garrytan/gstack`（base repo），然后从那里重新 target PR。
 
-Concretely, after `gh pr checkout <N>`:
+具体来说，`gh pr checkout <N>` 之后：
 
-1. Note the original PR number and head branch name.
-2. Push the same branch to the base repo: `git push origin HEAD:<branch-name>`
-   (origin = `garrytan/gstack`, since the worktree is set up with that remote).
-3. Close the fork PR (`gh pr close <N> --comment "moving to base-repo branch for secret access"`).
-4. Open a new PR from the base-repo branch: `gh pr create --base main --head <branch-name>`.
-5. New PR's workflows will get secrets automatically.
+1. 记录原始 PR number 和 head branch name。
+2. 把同一个 branch push 到 base repo：`git push origin HEAD:<branch-name>`（origin = `garrytan/gstack`，因为 worktree 用这个 remote 设置）。
+3. 关闭 fork PR（`gh pr close <N> --comment "moving to base-repo branch for secret access"`）。
+4. 从 base-repo branch 打开新 PR：`gh pr create --base main --head <branch-name>`。
+5. 新 PR 的 workflows 会自动拿到 secrets。
 
-Why not fix it on the fork side? `garrytan-agents` isn't a collaborator on
-`garrytan/gstack`. Adding it as a collaborator (option A) or flipping the
-repo-wide "send secrets to fork PRs" toggle (option B) would let secrets reach
-fork PRs from anyone — broader blast radius than just moving this one branch.
-Option C (this section) keeps secret-distribution scope tight.
+为什么不在 fork side 修？`garrytan-agents` 不是 `garrytan/gstack` 的 collaborator。把它加为 collaborator（option A），或打开 repo-wide “send secrets to fork PRs” toggle（option B），都会让 secrets 可以到达任何人的 fork PRs，blast radius 比只移动这一条 branch 大得多。Option C（本节）让 secret-distribution scope 保持紧凑。
 
-If the user asks you to skip the move (e.g., "just leave it as a fork PR"),
-respect that — eval CI will fail with empty-env auth, but check-freshness,
-workflow-lint, and windows-tests will still pass on the fork PR.
+如果用户要求跳过移动（例如 “just leave it as a fork PR”），尊重这个要求。eval CI 会因 empty-env auth 失败，但 check-freshness、workflow-lint 和 windows-tests 仍会在 fork PR 上通过。
 
-## CHANGELOG + VERSION style
+## CHANGELOG + VERSION style（CHANGELOG 与 VERSION 风格）
 
-**Versioning invariant (workspace-aware ship).** VERSION is a monotonic ordered
-release identifier, not a strict semver commitment. The bump level
-(major/minor/patch/micro) expresses intent at ship time. Queue-advancing past a
-claimed version within the same bump level is explicitly permitted — if branch A
-claims v1.7.0.0 as a MINOR and branch B is also a MINOR, B lands at v1.8.0.0
-(still a MINOR relative to main). Downstream consumers must NOT rely on
-"MINOR = feature-only, PATCH = fix-only" as a strict contract. This is why
-`bin/gstack-next-version` advances within the chosen bump level rather than
-repicking the level when collisions happen.
+**Versioning invariant（workspace-aware ship）。** VERSION 是 monotonic ordered release identifier，不是严格的 semver commitment。Bump level（major/minor/patch/micro）表达 ship time 的 intent。在同一个 bump level 内，明确允许 queue-advancing 越过已声明版本：如果 branch A 以 MINOR 声明 v1.7.0.0，而 branch B 也是 MINOR，B 会落在 v1.8.0.0（相对 main 仍是 MINOR）。Downstream consumers 不能把 “MINOR = feature-only, PATCH = fix-only” 当成严格 contract。这就是 `bin/gstack-next-version` 在发生 collisions 时会在选定 bump level 内推进，而不是重新选择 level 的原因。
 
-**Scale-aware bumps — use common sense.** When the diff is big, bump MINOR (or
-MAJOR), not PATCH. PATCH is for bug fixes and small additions; MINOR is for
-substantial new capability or substantial reduction; MAJOR is for breaking
-changes. Rough guideposts (don't treat as rules, treat as smell-checks):
+**Scale-aware bumps：使用 common sense。** 当 diff 很大时，bump MINOR（或 MAJOR），不要 bump PATCH。PATCH 用于 bug fixes 和 small additions；MINOR 用于 substantial new capability 或 substantial reduction；MAJOR 用于 breaking changes。粗略 guideposts（不要当 rules，当 smell-checks）：
 
-- **PATCH (X.Y.Z+1.0)**: bug fix, doc tweak, small additive change, single
-  test/file added. Net diff under ~500 lines, no new user-facing capability.
-- **MINOR (X.Y+1.0.0)**: new capability shipped (skill, harness, command, big
-  refactor), substantial code reduction (compression, migration), or coordinated
-  multi-file change. Net diff over ~2000 lines added/removed, OR a user-visible
-  feature you'd put in a tweet.
-- **MAJOR (X+1.0.0.0)**: breaking change to public surface (CLI flag rename,
-  skill removed, config format changed), OR a release big enough to be the
-  headline of a blog post.
+- **PATCH（X.Y.Z+1.0）**：bug fix、doc tweak、small additive change、单个 test/file added。Net diff 少于约 500 行，没有新的 user-facing capability。
+- **MINOR（X.Y+1.0.0）**：shipped new capability（skill、harness、command、big refactor）、substantial code reduction（compression、migration），或 coordinated multi-file change。Net diff 超过约 2000 行 added/removed，或有一个你会发 tweet 的 user-visible feature。
+- **MAJOR（X+1.0.0.0）**：public surface 的 breaking change（CLI flag rename、skill removed、config format changed），或足以成为 blog post headline 的 release。
 
-If you find yourself debating "is 10K added + 24K removed really a PATCH?" — it
-isn't. Bump MINOR. Same for "this adds a whole new test harness with 6 new E2E
-tests + helper utilities" — MINOR. The bump level is communication to the user
-about what kind of release this is; don't undersell it.
+如果你发现自己在争论 “10K added + 24K removed 真的是 PATCH 吗？”：不是。Bump MINOR。“this adds a whole new test harness with 6 new E2E tests + helper utilities” 也一样，是 MINOR。Bump level 是向用户沟通这个 release 的类型，不要低估它。
 
-When merging origin/main brings a higher VERSION, re-evaluate the bump level
-against the SCALE of your branch's work, not just whether main moved forward.
-If main bumped MINOR and your branch is also a substantial change, you bump
-MINOR again on top (e.g., main at v1.14.0.0, your branch lands v1.15.0.0).
+当 merge origin/main 带来更高 VERSION 时，根据 branch work 的 SCALE 重新评估 bump level，而不只是看 main 是否前进。如果 main bumped MINOR，而你的 branch 也是 substantial change，就在其上再次 bump MINOR（例如 main at v1.14.0.0，你的 branch lands v1.15.0.0）。
 
-**VERSION and CHANGELOG are branch-scoped.** Every feature branch that ships gets its
-own version bump and CHANGELOG entry. The entry describes what THIS branch adds —
-not what was already on main.
+**VERSION 和 CHANGELOG 是 branch-scoped。** 每个 shipping feature branch 都有自己的 version bump 和 CHANGELOG entry。该 entry 描述 THIS branch 增加了什么，而不是 main 上已经有什么。
 
-**The CHANGELOG entry is the diff between main and the shipping branch — what users
-get when they upgrade. NOT how the branch got there.** A reader landing on the entry
-should learn what they can do now that they couldn't before; they should not learn
-about the branch's internal version bumps, the bugs we caught and fixed mid-branch,
-the plan reviews we ran, or the commits we squashed. That is branch development
-narrative. It belongs in PR descriptions and commit messages, not CHANGELOG.
+**CHANGELOG entry 是 main 和 shipping branch 之间的 diff，也就是用户 upgrade 后获得的东西。不是 branch 如何到达那里。** 读者打开这个 entry 应该知道现在能做什么以前不能做的事；他们不应该读到 branch 的 internal version bumps、中途捕捉并修复的 bugs、做过的 plan reviews，或 squash 了哪些 commits。这些是 branch development narrative，属于 PR descriptions 和 commit messages，不属于 CHANGELOG。
 
-**Never reference branch-internal versions in a CHANGELOG entry.** If your branch
-bumped VERSION from v1.5.0.0 → v1.5.1.0 → v1.6.0.0 during development and only the
-final v1.6.0.0 ships to main, the entry must read as if v1.5.1.0 never existed.
-Concretely, NEVER write:
-- "v1.5.1.0 had a bug that v1.6.0.0 fixes" — readers don't know about v1.5.1.0; it's
-  a branch-internal artifact.
-- "The shipping headline of v1.5.1.0 was broken because..." — same reason. From main's
-  perspective, v1.5.1.0 was never released.
-- "Pre-fix tests encoded the broken behavior" — that's a contributor's victory lap,
-  not a user benefit.
-- "Two surgical edits, both in the dispatch path" — micro-narrative of the patch.
+**永远不要在 CHANGELOG entry 中引用 branch-internal versions。** 如果你的 branch 在开发过程中把 VERSION 从 v1.5.0.0 bump 到 v1.5.1.0 再到 v1.6.0.0，而最终只有 v1.6.0.0 ship 到 main，entry 必须读起来像 v1.5.1.0 从未存在过。具体来说，永远不要写：
+- "v1.5.1.0 had a bug that v1.6.0.0 fixes"：读者不知道 v1.5.1.0；它是 branch-internal artifact。
+- "The shipping headline of v1.5.1.0 was broken because..."：同样原因。从 main 的视角看，v1.5.1.0 从未 released。
+- "Pre-fix tests encoded the broken behavior"：这是 contributor 的 victory lap，不是 user benefit。
+- "Two surgical edits, both in the dispatch path"：patch 的 micro-narrative。
 
-Instead, describe the released system: "Browser-skills run end-to-end with the
-expected tab-access semantics." If a property of the shipped system is worth calling
-out (e.g., "skill spawns get permissive tab access; pair-agent tunnel tokens require
-ownership"), document it as a property, not as a fix. The shipped system is what
-the user gets; the path to that system is invisible to them.
+改为描述 released system："Browser-skills run end-to-end with the expected tab-access semantics." 如果 shipped system 的某个 property 值得点出（例如 "skill spawns get permissive tab access; pair-agent tunnel tokens require ownership"），把它作为 property 记录，而不是作为 fix。Shipped system 才是用户得到的东西；通往它的路径对用户不可见。
 
-**When to write the CHANGELOG entry:**
-- At `/ship` time (Step 13), not during development or mid-branch.
-- The entry covers ALL commits on this branch vs the base branch.
-- Never fold new work into an existing CHANGELOG entry from a prior version that
-  already landed on main. If main has v0.10.0.0 and your branch adds features,
-  bump to v0.10.1.0 with a new entry — don't edit the v0.10.0.0 entry.
+**什么时候写 CHANGELOG entry：**
+- 在 `/ship` time（Step 13），不要在 development 或 mid-branch 时写。
+- Entry 覆盖这个 branch 相对 base branch 的所有 commits。
+- 永远不要把新 work 折进 prior version 已经 landed on main 的 existing CHANGELOG entry。如果 main 有 v0.10.0.0，而你的 branch adds features，就 bump 到 v0.10.1.0 并写新 entry，不要编辑 v0.10.0.0 entry。
 
-**Key questions before writing:**
-1. What branch am I on? What did THIS branch change?
-2. Is the base branch version already released? (If yes, bump and create new entry.)
-3. Does an existing entry on this branch already cover earlier work? (If yes, replace
-   it with one unified entry for the final version.)
+**写之前的关键问题：**
+1. 我在哪个 branch？THIS branch 改了什么？
+2. Base branch version 是否已经 released？（如果是，bump 并创建 new entry。）
+3. 这个 branch 上是否已有 entry 覆盖 earlier work？（如果是，用 final version 的 unified entry 替换它。）
 
-**Merging main does NOT mean adopting main's version.** When you merge origin/main into
-a feature branch, main may bring new CHANGELOG entries and a higher VERSION. Your branch
-still needs its OWN version bump on top. If main is at v0.13.8.0 and your branch adds
-features, bump to v0.13.9.0 with a new entry. Never jam your changes into an entry that
-already landed on main. Your entry goes on top because your branch lands next.
+**Merging main 不代表采用 main 的 version。** 当你把 origin/main merge 到 feature branch，main 可能带来 new CHANGELOG entries 和更高 VERSION。你的 branch 仍需要在其上做 OWN version bump。如果 main 是 v0.13.8.0，而你的 branch adds features，就 bump 到 v0.13.9.0 并写新 entry。永远不要把你的 changes 塞进已经 landed on main 的 entry。你的 entry 放在顶部，因为你的 branch 接下来 land。
 
-**After merging main, always check:**
-- Does CHANGELOG have your branch's own entry separate from main's entries?
-- Is VERSION higher than main's VERSION?
-- Is your entry the topmost entry in CHANGELOG (above main's latest)?
-If any answer is no, fix it before continuing.
+**Merging main 后始终检查：**
+- CHANGELOG 是否有你的 branch 自己的 entry，并与 main entries 分开？
+- VERSION 是否高于 main 的 VERSION？
+- 你的 entry 是否是 CHANGELOG 顶部 entry（在 main latest 之上）？
+如果任何答案是否，继续前先修复。
 
-**After any CHANGELOG edit that moves, adds, or removes entries,** immediately run
-`grep "^## \[" CHANGELOG.md` to verify no duplicates and a sensible reverse-chronological
-order. Gaps between version numbers are fine. A branch that ships at v1.6.4.0 without
-a prior v1.5.2.0 or v1.5.3.0 entry on main is correct — those were branch-internal
-version numbers that never landed. Do not back-fill gaps with placeholder entries.
+**任何移动、增加或删除 entries 的 CHANGELOG edit 之后，**立即运行 `grep "^## \[" CHANGELOG.md`，确认没有 duplicates，且 reverse-chronological order 合理。Version numbers 之间有 gaps 没关系。某个 branch 以 v1.6.4.0 ship，而 main 上没有 prior v1.5.2.0 或 v1.5.3.0 entry，这是正确的，因为那些是从未 landed 的 branch-internal version numbers。不要用 placeholder entries 回填 gaps。
 
-**Never orphan branch-internal versions.** If your branch bumped VERSION several times
-during development (v1.5.1.0 → v1.5.2.0 → v1.6.4.0, say) and those earlier entries were
-never released to main, the final ship consolidates ALL of them into a single entry at
-the final version (v1.6.4.0). Collapse them — delete the old entries and move their
-content into the final entry, re-version table columns accordingly. Readers see one
-release, not a branch diary. Gaps are fine (v1.6.3.0 → v1.6.4.0 with no v1.5.x
-in between on main is correct).
+**永远不要 orphan branch-internal versions。** 如果你的 branch 在 development 中多次 bump VERSION（例如 v1.5.1.0 -> v1.5.2.0 -> v1.6.4.0），而那些 earlier entries 从未 released to main，final ship 要把它们全部 consolidated 到 final version（v1.6.4.0）的 single entry 中。Collapse them：删除 old entries，把它们的 content 移到 final entry，并相应调整 version table columns。读者看到的是一个 release，不是 branch diary。Gaps 没关系（v1.6.3.0 -> v1.6.4.0，中间 main 上没有 v1.5.x 是正确的）。
 
-CHANGELOG.md is **for users**, not contributors. Write it like product release notes:
+CHANGELOG.md 是**给 users**看的，不是给 contributors。像 product release notes 一样写：
 
-- Lead with what the user can now **do** that they couldn't before. Sell the feature.
-- Use plain language, not implementation details. "You can now..." not "Refactored the..."
-- **Never mention TODOS.md, internal tracking, eval infrastructure, or contributor-facing
-  details.** These are invisible to users and meaningless to them.
-- Put contributor/internal changes in a separate "For contributors" section at the bottom.
-- Every entry should make someone think "oh nice, I want to try that."
-- No jargon: say "every question now tells you which project and branch you're in" not
-  "AskUserQuestion format standardized across skill templates via preamble resolver."
+- 先写用户现在可以**做**什么以前做不到的事。Sell the feature。
+- 使用 plain language，不要 implementation details。写 "You can now..."，不要写 "Refactored the..."
+- **永远不要提 TODOS.md、internal tracking、eval infrastructure 或 contributor-facing details。** 这些对 users 不可见，也没有意义。
+- Contributor/internal changes 放在底部单独的 "For contributors" section。
+- 每个 entry 都应该让人觉得 “oh nice, I want to try that.”
+- 不要 jargon：说 "every question now tells you which project and branch you're in"，不要说 "AskUserQuestion format standardized across skill templates via preamble resolver."
 
-**Only document what shipped between main and this change.** Readers do not care how
-we got here. Keep out of the CHANGELOG, always:
+**只记录 main 和此 change 之间 shipped 的内容。** 读者不关心我们怎么走到这里。以下内容始终不要写进 CHANGELOG：
 
-- Branch resyncs, merge commits with main, rebase activity.
-- Plan approvals, review outcomes (CEO / eng / design / outside-voice / codex findings),
-  AskUserQuestion decisions, scope negotiations.
-- "Work queued," "plan approved," "in-progress," "will ship later" — the CHANGELOG
-  documents what DID ship, not what MIGHT ship.
-- Version-bump housekeeping when no user-facing work actually landed.
+- Branch resyncs、merge commits with main、rebase activity。
+- Plan approvals、review outcomes（CEO / eng / design / outside-voice / codex findings）、AskUserQuestion decisions、scope negotiations。
+- "Work queued," "plan approved," "in-progress," "will ship later"：CHANGELOG 记录 DID ship 的东西，不记录 MIGHT ship 的东西。
+- 没有实际 user-facing work landed 时的 version-bump housekeeping。
 
-If the diff between the base branch version and this version has no user-facing change
-(only merges, only CHANGELOG edits, only placeholder work), the honest entry is one
-sentence: "Version bump for branch-ahead discipline. No user-facing changes yet." Stop
-there. Do not pad. Do not explain the plan that will ship eventually. Do not narrate
-the branch's history. When real work lands, the entry will replace this at /ship time.
+如果 base branch version 和这个 version 之间的 diff 没有 user-facing change（只有 merges、只有 CHANGELOG edits、只有 placeholder work），诚实的 entry 就一句话："Version bump for branch-ahead discipline. No user-facing changes yet." 到此为止。不要填充。不要解释最终会 ship 的 plan。不要叙述 branch history。真正 work landed 后，entry 会在 /ship time 替换它。
 
 ### Release-summary format (every `## [X.Y.Z]` entry)
 
-Every version entry in `CHANGELOG.md` MUST start with a release-summary section in
-the GStack/Garry voice, one viewport's worth of prose + tables that lands like a
-verdict, not marketing. The itemized changelog (subsections, bullets, files) goes
-BELOW that summary, separated by a `### Itemized changes` header.
+`CHANGELOG.md` 中每个 version entry 都必须以 release-summary section 开始，使用 GStack/Garry voice，一屏左右的 prose + tables，落点像 verdict，而不是 marketing。Itemized changelog（subsections、bullets、files）放在 summary 下方，并用 `### Itemized changes` header 分隔。
 
-The release-summary section gets read by humans, by the auto-update agent, and by
-anyone deciding whether to upgrade. The itemized list is for agents that need to
-know exactly what changed.
+Release-summary section 会被 humans、auto-update agent，以及任何决定是否 upgrade 的人阅读。Itemized list 是给需要准确知道 changed 内容的 agents 看。
 
-Structure for the top of every `## [X.Y.Z]` entry:
+每个 `## [X.Y.Z]` entry 顶部结构：
 
-1. **Two-line bold headline** (10-14 words total). Should land like a verdict, not
-   marketing. Sound like someone who shipped today and cares whether it works.
-2. **Lead paragraph** (3-5 sentences). What shipped, what changed for the user.
-   Specific, concrete, no AI vocabulary, no em dashes, no hype.
-3. **A "The X numbers that matter" section** with:
-   - One short setup paragraph naming the source of the numbers (real production
-     deployment OR a reproducible benchmark, name the file/command to run).
-   - A table of 3-6 key metrics with BEFORE / AFTER / Δ columns.
-   - A second optional table for per-category breakdown if relevant.
-   - 1-2 sentences interpreting the most striking number in concrete user terms.
-4. **A "What this means for [audience]" closing paragraph** (2-4 sentences) tying
-   the metrics to a real workflow shift. End with what to do.
+1. **Two-line bold headline**（总计 10-14 words）。应该像 verdict，不像 marketing。听起来像今天 ship 了且关心它是否有效的人。
+2. **Lead paragraph**（3-5 sentences）。写清 shipped 什么，对用户改变了什么。Specific、concrete、无 AI vocabulary、无 em dashes、无 hype。
+3. **一个 "The X numbers that matter" section**，包含：
+   - 一个短 setup paragraph，说明数字来源（real production deployment 或 reproducible benchmark，并写出要运行的 file/command）。
+   - 一个包含 3-6 个 key metrics 的 table，列为 BEFORE / AFTER / Δ。
+   - 如相关，可加第二个 per-category breakdown table。
+   - 1-2 句用具体 user terms 解释最突出的数字。
+4. **一个 "What this means for [audience]" closing paragraph**（2-4 sentences），把 metrics 和真实 workflow shift 绑定。以 what to do 结束。
 
-Voice rules for the release summary:
-- No em dashes (use commas, periods, "...").
-- No AI vocabulary (delve, robust, comprehensive, nuanced, fundamental, etc.) or
-  banned phrases ("here's the kicker", "the bottom line", etc.).
-- Real numbers, real file names, real commands. Not "fast" but "~30s on 30K pages."
-- Short paragraphs, mix one-sentence punches with 2-3 sentence runs.
-- Connect to user outcomes: "the agent does ~3x less reading" beats "improved precision."
-- Be direct about quality. "Well-designed" or "this is a mess." No dancing.
+Release summary 的 voice rules（表达规则）：
+- 不要 em dashes（使用逗号、句号、"..."）。
+- 不要 AI vocabulary（delve、robust、comprehensive、nuanced、fundamental 等）或 banned phrases（"here's the kicker"、"the bottom line" 等）。
+- 使用真实 numbers、真实 file names、真实 commands。不要写 "fast"，写 "~30s on 30K pages."
+- 短 paragraphs，把 one-sentence punches 和 2-3 sentence runs 混合。
+- 连接到 user outcomes："the agent does ~3x less reading" 比 "improved precision" 更好。
+- 对 quality 直接。写 "Well-designed" 或 "this is a mess." 不要 dancing。
 
-Source material:
-- CHANGELOG previous entry for prior context.
-- Benchmark files or `/retro` output for headline numbers.
-- Recent commits (`git log <prev-version>..HEAD --oneline`) for what shipped.
-- Don't make up numbers. If a metric isn't in a benchmark or production data,
-  don't include it. Say "no measurement yet" if asked.
+Source material（素材来源）：
+- CHANGELOG previous entry，用于 prior context。
+- Benchmark files 或 `/retro` output，用于 headline numbers。
+- Recent commits（`git log <prev-version>..HEAD --oneline`），用于确认 shipped 内容。
+- 不要编造 numbers。如果 metric 不在 benchmark 或 production data 中，就不要包含。被问到时说 "no measurement yet"。
 
-Target length: ~250-350 words for the summary. Should render as one viewport.
+Target length（目标长度）：summary 约 250-350 words。应渲染为一屏。
 
-### Itemized changes (below the release summary)
+### Itemized changes（位于 release summary 下方）
 
-Write `### Itemized changes` and continue with the detailed subsections (Added,
-Changed, Fixed, For contributors). Same rules as the user-facing voice guidance
-above, plus:
+写 `### Itemized changes`，然后继续 detailed subsections（Added、Changed、Fixed、For contributors）。遵循上方 user-facing voice guidance 的同样 rules，另加：
 
-- **Always credit community contributions.** When an entry includes work from a
-  community PR, name the contributor with `Contributed by @username`. Contributors
-  did real work. Thank them publicly every time, no exceptions.
+- **始终 credit community contributions。** 当 entry 包含来自 community PR 的 work 时，用 `Contributed by @username` 指名 contributor。Contributors 做了真实 work。每次都公开感谢，没有例外。
 
-## AI effort compression
+## AI effort compression（AI effort 压缩）
 
-When estimating or discussing effort, always show both human-team and CC+gstack time:
+估算或讨论 effort 时，始终同时展示 human-team 和 CC+gstack time：
 
 | Task type | Human team | CC+gstack | Compression |
 |-----------|-----------|-----------|-------------|
@@ -775,88 +446,68 @@ When estimating or discussing effort, always show both human-team and CC+gstack 
 | Architecture / design | 2 days | 4 hours | ~5x |
 | Research / exploration | 1 day | 3 hours | ~3x |
 
-Completeness is cheap. Don't recommend shortcuts when the complete implementation
-is a "lake" (achievable) not an "ocean" (multi-quarter migration). See the
-Completeness Principle in the skill preamble for the full philosophy.
+Completeness 很便宜。当 complete implementation 是一个 “lake”（可达成），而不是 “ocean”（multi-quarter migration）时，不要建议 shortcuts。完整 philosophy 见 skill preamble 中的 Completeness Principle。
 
-## Search before building
+## Search before building（构建前先搜索）
 
-Before designing any solution that involves concurrency, unfamiliar patterns,
-infrastructure, or anything where the runtime/framework might have a built-in:
+在设计任何涉及 concurrency、unfamiliar patterns、infrastructure，或 runtime/framework 可能已有 built-in 的 solution 之前：
 
 1. Search for "{runtime} {thing} built-in"
 2. Search for "{thing} best practice {current year}"
 3. Check official runtime/framework docs
 
-Three layers of knowledge: tried-and-true (Layer 1), new-and-popular (Layer 2),
-first-principles (Layer 3). Prize Layer 3 above all. See ETHOS.md for the full
-builder philosophy.
+中文语义：先找 runtime/framework 是否已有 built-in 能力，再查当前年份的最佳实践，最后核对官方文档。
 
-## Local plans
+三层知识：tried-and-true（Layer 1）、new-and-popular（Layer 2）、first-principles（Layer 3）。最重视 Layer 3。完整 builder philosophy 见 ETHOS.md。
 
-Contributors can store long-range vision docs and design documents in `~/.gstack-dev/plans/`.
-These are local-only (not checked in). When reviewing TODOS.md, check `plans/` for candidates
-that may be ready to promote to TODOs or implement.
+## Local plans（本地计划）
 
-## E2E eval failure blame protocol
+Contributors 可以把 long-range vision docs 和 design documents 存在 `~/.gstack-dev/plans/`。这些是 local-only（不 check in）。Review TODOS.md 时，检查 `plans/`，寻找可能已经 ready to promote to TODOs 或 implement 的 candidates。
 
-When an E2E eval fails during `/ship` or any other workflow, **never claim "not
-related to our changes" without proving it.** These systems have invisible couplings —
-a preamble text change affects agent behavior, a new helper changes timing, a
-regenerated SKILL.md shifts prompt context.
+## E2E eval failure blame protocol（E2E eval 失败归因协议）
 
-**Required before attributing a failure to "pre-existing":**
-1. Run the same eval on main (or base branch) and show it fails there too
-2. If it passes on main but fails on the branch — it IS your change. Trace the blame.
-3. If you can't run on main, say "unverified — may or may not be related" and flag it
-   as a risk in the PR body
+当 E2E eval 在 `/ship` 或任何其他 workflow 中失败时，**没有证明前，永远不要声称 "not related to our changes"。** 这些系统有 invisible couplings：preamble text change 会影响 agent behavior，new helper 会改变 timing，regenerated SKILL.md 会移动 prompt context。
 
-"Pre-existing" without receipts is a lazy claim. Prove it or don't say it.
+**把 failure 归因于 "pre-existing" 前必须做到：**
+1. 在 main（或 base branch）上运行同一个 eval，并展示它在那里也失败
+2. 如果它在 main 上通过但在 branch 上失败，这就是你的 change。Trace the blame。
+3. 如果不能在 main 上运行，说 "unverified — may or may not be related"，并在 PR body 中标成 risk
 
-## Long-running tasks: don't give up
+没有 receipts 的 "Pre-existing" 是 lazy claim。证明它，或者不要说。
 
-When running evals, E2E tests, or any long-running background task, **poll until
-completion**. Use `sleep 180 && echo "ready"` + `TaskOutput` in a loop every 3
-minutes. Never switch to blocking mode and give up when the poll times out. Never
-say "I'll be notified when it completes" and stop checking — keep the loop going
-until the task finishes or the user tells you to stop.
+## Long-running tasks：不要放弃
 
-The full E2E suite can take 30-45 minutes. That's 10-15 polling cycles. Do all of
-them. Report progress at each check (which tests passed, which are running, any
-failures so far). The user wants to see the run complete, not a promise that
-you'll check later.
+运行 evals、E2E tests 或任何 long-running background task 时，**poll until completion**。每 3 分钟循环使用 `sleep 180 && echo "ready"` + `TaskOutput`。不要切到 blocking mode，然后因为 poll times out 就放弃。不要说 "I'll be notified when it completes" 后停止检查；保持 loop，直到 task finishes 或用户告诉你停止。
 
-## E2E test fixtures: extract, don't copy
+完整 E2E suite 可能需要 30-45 分钟，也就是 10-15 个 polling cycles。全部做完。每次 check 都报告 progress（哪些 tests passed、哪些 running、目前有哪些 failures）。用户想看到 run complete，而不是一个以后会检查的承诺。
 
-**NEVER copy a full SKILL.md file into an E2E test fixture.** SKILL.md files are
-1500-2000 lines. When `claude -p` reads a file that large, context bloat causes
-timeouts, flaky turn limits, and tests that take 5-10x longer than necessary.
+## E2E test fixtures：extract，不要 copy
 
-Instead, extract only the section the test actually needs:
+**永远不要把完整 SKILL.md file copy 到 E2E test fixture。** SKILL.md files 有 1500-2000 行。当 `claude -p` 读取这么大的 file 时，context bloat 会导致 timeouts、flaky turn limits，以及比必要情况慢 5-10x 的 tests。
+
+改为只 extract test 实际需要的 section：
 
 ```typescript
-// BAD — agent reads 1900 lines, burns tokens on irrelevant sections
+// BAD：agent 读取 1900 行，把 tokens 花在 irrelevant sections 上
 fs.copyFileSync(path.join(ROOT, 'ship', 'SKILL.md'), path.join(dir, 'ship-SKILL.md'));
 
-// GOOD — agent reads ~60 lines, finishes in 38s instead of timing out
+// GOOD：agent 读取约 60 行，38s 完成而不是 timeout
 const full = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
 const start = full.indexOf('## Review Readiness Dashboard');
 const end = full.indexOf('\n---\n', start);
 fs.writeFileSync(path.join(dir, 'ship-SKILL.md'), full.slice(start, end > start ? end : undefined));
 ```
 
-Also when running targeted E2E tests to debug failures:
-- Run in **foreground** (`bun test ...`), not background with `&` and `tee`
-- Never `pkill` running eval processes and restart — you lose results and waste money
-- One clean run beats three killed-and-restarted runs
+另外，在运行 targeted E2E tests 调试 failures 时：
+- 在 **foreground** 运行（`bun test ...`），不要用 `&` 和 `tee` 放到 background
+- 永远不要 `pkill` running eval processes 后 restart：你会丢掉 results 并浪费钱
+- One clean run 胜过 three killed-and-restarted runs
 
-## Publishing native OpenClaw skills to ClawHub
+## Publishing native OpenClaw skills to ClawHub（发布 native OpenClaw skills 到 ClawHub）
 
-Native OpenClaw skills live in `openclaw/skills/gstack-openclaw-*/SKILL.md`. These are
-hand-crafted methodology skills (not generated by the pipeline) published to ClawHub
-so any OpenClaw user can install them.
+Native OpenClaw skills 位于 `openclaw/skills/gstack-openclaw-*/SKILL.md`。这些是 hand-crafted methodology skills（不是 pipeline 生成的），发布到 ClawHub，供任何 OpenClaw user 安装。
 
-**Publishing:** The command is `clawhub publish` (NOT `clawhub skill publish`):
+**Publishing：**命令是 `clawhub publish`（不是 `clawhub skill publish`）：
 
 ```bash
 clawhub publish openclaw/skills/gstack-openclaw-office-hours \
@@ -864,84 +515,67 @@ clawhub publish openclaw/skills/gstack-openclaw-office-hours \
   --version 1.0.0 --changelog "description of changes"
 ```
 
-Repeat for each skill: `gstack-openclaw-ceo-review`, `gstack-openclaw-investigate`,
-`gstack-openclaw-retro`. Bump `--version` on each update.
+对每个 skill 重复执行：`gstack-openclaw-ceo-review`、`gstack-openclaw-investigate`、`gstack-openclaw-retro`。每次 update 都 bump `--version`。
 
-**Auth:** `clawhub login` (opens browser for GitHub auth). `clawhub whoami` to verify.
+**Auth：**`clawhub login`（打开 browser 做 GitHub auth）。用 `clawhub whoami` 验证。
 
-**Updating:** Same `clawhub publish` command with a higher `--version` and `--changelog`.
+**Updating：**使用同一个 `clawhub publish` command，配合更高的 `--version` 和 `--changelog`。
 
-**Verification:** `clawhub search gstack` to confirm they're live.
+**Verification：**运行 `clawhub search gstack` 确认它们 live。
 
-## Deploying to the active skill
+## Deploying to the active skill（部署到 active skill）
 
-The active skill lives at `~/.claude/skills/gstack/`. After making changes:
+Active skill 位于 `~/.claude/skills/gstack/`。做出 changes 后：
 
 1. Push your branch
-2. Fetch and reset in the skill directory: `cd ~/.claude/skills/gstack && git fetch origin && git reset --hard origin/main`
-3. Rebuild: `cd ~/.claude/skills/gstack && bun run build`
+2. 在 skill directory 中 fetch and reset：`cd ~/.claude/skills/gstack && git fetch origin && git reset --hard origin/main`
+3. Rebuild：`cd ~/.claude/skills/gstack && bun run build`
 
-Or copy the binaries directly:
+或直接 copy binaries：
 - `cp browse/dist/browse ~/.claude/skills/gstack/browse/dist/browse`
 - `cp design/dist/design ~/.claude/skills/gstack/design/dist/design`
 
-## Skill routing
+## Skill routing（Skill 路由）
 
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+当用户请求匹配 available skill 时，通过 Skill tool 调用它。不确定时，调用 skill。
 
-Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
+Key routing rules：
+- Product ideas/brainstorming -> invoke /office-hours
+- Strategy/scope -> invoke /plan-ceo-review
+- Architecture -> invoke /plan-eng-review
+- Design system/plan review -> invoke /design-consultation or /plan-design-review
+- Full review pipeline -> invoke /autoplan
+- Bugs/errors -> invoke /investigate
+- QA/testing site behavior -> invoke /qa or /qa-only
+- Code review/diff check -> invoke /review
+- Visual polish -> invoke /design-review
+- Ship/deploy/PR -> invoke /ship or /land-and-deploy
+- Save progress -> invoke /context-save
+- Resume context -> invoke /context-restore
 
-## GBrain Search Guidance (configured by /sync-gbrain)
+## GBrain Search Guidance（由 /sync-gbrain 配置）
 <!-- gstack-gbrain-search-guidance:start -->
 
-GBrain is set up and synced on this machine. The agent should prefer gbrain
-over Grep when the question is semantic or when you don't know the exact
-identifier yet.
+GBrain 已在这台机器上设置并同步。当问题是 semantic 的，或还不知道 exact identifier 时，agent 应优先使用 gbrain，而不是 Grep。
 
-**This worktree is pinned to a worktree-scoped code source** via the
-`.gbrain-source` file in the repo root (kubectl-style context). Any
-`gbrain code-def`, `code-refs`, `code-callers`, `code-callees`, or `query`
-call from anywhere under this worktree routes to that source by default —
-no `--source` flag needed. Conductor sibling worktrees of the same repo
-each have their own pin and their own indexed pages, so semantic results
-match the actual code on disk in this worktree.
+**This worktree 通过 repo root 中的 `.gbrain-source` file pin 到 worktree-scoped code source**（kubectl-style context）。在这个 worktree 下任何位置调用 `gbrain code-def`、`code-refs`、`code-callers`、`code-callees` 或 `query`，默认都会 route 到该 source，不需要 `--source` flag。同一 repo 的 Conductor sibling worktrees 各自有自己的 pin 和 indexed pages，因此 semantic results 会匹配这个 worktree 磁盘上的实际 code。
 
-Two indexed corpora available via the `gbrain` CLI:
-- This worktree's code (auto-pinned via `.gbrain-source`).
-- `~/.gstack/` curated memory (registered as `gstack-brain-<user>` source via
-  the existing federation pipeline).
+通过 `gbrain` CLI 可用的两个 indexed corpora：
+- This worktree's code（通过 `.gbrain-source` auto-pinned）。
+- `~/.gstack/` curated memory（通过 existing federation pipeline 注册为 `gstack-brain-<user>` source）。
 
-Prefer gbrain when:
-- "Where is X handled?" / semantic intent, no exact string yet:
+以下情况优先使用 gbrain：
+- "Where is X handled?" / semantic intent，尚无 exact string：
     `gbrain search "<terms>"` or `gbrain query "<question>"`
-- "Where is symbol Y defined?" / symbol-based code questions:
+- "Where is symbol Y defined?" / symbol-based code questions：
     `gbrain code-def <symbol>` or `gbrain code-refs <symbol>`
-- "What calls Y?" / "What does Y depend on?":
+- "What calls Y?" / "What does Y depend on?"：
     `gbrain code-callers <symbol>` / `gbrain code-callees <symbol>`
-- "What did we decide last time?" / past plans, retros, learnings:
+- "What did we decide last time?" / past plans、retros、learnings：
     `gbrain search "<terms>" --source gstack-brain-<user>`
 
-Grep is still right for known exact strings, regex, multiline patterns, and
-file globs. Run `/sync-gbrain` after meaningful code changes; for ongoing
-auto-sync across all worktrees, run `gbrain autopilot --install` once per
-machine — gbrain's daemon handles incremental refresh on a schedule.
+对于 known exact strings、regex、multiline patterns 和 file globs，Grep 仍然正确。Meaningful code changes 后运行 `/sync-gbrain`；如果需要跨所有 worktrees 持续 auto-sync，每台机器运行一次 `gbrain autopilot --install`，gbrain 的 daemon 会按 schedule 处理 incremental refresh。
 
-Safety: don't run `/sync-gbrain` while `gbrain autopilot` is active — the
-orchestrator refuses destructive source ops when it detects a running autopilot
-to avoid racing it (#1734). Prefer registering user repos with `gbrain sources
-add --path <dir>` (no `--url`): URL-managed sources can auto-reclone, and the
-sync code walk for them requires an explicit `--allow-reclone` opt-in.
+Safety：当 `gbrain autopilot` active 时，不要运行 `/sync-gbrain`。orchestrator 检测到 running autopilot 时会拒绝 destructive source ops，以避免 race（#1734）。注册 user repos 时优先使用 `gbrain sources add --path <dir>`（不要 `--url`）：URL-managed sources 可能 auto-reclone，而对它们执行 sync code walk 需要显式 `--allow-reclone` opt-in。
 
 <!-- gstack-gbrain-search-guidance:end -->

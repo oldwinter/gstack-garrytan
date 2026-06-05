@@ -3,13 +3,13 @@ name: document-release
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Post-ship documentation update. Reads all project docs, cross-references the
-  diff, builds a Diataxis coverage map (reference/how-to/tutorial/explanation),
-  updates README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md to match what shipped,
-  detects architecture diagram drift, polishes CHANGELOG voice with a sell-test
-  rubric, cleans up TODOS, and optionally bumps VERSION. Surfaces documentation
-  debt in the PR body. Use when asked to "update the docs", "sync documentation",
-  or "post-ship docs". Proactively suggest after a PR is merged or code is shipped. (gstack)
+  Post-ship documentation update。读取所有 project docs，与 diff 交叉核对，
+  构建 Diataxis coverage map（reference/how-to/tutorial/explanation），更新
+  README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md 以匹配已 shipped 内容，检测
+  architecture diagram drift，用 sell-test rubric polish CHANGELOG voice，
+  清理 TODOS，并可选 bump VERSION。在 PR body 中呈现 documentation debt。
+  适用于用户要求 "update the docs"、"sync documentation" 或 "post-ship docs"。
+  PR merged 或 code shipped 后主动建议使用。（gstack）
 allowed-tools:
   - Bash
   - Read
@@ -28,42 +28,42 @@ triggers:
 
 {{BASE_BRANCH_DETECT}}
 
-# Document Release: Post-Ship Documentation Update
+# Document Release：Post-Ship Documentation Update（发布后文档更新）
 
-You are running the `/document-release` workflow. This runs **after `/ship`** (code committed, PR
-exists or about to exist) but **before the PR merges**. Your job: ensure every documentation file
-in the project is accurate, up to date, and written in a friendly, user-forward voice.
+你正在运行 `/document-release` workflow。它在 **`/ship` 之后**运行（code 已 committed，
+PR 已存在或即将存在），但在 **PR merges 之前**运行。你的工作：确保 project 中每个
+documentation file 都准确、最新，并以友好、user-forward 的 voice 写成。
 
-You are mostly automated. Make obvious factual updates directly. Stop and ask only for risky or
-subjective decisions.
+你是 mostly automated 的。明显的事实更新直接做。只有 risky 或 subjective decisions
+才停止并询问。
 
-**Only stop for:**
-- Risky/questionable doc changes (narrative, philosophy, security, removals, large rewrites)
-- VERSION bump decision (if not already bumped)
-- New TODOS items to add
-- Cross-doc contradictions that are narrative (not factual)
+**只为这些情况停止：**
+- Risky/questionable doc changes（narrative、philosophy、security、removals、large rewrites）
+- VERSION bump decision（如果尚未 bump）
+- 需要新增的 TODOS items
+- narrative（非 factual）的 cross-doc contradictions
 
-**Never stop for:**
-- Factual corrections clearly from the diff
-- Adding items to tables/lists
-- Updating paths, counts, version numbers
-- Fixing stale cross-references
-- CHANGELOG voice polish (minor wording adjustments)
-- Marking TODOS complete
-- Cross-doc factual inconsistencies (e.g., version number mismatch)
+**绝不为这些情况停止：**
+- diff 明确支持的 factual corrections
+- 向 tables/lists 添加 items
+- 更新 paths、counts、version numbers
+- 修复 stale cross-references
+- CHANGELOG voice polish（minor wording adjustments）
+- 将 TODOS 标记为 complete
+- Cross-doc factual inconsistencies（例如 version number mismatch）
 
 **NEVER do:**
-- Overwrite, replace, or regenerate CHANGELOG entries — polish wording only, preserve all content
-- Bump VERSION without asking — always use AskUserQuestion for version changes
-- Use `Write` tool on CHANGELOG.md — always use `Edit` with exact `old_string` matches
+- Overwrite、replace 或 regenerate CHANGELOG entries；只 polish wording，保留所有 content
+- 未询问就 bump VERSION；version changes 始终使用 AskUserQuestion
+- 对 CHANGELOG.md 使用 `Write` tool；始终用带 exact `old_string` matches 的 `Edit`
 
 ---
 
-## Step 1: Pre-flight & Diff Analysis
+## Step 1：Pre-flight & Diff Analysis（预检与 diff 分析）
 
-1. Check the current branch. If on the base branch, **abort**: "You're on the base branch. Run from a feature branch."
+1. 检查 current branch。如果在 base branch 上，**abort**："你在 base branch 上。请从 feature branch 运行。"
 
-2. Gather context about what changed:
+2. 收集变更 context：
 
 ```bash
 git diff <base>...HEAD --stat
@@ -77,35 +77,35 @@ git log <base>..HEAD --oneline
 git diff <base>...HEAD --name-only
 ```
 
-3. Discover all documentation files in the repo:
+3. 发现 repo 中所有 documentation files：
 
 ```bash
 find . -maxdepth 2 -name "*.md" -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./.gstack/*" -not -path "./.context/*" | sort
 ```
 
-4. Classify the changes into categories relevant to documentation:
-   - **New features** — new files, new commands, new skills, new capabilities
-   - **Changed behavior** — modified services, updated APIs, config changes
-   - **Removed functionality** — deleted files, removed commands
-   - **Infrastructure** — build system, test infrastructure, CI
+4. 将变更分类到与 documentation 相关的类别：
+   - **New features** — new files、new commands、new skills、new capabilities
+   - **Changed behavior** — modified services、updated APIs、config changes
+   - **Removed functionality** — deleted files、removed commands
+   - **Infrastructure** — build system、test infrastructure、CI
 
-5. Output a brief summary: "Analyzing N files changed across M commits. Found K documentation files to review."
+5. 输出简短 summary："正在分析 M 个 commits 中变化的 N 个 files。发现 K 个 documentation files 需要 review。"
 
 ---
 
-## Step 1.5: Coverage Map (Blast-Radius Analysis)
+## Step 1.5: Coverage Map（Blast-Radius Analysis）
 
-Before touching any documentation file, build a **coverage map** of what shipped vs what's
-documented. This is inspired by the Diataxis framework (tutorial / how-to / reference / explanation)
-— but applied as an audit lens, not a generation tool.
+触碰任何 documentation file 之前，构建一个 **coverage map**，对比 shipped 内容和已 documented
+内容。它受 Diataxis framework（tutorial / how-to / reference / explanation）启发，
+但作为 audit lens 使用，而不是 generation tool。
 
-1. **Extract public surface changes from the diff.** Scan `git diff <base>...HEAD` for:
-   - New exported functions, classes, commands, CLI flags, config options, API endpoints
-   - New skills, workflows, or user-facing capabilities
-   - Renamed or removed public surface (modules, commands, features)
-   - New environment variables, feature flags, or configuration knobs
+1. **从 diff 中提取 public surface changes。** 扫描 `git diff <base>...HEAD`，寻找：
+   - New exported functions、classes、commands、CLI flags、config options、API endpoints
+   - New skills、workflows 或 user-facing capabilities
+   - Renamed 或 removed public surface（modules、commands、features）
+   - New environment variables、feature flags 或 configuration knobs
 
-2. **For each new/changed public surface item, assess documentation coverage:**
+2. **对每个 new/changed public surface item，评估 documentation coverage：**
 
 ```
 Coverage map:
@@ -115,217 +115,213 @@ Coverage map:
   FooProcessor     ❌            ❌        ❌          ❌
 ```
 
-Use these definitions:
-- **Reference** — factual description of what it is, its API, its options (README tables, AGENTS.md skill lists, API docs)
-- **How-to** — task-oriented: "how to do X with this" (README examples, CONTRIBUTING workflows)
-- **Tutorial** — learning-oriented: step-by-step walkthrough for newcomers (getting started guides)
-- **Explanation** — understanding-oriented: "why this works this way" (ARCHITECTURE decisions, design rationale)
+使用这些定义：
+- **Reference** — 对它是什么、API、options 的 factual description（README tables、AGENTS.md skill lists、API docs）
+- **How-to** — task-oriented："how to do X with this"（README examples、CONTRIBUTING workflows）
+- **Tutorial** — learning-oriented：面向 newcomers 的 step-by-step walkthrough（getting started guides）
+- **Explanation** — understanding-oriented："why this works this way"（ARCHITECTURE decisions、design rationale）
 
-3. **Output the coverage map.** Items with zero coverage are **critical gaps** — flag them for
-   Step 3. Items with reference-only coverage are **common gaps** — note them for the PR body.
+3. **输出 coverage map。** zero coverage 的 items 是 **critical gaps**，为 Step 3 标记。
+   reference-only coverage 的 items 是 **common gaps**，为 PR body 记录。
 
-4. **Architecture diagram drift detection.** If ARCHITECTURE.md (or any doc) contains ASCII
-   diagrams or Mermaid blocks, extract entity names (modules, services, data flows) from the
-   diagrams. Cross-reference against the diff. Flag any diagram entities that were renamed,
-   split, removed, or moved in the code.
+4. **Architecture diagram drift detection。** 如果 ARCHITECTURE.md（或任何 doc）包含
+   ASCII diagrams 或 Mermaid blocks，从 diagrams 中提取 entity names（modules、services、
+   data flows）。与 diff 交叉核对。标记任何在 code 中 renamed、split、removed 或 moved
+   的 diagram entities。
 
-The coverage map feeds into Steps 2-3 (what to audit and fix) and Step 9 (documentation debt
-summary in the PR body). Do NOT auto-generate missing documentation pages — flag gaps only.
-When significant gaps are found, suggest running `/document-generate` to fill them.
-
----
-
-## Step 2: Per-File Documentation Audit
-
-Read each documentation file and cross-reference it against the diff. Use these generic heuristics
-(adapt to whatever project you're in — these are not gstack-specific):
-
-**README.md:**
-- Does it describe all features and capabilities visible in the diff?
-- Are install/setup instructions consistent with the changes?
-- Are examples, demos, and usage descriptions still valid?
-- Are troubleshooting steps still accurate?
-
-**ARCHITECTURE.md:**
-- Do ASCII diagrams and component descriptions match the current code?
-- Are design decisions and "why" explanations still accurate?
-- Be conservative — only update things clearly contradicted by the diff. Architecture docs
-  describe things unlikely to change frequently.
-
-**CONTRIBUTING.md — New contributor smoke test:**
-- Walk through the setup instructions as if you are a brand new contributor.
-- Are the listed commands accurate? Would each step succeed?
-- Do test tier descriptions match the current test infrastructure?
-- Are workflow descriptions (dev setup, operational learnings, etc.) current?
-- Flag anything that would fail or confuse a first-time contributor.
-
-**CLAUDE.md / project instructions:**
-- Does the project structure section match the actual file tree?
-- Are listed commands and scripts accurate?
-- Do build/test instructions match what's in package.json (or equivalent)?
-
-**Any other .md files:**
-- Read the file, determine its purpose and audience.
-- Cross-reference against the diff to check if it contradicts anything the file says.
-
-For each file, classify needed updates as:
-
-- **Auto-update** — Factual corrections clearly warranted by the diff: adding an item to a
-  table, updating a file path, fixing a count, updating a project structure tree.
-- **Ask user** — Narrative changes, section removal, security model changes, large rewrites
-  (more than ~10 lines in one section), ambiguous relevance, adding entirely new sections.
+coverage map 会流入 Steps 2-3（audit 和 fix 的内容）以及 Step 9（PR body 中的
+documentation debt summary）。不要 auto-generate missing documentation pages；只标记 gaps。
+发现 significant gaps 时，建议运行 `/document-generate` 来补齐。
 
 ---
 
-## Step 3: Apply Auto-Updates
+## Step 2：Per-File Documentation Audit（逐文件文档审计）
 
-Make all clear, factual updates directly using the Edit tool.
+读取每个 documentation file，并与 diff 交叉核对。使用这些 generic heuristics
+（适配你所在的任何 project；这些不是 gstack-specific）：
 
-For each file modified, output a one-line summary describing **what specifically changed** — not
-just "Updated README.md" but "README.md: added /new-skill to skills table, updated skill count
+**README.md：**
+- 是否描述了 diff 中可见的所有 features 和 capabilities？
+- install/setup instructions 是否与变更一致？
+- examples、demos 和 usage descriptions 是否仍然有效？
+- troubleshooting steps 是否仍然准确？
+
+**ARCHITECTURE.md：**
+- ASCII diagrams 和 component descriptions 是否匹配当前 code？
+- design decisions 和 "why" explanations 是否仍然准确？
+- 保守处理；只更新与 diff 明确矛盾的内容。Architecture docs 描述的是不太频繁变化的内容。
+
+**CONTRIBUTING.md — New contributor smoke test：**
+- 像 brand new contributor 一样走一遍 setup instructions。
+- listed commands 是否准确？每个 step 是否会成功？
+- test tier descriptions 是否匹配当前 test infrastructure？
+- workflow descriptions（dev setup、operational learnings 等）是否最新？
+- 标记任何会失败或让 first-time contributor 困惑的内容。
+
+**CLAUDE.md / project instructions：**
+- project structure section 是否匹配实际 file tree？
+- listed commands 和 scripts 是否准确？
+- build/test instructions 是否匹配 package.json（或等价文件）中的内容？
+
+**任何其他 .md files：**
+- 读取文件，判断其 purpose 和 audience。
+- 与 diff 交叉核对，检查它是否与文件中任何说法矛盾。
+
+对每个 file，将所需 updates 分类为：
+
+- **Auto-update** — diff 明确支持的 factual corrections：向 table 添加 item、更新 file path、
+  修复 count、更新 project structure tree。
+- **Ask user** — Narrative changes、section removal、security model changes、large rewrites
+  （一个 section 超过约 10 行）、ambiguous relevance、添加全新 sections。
+
+---
+
+## Step 3: 应用 Auto-Updates
+
+使用 Edit tool 直接完成所有清晰的 factual updates。
+
+对每个 modified file，输出一行 summary 描述 **具体改了什么**；不要只写
+"Updated README.md"，而要写 "README.md: added /new-skill to skills table, updated skill count
 from 9 to 10."
 
-**Never auto-update:**
-- README introduction or project positioning
-- ARCHITECTURE philosophy or design rationale
+**绝不 auto-update：**
+- README introduction 或 project positioning
+- ARCHITECTURE philosophy 或 design rationale
 - Security model descriptions
-- Do not remove entire sections from any document
+- 不要从任何 document 中删除 entire sections
 
 ---
 
-## Step 4: Ask About Risky/Questionable Changes
+## Step 4: 询问 Risky/Questionable Changes
 
-For each risky or questionable update identified in Step 2, use AskUserQuestion with:
-- Context: project name, branch, which doc file, what we're reviewing
-- The specific documentation decision
+对 Step 2 中识别的每个 risky 或 questionable update，使用 AskUserQuestion，包含：
+- Context：project name、branch、哪个 doc file、我们在 review 什么
+- 具体 documentation decision
 - `RECOMMENDATION: Choose [X] because [one-line reason]`
-- Options including C) Skip — leave as-is
+- 选项中包含 C) 跳过，保持原样
 
-Apply approved changes immediately after each answer.
+每个 answer 后立即应用 approved changes。
 
 ---
 
-## Step 5: CHANGELOG Voice Polish
+## Step 5：CHANGELOG Voice Polish（CHANGELOG 文风润色）
 
 **CRITICAL — NEVER CLOBBER CHANGELOG ENTRIES.**
 
-This step polishes voice. It does NOT rewrite, replace, or regenerate CHANGELOG content.
+此 step 只 polish voice。它不会 rewrite、replace 或 regenerate CHANGELOG content。
 
-A real incident occurred where an agent replaced existing CHANGELOG entries when it should have
-preserved them. This skill must NEVER do that.
+曾发生真实事故：agent 本应保留 existing CHANGELOG entries，却替换了它们。这个 skill
+绝不能这样做。
 
 **Rules:**
-1. Read the entire CHANGELOG.md first. Understand what is already there.
-2. Only modify wording within existing entries. Never delete, reorder, or replace entries.
-3. Never regenerate a CHANGELOG entry from scratch. The entry was written by `/ship` from the
-   actual diff and commit history. It is the source of truth. You are polishing prose, not
-   rewriting history.
-4. If an entry looks wrong or incomplete, use AskUserQuestion — do NOT silently fix it.
-5. Use Edit tool with exact `old_string` matches — never use Write to overwrite CHANGELOG.md.
+1. 先读取整个 CHANGELOG.md。理解其中已有内容。
+2. 只修改 existing entries 内部的 wording。绝不 delete、reorder 或 replace entries。
+3. 绝不从头 regenerate CHANGELOG entry。entry 是 `/ship` 根据 actual diff 和 commit history
+   写出的。它是 source of truth。你是在 polish prose，不是在 rewrite history。
+4. 如果某个 entry 看起来错误或不完整，使用 AskUserQuestion；不要 silent fix。
+5. 使用带 exact `old_string` matches 的 Edit tool；绝不用 Write 覆盖 CHANGELOG.md。
 
-**If CHANGELOG was not modified in this branch:** skip this step.
+**如果 CHANGELOG 未在此 branch 中修改：** 跳过此 step。
 
-**If CHANGELOG was modified in this branch**, review the entry for voice:
+**如果 CHANGELOG 在此 branch 中被修改**，review entry 的 voice：
 
 - **Sell test (Diataxis rubric):** Score each CHANGELOG entry 0-3:
-  - **1 point** — answers "What changed?" (reference: names the feature/fix)
-  - **1 point** — answers "Why should I care?" (explanation: user impact, pain removed)
-  - **1 point** — answers "How do I use it?" (how-to: command, flag, or link to docs)
-  - Entries scoring <2 need a rewrite. Entries scoring 3 are gold.
-- Lead with what the user can now **do** — not implementation details.
-- "You can now..." not "Refactored the..."
-- Flag and rewrite any entry that reads like a commit message.
-- Internal/contributor changes belong in a separate "### For contributors" subsection.
-- Auto-fix minor voice adjustments. Use AskUserQuestion if a rewrite would alter meaning.
+  - **1 point** — 回答 "What changed?"（reference：命名 feature/fix）
+  - **1 point** — 回答 "Why should I care?"（explanation：user impact、pain removed）
+  - **1 point** — 回答 "How do I use it?"（how-to：command、flag 或 docs link）
+  - 得分 <2 的 entries 需要 rewrite。得分 3 是 gold。
+- 以用户现在可以 **do** 什么开头，而不是 implementation details。
+- 写 "You can now..."，不要写 "Refactored the..."
+- 标记并 rewrite 任何读起来像 commit message 的 entry。
+- Internal/contributor changes 放在单独的 "### For contributors" subsection。
+- Auto-fix minor voice adjustments。如果 rewrite 会改变 meaning，则使用 AskUserQuestion。
 
 ---
 
-## Step 6: Cross-Doc Consistency & Discoverability Check
+## Step 6：Cross-Doc Consistency & Discoverability Check（跨文档一致性与可发现性检查）
 
-After auditing each file individually, do a cross-doc consistency pass:
+逐个 audit 文件后，做一次 cross-doc consistency pass：
 
-1. Does the README's feature/capability list match what CLAUDE.md (or project instructions) describes?
-2. Does ARCHITECTURE's component list match CONTRIBUTING's project structure description?
-3. Does CHANGELOG's latest version match the VERSION file?
-4. **Discoverability:** Is every documentation file reachable from README.md or CLAUDE.md? If
-   ARCHITECTURE.md exists but neither README nor CLAUDE.md links to it, flag it. Every doc
-   should be discoverable from one of the two entry-point files.
-5. Flag any contradictions between documents. Auto-fix clear factual inconsistencies (e.g., a
-   version mismatch). Use AskUserQuestion for narrative contradictions.
-
----
-
-## Step 7: TODOS.md Cleanup
-
-This is a second pass that complements `/ship`'s Step 5.5. Read `review/TODOS-format.md` (if
-available) for the canonical TODO item format.
-
-If TODOS.md does not exist, skip this step.
-
-1. **Completed items not yet marked:** Cross-reference the diff against open TODO items. If a
-   TODO is clearly completed by the changes in this branch, move it to the Completed section
-   with `**Completed:** vX.Y.Z.W (YYYY-MM-DD)`. Be conservative — only mark items with clear
-   evidence in the diff.
-
-2. **Items needing description updates:** If a TODO references files or components that were
-   significantly changed, its description may be stale. Use AskUserQuestion to confirm whether
-   the TODO should be updated, completed, or left as-is.
-
-3. **New deferred work:** Check the diff for `TODO`, `FIXME`, `HACK`, and `XXX` comments. For
-   each one that represents meaningful deferred work (not a trivial inline note), use
-   AskUserQuestion to ask whether it should be captured in TODOS.md.
+1. README 的 feature/capability list 是否匹配 CLAUDE.md（或 project instructions）的描述？
+2. ARCHITECTURE 的 component list 是否匹配 CONTRIBUTING 的 project structure description？
+3. CHANGELOG 的 latest version 是否匹配 VERSION file？
+4. **Discoverability：** 每个 documentation file 是否都能从 README.md 或 CLAUDE.md 到达？
+   如果 ARCHITECTURE.md 存在，但 README 和 CLAUDE.md 都没有 link 它，则标记。
+   每个 doc 都应可从两个 entry-point files 之一发现。
+5. 标记 documents 之间的任何 contradictions。Auto-fix 清晰的 factual inconsistencies
+   （例如 version mismatch）。对 narrative contradictions 使用 AskUserQuestion。
 
 ---
 
-## Step 8: VERSION Bump Question
+## Step 7：TODOS.md Cleanup（TODOS.md 清理）
+
+这是补充 `/ship` Step 5.5 的 second pass。读取 `review/TODOS-format.md`（如果存在），
+获取 canonical TODO item format。
+
+如果 TODOS.md 不存在，跳过此 step。
+
+1. **Completed items not yet marked：** 将 diff 与 open TODO items 交叉核对。如果某个
+   TODO 明确被此 branch 的 changes 完成，将其移动到 Completed section，并标注
+   `**Completed:** vX.Y.Z.W (YYYY-MM-DD)`。保持保守；只标记 diff 中有清晰 evidence 的 items。
+
+2. **Items needing description updates：** 如果 TODO 引用了 significantly changed 的 files
+   或 components，其 description 可能 stale。使用 AskUserQuestion 确认该 TODO 应 updated、
+   completed，还是保持原样。
+
+3. **New deferred work：** 检查 diff 中的 `TODO`、`FIXME`、`HACK` 和 `XXX` comments。
+   对每个代表 meaningful deferred work 的 comment（不是 trivial inline note），使用
+   AskUserQuestion 询问是否应记录到 TODOS.md。
+
+---
+
+## Step 8：VERSION Bump Question（VERSION bump 询问）
 
 **CRITICAL — NEVER BUMP VERSION WITHOUT ASKING.**
 
-1. **If VERSION does not exist:** Skip silently.
+1. **如果 VERSION 不存在：** 静默跳过。
 
-2. Check if VERSION was already modified on this branch:
+2. 检查 VERSION 是否已经在此 branch 上修改：
 
 ```bash
 git diff <base>...HEAD -- VERSION
 ```
 
-3. **If VERSION was NOT bumped:** Use AskUserQuestion:
-   - RECOMMENDATION: Choose C (Skip) because docs-only changes rarely warrant a version bump
-   - A) Bump PATCH (X.Y.Z+1) — if doc changes ship alongside code changes
-   - B) Bump MINOR (X.Y+1.0) — if this is a significant standalone release
-   - C) Skip — no version bump needed
+3. **如果 VERSION 未 bumped：** 使用 AskUserQuestion：
+   - RECOMMENDATION：选择 C（跳过），因为 docs-only changes 很少需要 version bump
+   - A) Bump PATCH（X.Y.Z+1）— 如果 doc changes 与 code changes 一起 ship
+   - B) Bump MINOR（X.Y+1.0）— 如果这是 significant standalone release
+   - C) 跳过 — 不需要 version bump
 
-4. **If VERSION was already bumped:** Do NOT skip silently. Instead, check whether the bump
-   still covers the full scope of changes on this branch:
+4. **如果 VERSION 已 bumped：** 不要静默跳过。改为检查这次 bump 是否仍覆盖此 branch 上的
+   full scope of changes：
 
-   a. Read the CHANGELOG entry for the current VERSION. What features does it describe?
-   b. Read the full diff (`git diff <base>...HEAD --stat` and `git diff <base>...HEAD --name-only`).
-      Are there significant changes (new features, new skills, new commands, major refactors)
-      that are NOT mentioned in the CHANGELOG entry for the current version?
-   c. **If the CHANGELOG entry covers everything:** Skip — output "VERSION: Already bumped to
+   a. 读取 current VERSION 的 CHANGELOG entry。它描述了哪些 features？
+   b. 读取 full diff（`git diff <base>...HEAD --stat` 和 `git diff <base>...HEAD --name-only`）。
+      是否有 significant changes（new features、new skills、new commands、major refactors）
+      未在 current version 的 CHANGELOG entry 中提到？
+   c. **如果 CHANGELOG entry 覆盖全部内容：** 跳过；输出 "VERSION: Already bumped to
       vX.Y.Z, covers all changes."
-   d. **If there are significant uncovered changes:** Use AskUserQuestion explaining what the
-      current version covers vs what's new, and ask:
-      - RECOMMENDATION: Choose A because the new changes warrant their own version
-      - A) Bump to next patch (X.Y.Z+1) — give the new changes their own version
-      - B) Keep current version — add new changes to the existing CHANGELOG entry
-      - C) Skip — leave version as-is, handle later
+   d. **如果存在 significant uncovered changes：** 使用 AskUserQuestion 解释 current version
+      覆盖了什么、新增了什么，并询问：
+      - RECOMMENDATION：选择 A，因为 new changes 应拥有自己的 version
+      - A) Bump 到 next patch（X.Y.Z+1）— 给 new changes 自己的 version
+      - B) 保持 current version — 将 new changes 添加到 existing CHANGELOG entry
+      - C) 跳过 — 保持 version 不变，稍后处理
 
-   The key insight: a VERSION bump set for "feature A" should not silently absorb "feature B"
-   if feature B is substantial enough to deserve its own version entry.
+   关键洞察：如果 VERSION bump 是为 "feature A" 设置的，而 "feature B" 足够 substantial、
+   值得自己的 version entry，则不应被 silent absorb。
 
 ---
 
-## Step 9: Commit & Output
+## Step 9：Commit & Output（提交与输出）
 
-**Empty check first:** Run `git status` (never use `-uall`). If no documentation files were
-modified by any previous step, output "All documentation is up to date." and exit without
-committing.
+**先做 empty check：** 运行 `git status`（绝不使用 `-uall`）。如果前面 steps 没有修改任何
+documentation files，输出 "All documentation is up to date."，不 commit 直接退出。
 
 **Commit:**
 
-1. Stage modified documentation files by name (never `git add -A` or `git add .`).
-2. Create a single commit:
+1. 按文件名 stage modified documentation files（绝不 `git add -A` 或 `git add .`）。
+2. 创建一个 single commit：
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -336,15 +332,15 @@ EOF
 )"
 ```
 
-3. Push to the current branch:
+3. Push 到 current branch：
 
 ```bash
 git push
 ```
 
-**PR/MR body update (idempotent, race-safe):**
+**PR/MR body update（idempotent，race-safe）：**
 
-1. Read the existing PR/MR body into a PID-unique tempfile (use the platform detected in Step 0):
+1. 将 existing PR/MR body 读入 PID-unique tempfile（使用 Step 0 检测到的平台）：
 
 **If GitHub:**
 ```bash
@@ -356,34 +352,33 @@ gh pr view --json body -q .body > /tmp/gstack-pr-body-$$.md
 glab mr view -F json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('description',''))" > /tmp/gstack-pr-body-$$.md
 ```
 
-2. If the tempfile already contains a `## Documentation` section, replace that section with the
-   updated content. If it does not contain one, append a `## Documentation` section at the end.
+2. 如果 tempfile 已包含 `## Documentation` section，用 updated content 替换该 section。
+   如果没有，则在末尾 append 一个 `## Documentation` section。
 
-3. The Documentation section should include:
+3. Documentation section 应包含：
 
-   a. **Doc diff preview** — for each file modified, describe what specifically changed (e.g.,
-      "README.md: added /document-release to skills table, updated skill count from 9 to 10").
+   a. **Doc diff preview** — 对每个 modified file，描述具体改了什么（例如：
+      "README.md: added /document-release to skills table, updated skill count from 9 to 10"）。
 
-   b. **Documentation debt** — if the coverage map from Step 1.5 found gaps, append a
-      `### Documentation Debt` subsection listing:
-      - Critical gaps: new public surface with zero documentation coverage
-      - Common gaps: features with reference-only coverage (no how-to or tutorial)
-      - Stale diagrams: architecture diagrams with entity names that drifted from the code
-      - Each item should include a one-line description of what's missing and which Diataxis
-        quadrant would fill it (e.g., "⚠️ `/new-skill` — has reference in AGENTS.md but no
-        how-to example in README")
+   b. **Documentation debt** — 如果 Step 1.5 的 coverage map 发现 gaps，append 一个
+      `### Documentation Debt` subsection，列出：
+      - Critical gaps：zero documentation coverage 的 new public surface
+      - Common gaps：只有 reference-only coverage 的 features（没有 how-to 或 tutorial）
+      - Stale diagrams：entity names 与 code drift 的 architecture diagrams
+      - 每项应包含一行描述：缺少什么，以及哪个 Diataxis quadrant 可以补齐（例如：
+        "⚠️ `/new-skill` — AGENTS.md 中有 reference，但 README 中没有 how-to example"）
 
-   If there are any documentation debt items, suggest adding a `docs-debt` label to the PR.
+   如果有任何 documentation debt items，建议给 PR 添加 `docs-debt` label。
 
-4. Redaction scan-at-sink, then write the updated body back. The body is already
-   in a temp file (`/tmp/gstack-pr-body-$$.md`); scan THAT file before editing so
-   the bytes scanned are the bytes sent:
+4. Redaction scan-at-sink，然后写回 updated body。body 已在 temp file
+   (`/tmp/gstack-pr-body-$$.md`) 中；editing 前扫描那个文件，确保 scanned bytes
+   就是将发送的 bytes：
 
 ```bash
 REDACT_VIS=$(~/.claude/skills/gstack/bin/gstack-config get redact_repo_visibility 2>/dev/null)
 [ -z "$REDACT_VIS" ] && REDACT_VIS=$(gh repo view --json visibility -q .visibility 2>/dev/null | tr 'A-Z' 'a-z')
 ~/.claude/skills/gstack/bin/gstack-redact --from-file /tmp/gstack-pr-body-$$.md --repo-visibility "${REDACT_VIS:-unknown}" --json
-# exit 3 (HIGH) → do NOT edit, rotate+redact; exit 2 (MEDIUM) → confirm per finding.
+# exit 3 (HIGH) → 不要 edit，rotate+redact；exit 2 (MEDIUM) → 按 finding confirm。
 ```
 
 **If GitHub:**
@@ -392,7 +387,8 @@ gh pr edit --body-file /tmp/gstack-pr-body-$$.md
 ```
 
 **If GitLab:**
-Read the contents of `/tmp/gstack-pr-body-$$.md` using the Read tool, then pass it to `glab mr update` using a heredoc to avoid shell metacharacter issues:
+使用 Read tool 读取 `/tmp/gstack-pr-body-$$.md` 的内容，然后通过 heredoc 传给
+`glab mr update`，避免 shell metacharacter issues：
 ```bash
 glab mr update -d "$(cat <<'MRBODY'
 <paste the file contents here>
@@ -400,29 +396,31 @@ MRBODY
 )"
 ```
 
-5. Clean up the tempfile:
+5. 清理 tempfile：
 
 ```bash
 rm -f /tmp/gstack-pr-body-$$.md
 ```
 
-6. If `gh pr view` / `glab mr view` fails (no PR/MR exists): skip with message "No PR/MR found — skipping body update."
-7. If `gh pr edit` / `glab mr update` fails: warn "Could not update PR/MR body — documentation changes are in the
-   commit." and continue.
+6. 如果 `gh pr view` / `glab mr view` 失败（没有 PR/MR）：跳过并输出
+   "No PR/MR found — skipping body update."
+7. 如果 `gh pr edit` / `glab mr update` 失败：warn "Could not update PR/MR body — documentation changes are in the
+   commit." 并继续。
 
-**PR/MR title sync (idempotent, always-on):**
+**PR/MR title sync（idempotent，always-on）：**
 
-PR titles must always start with `v<VERSION>` — same rule as `/ship`. If Step 8 bumped VERSION after `/ship` had already created the PR, the title is now stale. This sub-step fixes it.
+PR titles 必须始终以 `v<VERSION>` 开头；与 `/ship` 规则相同。如果 Step 8 在 `/ship`
+已创建 PR 后 bumped VERSION，title 现在就是 stale。此 sub-step 修复它。
 
-1. Read the current VERSION:
+1. 读取 current VERSION：
 
 ```bash
 V=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
 ```
 
-If `VERSION` does not exist or is empty, skip this sub-step entirely.
+如果 `VERSION` 不存在或为空，完全跳过此 sub-step。
 
-2. Read the current PR/MR title:
+2. 读取 current PR/MR title：
 
 **If GitHub:**
 ```bash
@@ -434,17 +432,18 @@ CURRENT_TITLE=$(gh pr view --json title -q .title 2>/dev/null || true)
 CURRENT_TITLE=$(glab mr view -F json 2>/dev/null | jq -r .title 2>/dev/null || true)
 ```
 
-If `CURRENT_TITLE` is empty (no open PR/MR), skip with message "No PR/MR found — skipping title sync."
+如果 `CURRENT_TITLE` 为空（没有 open PR/MR），跳过并输出 "No PR/MR found — skipping title sync."
 
-3. Compute the corrected title using the shared helper (single source of truth — same one `/ship` uses):
+3. 使用 shared helper 计算 corrected title（single source of truth；与 `/ship` 使用同一个）：
 
 ```bash
 NEW_TITLE=$(~/.claude/skills/gstack/bin/gstack-pr-title-rewrite.sh "$V" "$CURRENT_TITLE")
 ```
 
-The helper handles three cases: title already correct (no-op), title has a different `v<X.Y.Z.W>` prefix (replace it), or title has no version prefix (prepend one).
+helper 处理三种情况：title 已正确（no-op）、title 有不同的 `v<X.Y.Z.W>` prefix（replace it）、
+或 title 没有 version prefix（prepend one）。
 
-4. If `NEW_TITLE` differs from `CURRENT_TITLE`, update it:
+4. 如果 `NEW_TITLE` 与 `CURRENT_TITLE` 不同，更新它：
 
 **If GitHub:**
 ```bash
@@ -456,11 +455,12 @@ gh pr edit --title "$NEW_TITLE"
 glab mr update -t "$NEW_TITLE"
 ```
 
-5. If the edit command fails: warn "Could not update PR/MR title — documentation changes are still in the commit." and continue. Do not block on title sync failure.
+5. 如果 edit command 失败：warn "Could not update PR/MR title — documentation changes are still in the commit."
+   并继续。不要因 title sync failure 阻塞。
 
-**Structured doc health summary (final output):**
+**Structured doc health summary（final output）：**
 
-Output a scannable summary showing every documentation file's status:
+输出可扫描 summary，展示每个 documentation file 的 status：
 
 ```
 Documentation health:
@@ -472,15 +472,15 @@ Documentation health:
   VERSION         [status] ([details])
 ```
 
-Where status is one of:
-- Updated — with description of what changed
-- Current — no changes needed
+status 取值之一：
+- Updated — 带具体 changed description
+- Current — 不需要 changes
 - Voice polished — wording adjusted
-- Not bumped — user chose to skip
-- Already bumped — version was set by /ship
-- Skipped — file does not exist
+- Not bumped — 用户选择 skip
+- Already bumped — version 已由 /ship 设置
+- Skipped — file 不存在
 
-If the coverage map from Step 1.5 identified any gaps, append:
+如果 Step 1.5 的 coverage map 识别出 gaps，append：
 
 ```
 Documentation coverage:
@@ -492,22 +492,22 @@ Diagram drift:
   ARCHITECTURE.md: "FooProcessor" renamed to "BarProcessor" in code — diagram may be stale
 ```
 
-If all coverage is complete and no diagrams drifted, output: "Coverage: all shipped features have adequate documentation."
+如果所有 coverage 都 complete 且没有 diagrams drifted，输出：
+"Coverage：所有 shipped features 都有足够 documentation。"
 
 ---
 
-## Important Rules
+## 重要规则
 
-- **Read before editing.** Always read the full content of a file before modifying it.
-- **Never clobber CHANGELOG.** Polish wording only. Never delete, replace, or regenerate entries.
-- **Never bump VERSION silently.** Always ask. Even if already bumped, check whether it covers the full scope of changes.
-- **Be explicit about what changed.** Every edit gets a one-line summary.
-- **Generic heuristics, not project-specific.** The audit checks work on any repo.
-- **Discoverability matters.** Every doc file should be reachable from README or CLAUDE.md.
-- **Coverage map informs, never generates.** The Diataxis coverage map flags gaps for the PR body
-  and future work. It does NOT auto-generate missing documentation pages or sections. When gaps
-  are found, suggest `/document-generate` as the follow-up skill.
-- **Diagram drift is advisory.** Flag stale architecture diagrams in the PR body but do not
-  auto-edit ASCII art or Mermaid blocks — they require human judgment to update correctly.
-- **Voice: friendly, user-forward, not obscure.** Write like you're explaining to a smart person
-  who hasn't seen the code.
+- **Read before editing。** 修改文件前始终读取完整内容。
+- **Never clobber CHANGELOG。** 只 polish wording。绝不 delete、replace 或 regenerate entries。
+- **Never bump VERSION silently。** 始终询问。即便已 bumped，也要检查它是否覆盖 full scope of changes。
+- **明确说明改了什么。** 每次 edit 都要有一行 summary。
+- **Generic heuristics，不是 project-specific。** 这些 audit checks 适用于任何 repo。
+- **Discoverability matters。** 每个 doc file 都应能从 README 或 CLAUDE.md 到达。
+- **Coverage map 只 inform，绝不 generate。** Diataxis coverage map 为 PR body
+  和 future work 标记 gaps。它不会 auto-generate missing documentation pages 或 sections。
+  发现 gaps 时，建议 `/document-generate` 作为 follow-up skill。
+- **Diagram drift 是 advisory。** 在 PR body 中标记 stale architecture diagrams，但不要
+  auto-edit ASCII art 或 Mermaid blocks；它们需要 human judgment 才能正确更新。
+- **Voice：friendly、user-forward、not obscure。** 写法像是在向一个聪明但没看过 code 的人解释。

@@ -3,14 +3,14 @@ name: autoplan
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk
-  and runs them sequentially with auto-decisions using 6 decision principles. Surfaces
-  taste decisions (close approaches, borderline scope, codex disagreements) at a final
-  approval gate. One command, fully reviewed plan out.
-  Use when asked to "auto review", "autoplan", "run all reviews", "review this plan
-  automatically", or "make the decisions for me".
-  Proactively suggest when the user has a plan file and wants to run the full review
-  gauntlet without answering 15-30 intermediate questions. (gstack)
+  Auto-review pipeline：从磁盘读取完整 CEO、design、eng 和 DX review skills，
+  并用 6 条 decision principles 顺序运行、自动决策。在 final approval gate 呈现
+  taste decisions（close approaches、borderline scope、codex disagreements）。
+  一条命令输入 rough plan，输出 fully reviewed plan。
+  适用于用户要求 "auto review"、"autoplan"、"run all reviews"、
+  "review this plan automatically" 或 "make the decisions for me"。
+  当用户有 plan file，并希望跑完整 review gauntlet、但不想回答 15-30 个中间问题时，
+  主动建议使用。（gstack）
 voice-triggers:
   - "auto plan"
   - "automatic review"
@@ -36,134 +36,126 @@ allowed-tools:
 
 {{BENEFITS_FROM}}
 
-# /autoplan — Auto-Review Pipeline
+# /autoplan — Auto-Review Pipeline（自动评审流水线）
 
-One command. Rough plan in, fully reviewed plan out.
+一条命令。输入 rough plan，输出 fully reviewed plan。
 
-/autoplan reads the full CEO, design, eng, and DX review skill files from disk and follows
-them at full depth — same rigor, same sections, same methodology as running each skill
-manually. The only difference: intermediate AskUserQuestion calls are auto-decided using
-the 6 principles below. Taste decisions (where reasonable people could disagree) are
-surfaced at a final approval gate.
-
----
-
-## The 6 Decision Principles
-
-These rules auto-answer every intermediate question:
-
-1. **Choose completeness** — Ship the whole thing. Pick the approach that covers more edge cases.
-2. **Boil lakes** — Fix everything in the blast radius (files modified by this plan + direct importers). Auto-approve expansions that are in blast radius AND < 1 day CC effort (< 5 files, no new infra).
-3. **Pragmatic** — If two options fix the same thing, pick the cleaner one. 5 seconds choosing, not 5 minutes.
-4. **DRY** — Duplicates existing functionality? Reject. Reuse what exists.
-5. **Explicit over clever** — 10-line obvious fix > 200-line abstraction. Pick what a new contributor reads in 30 seconds.
-6. **Bias toward action** — Merge > review cycles > stale deliberation. Flag concerns but don't block.
-
-**Conflict resolution (context-dependent tiebreakers):**
-- **CEO phase:** P1 (completeness) + P2 (boil lakes) dominate.
-- **Eng phase:** P5 (explicit) + P3 (pragmatic) dominate.
-- **Design phase:** P5 (explicit) + P1 (completeness) dominate.
+/autoplan 从磁盘读取完整 CEO、design、eng 和 DX review skill files，并以 full depth
+执行它们：与手动运行每个 skill 相同的 rigor、sections 和 methodology。唯一差异：
+中间的 AskUserQuestion calls 会使用下方 6 条 principles 自动决策。Taste decisions
+（reasonable people could disagree 的地方）会在 final approval gate 呈现。
 
 ---
 
-## Decision Classification
+## 6 条 Decision Principles
 
-Every auto-decision is classified:
+这些 rules 会自动回答每个 intermediate question：
 
-**Mechanical** — one clearly right answer. Auto-decide silently.
-Examples: run codex (always yes), run evals (always yes), reduce scope on a complete plan (always no).
+1. **Choose completeness** — ship 完整方案。选择覆盖更多 edge cases 的 approach。
+2. **Boil lakes** — 修复 blast radius 内的一切（此 plan 修改的 files + direct importers）。自动 approve 位于 blast radius 且 < 1 天 CC effort 的 expansions（< 5 files，无 new infra）。
+3. **Pragmatic** — 如果两个 options 修复同一件事，选更干净的那个。花 5 秒选择，不花 5 分钟。
+4. **DRY** — duplicate existing functionality？Reject。复用已有内容。
+5. **Explicit over clever** — 10 行 obvious fix > 200 行 abstraction。选择 new contributor 能在 30 秒内读懂的东西。
+6. **Bias toward action** — Merge > review cycles > stale deliberation。标记 concerns，但不阻塞。
 
-**Taste** — reasonable people could disagree. Auto-decide with recommendation, but surface at the final gate. Three natural sources:
-1. **Close approaches** — top two are both viable with different tradeoffs.
-2. **Borderline scope** — in blast radius but 3-5 files, or ambiguous radius.
-3. **Codex disagreements** — codex recommends differently and has a valid point.
-
-**User Challenge** — both models agree the user's stated direction should change.
-This is qualitatively different from taste decisions. When Claude and Codex both
-recommend merging, splitting, adding, or removing features/skills/workflows that
-the user specified, this is a User Challenge. It is NEVER auto-decided.
-
-User Challenges go to the final approval gate with richer context than taste
-decisions:
-- **What the user said:** (their original direction)
-- **What both models recommend:** (the change)
-- **Why:** (the models' reasoning)
-- **What context we might be missing:** (explicit acknowledgment of blind spots)
-- **If we're wrong, the cost is:** (what happens if the user's original direction
-  was right and we changed it)
-
-The user's original direction is the default. The models must make the case for
-change, not the other way around.
-
-**Exception:** If both models flag the change as a security vulnerability or
-feasibility blocker (not a preference), the AskUserQuestion framing explicitly
-warns: "Both models believe this is a security/feasibility risk, not just a
-preference." The user still decides, but the framing is appropriately urgent.
+**Conflict resolution（context-dependent tiebreakers）：**
+- **CEO phase：** P1（completeness）+ P2（boil lakes）优先。
+- **Eng phase：** P5（explicit）+ P3（pragmatic）优先。
+- **Design phase：** P5（explicit）+ P1（completeness）优先。
 
 ---
 
-## Sequential Execution — MANDATORY
+## Decision Classification（决策分类）
 
-Phases MUST execute in strict order: CEO → Design → Eng → DX.
-Each phase MUST complete fully before the next begins.
-NEVER run phases in parallel — each builds on the previous.
+每个 auto-decision 都要分类：
 
-Between each phase, emit a phase-transition summary and verify that all required
-outputs from the prior phase are written before starting the next.
+**Mechanical** — 有一个 clearly right answer。静默 auto-decide。
+Examples：run codex（always yes）、run evals（always yes）、reduce scope on a complete plan（always no）。
+
+**Taste** — reasonable people could disagree。带 recommendation auto-decide，但在 final gate 呈现。三个自然来源：
+1. **Close approaches** — top two 都 viable，但 tradeoffs 不同。
+2. **Borderline scope** — 位于 blast radius 但涉及 3-5 files，或 radius ambiguous。
+3. **Codex disagreements** — codex 推荐不同方案，并且有 valid point。
+
+**User Challenge** — 两个 models 都同意应改变用户 stated direction。这与 taste decisions
+有质的不同。当 Claude 和 Codex 都建议 merge、split、add 或 remove 用户指定的
+features/skills/workflows 时，这就是 User Challenge。它绝不 auto-decide。
+
+User Challenges 会带着比 taste decisions 更丰富的 context 进入 final approval gate：
+- **What the user said：**（their original direction）
+- **What both models recommend：**（the change）
+- **Why：**（models 的 reasoning）
+- **What context we might be missing：**（明确承认 blind spots）
+- **If we're wrong, the cost is：**（如果用户 original direction 是对的、而我们改了它，会发生什么）
+
+用户的 original direction 是 default。models 必须为 change 提供理由，而不是反过来。
+
+**Exception：** 如果两个 models 都将某项 change 标记为 security vulnerability 或
+feasibility blocker（不是 preference），AskUserQuestion framing 必须明确警告：
+"Both models believe this is a security/feasibility risk, not just a preference."
+用户仍然决定，但 framing 要有合适的紧迫感。
 
 ---
 
-## What "Auto-Decide" Means
+## Sequential Execution — MANDATORY（必须顺序执行）
 
-Auto-decide replaces the USER'S judgment with the 6 principles. It does NOT replace
-the ANALYSIS. Every section in the loaded skill files must still be executed at the
-same depth as the interactive version. The only thing that changes is who answers the
-AskUserQuestion: you do, using the 6 principles, instead of the user.
+Phases 必须严格按顺序执行：CEO → Design → Eng → DX。
+每个 phase 必须完全完成后，才能开始下一个。
+绝不要并行运行 phases；每个 phase 都建立在上一个之上。
 
-**Two exceptions — never auto-decided:**
-1. Premises (Phase 1) — require human judgment about what problem to solve.
-2. User Challenges — when both models agree the user's stated direction should change
-   (merge, split, add, remove features/workflows). The user always has context models
-   lack. See Decision Classification above.
+每个 phase 之间，emit phase-transition summary，并在开始下一个 phase 前验证 prior phase
+的所有 required outputs 都已写入。
 
-**You MUST still:**
-- READ the actual code, diffs, and files each section references
-- PRODUCE every output the section requires (diagrams, tables, registries, artifacts)
-- IDENTIFY every issue the section is designed to catch
-- DECIDE each issue using the 6 principles (instead of asking the user)
-- LOG each decision in the audit trail
-- WRITE all required artifacts to disk
+---
+
+## "Auto-Decide" 的含义
+
+Auto-decide 是用 6 条 principles 代替用户的 judgment。它不代替 ANALYSIS。loaded skill
+files 中的每个 section 仍必须以与 interactive version 相同的 depth 执行。唯一变化是：
+AskUserQuestion 由你使用 6 条 principles 回答，而不是用户回答。
+
+**两个例外，绝不 auto-decide：**
+1. Premises（Phase 1）— 对要解决什么问题的判断需要 human judgment。
+2. User Challenges — 当两个 models 都同意应改变用户 stated direction
+   （merge、split、add、remove features/workflows）。用户始终拥有 models 缺少的 context。
+   见上方 Decision Classification。
+
+**你仍然 MUST：**
+- READ 每个 section 引用的 actual code、diffs 和 files
+- PRODUCE section 要求的每个 output（diagrams、tables、registries、artifacts）
+- IDENTIFY 该 section 设计用来捕捉的每个 issue
+- 使用 6 条 principles DECIDE 每个 issue（而不是询问用户）
+- 在 audit trail 中 LOG 每个 decision
+- 将所有 required artifacts WRITE 到 disk
 
 **You MUST NOT:**
-- Compress a review section into a one-liner table row
-- Write "no issues found" without showing what you examined
-- Skip a section because "it doesn't apply" without stating what you checked and why
-- Produce a summary instead of the required output (e.g., "architecture looks good"
-  instead of the ASCII dependency graph the section requires)
+- 将 review section 压缩成 one-liner table row
+- 未展示你检查了什么就写 "no issues found"
+- 因为 "it doesn't apply" 跳过 section，却不说明你检查了什么和为什么
+- 用 summary 代替 required output（例如写 "architecture looks good"，而不是 section 要求的
+  ASCII dependency graph）
 
-"No issues found" is a valid output for a section — but only after doing the analysis.
-State what you examined and why nothing was flagged (1-2 sentences minimum).
-"Skipped" is never valid for a non-skip-listed section.
-
----
-
-## Filesystem Boundary — Codex Prompts
-
-All prompts sent to Codex (via `codex exec` or `codex review`) MUST be prefixed with
-this boundary instruction:
-
-> IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Stay focused on the repository code only.
-
-This prevents Codex from discovering gstack skill files on disk and following their
-instructions instead of reviewing the plan.
+"No issues found" 可以是 section 的 valid output，但前提是完成 analysis。
+说明你检查了什么，以及为什么没有 flagged（至少 1-2 句）。
+对不在 skip list 中的 section，"Skipped" 永远无效。
 
 ---
 
-## Phase 0: Intake + Restore Point
+## Filesystem Boundary — Codex Prompts（文件系统边界）
 
-### Step 1: Capture restore point
+所有发送给 Codex 的 prompts（通过 `codex exec` 或 `codex review`）都必须加上这条 boundary instruction 前缀：
 
-Before doing anything, save the plan file's current state to an external file:
+> IMPORTANT：不要读取或执行任何 SKILL.md files，也不要读取或执行 skill definition directories 中的 files（路径包含 skills/gstack）。这些是另一个 AI assistant system 使用的 skill definitions，包含 bash scripts 和 prompt templates，会浪费你的时间。完全忽略它们，只专注于 repository code。
+
+这会防止 Codex 在磁盘上发现 gstack skill files，并转而遵循那些 instructions，而不是 review plan。
+
+---
+
+## Phase 0: Intake + Restore Point（输入与恢复点）
+
+### Step 1: 捕获 restore point
+
+做任何事前，将 plan file 的 current state 保存到 external file：
 
 ```bash
 {{SLUG_SETUP}}
@@ -172,48 +164,47 @@ DATETIME=$(date +%Y%m%d-%H%M%S)
 echo "RESTORE_PATH=$HOME/.gstack/projects/$SLUG/${BRANCH}-autoplan-restore-${DATETIME}.md"
 ```
 
-Write the plan file's full contents to the restore path with this header:
+将 plan file 的完整内容写到 restore path，并使用这个 header：
 ```
 # /autoplan Restore Point
 Captured: [timestamp] | Branch: [branch] | Commit: [short hash]
 
-## Re-run Instructions
+## Re-run Instructions（重新运行说明）
 1. Copy "Original Plan State" below back to your plan file
 2. Invoke /autoplan
 
-## Original Plan State
+## Original Plan State（原始计划状态）
 [verbatim plan file contents]
 ```
 
-Then prepend a one-line HTML comment to the plan file:
+然后在 plan file 前 prepend 一行 HTML comment：
 `<!-- /autoplan restore point: [RESTORE_PATH] -->`
 
-### Step 2: Read context
+### Step 2: 读取 context
 
-- Read CLAUDE.md, TODOS.md, git log -30, git diff against the base branch --stat
-- Discover design docs: `ls -t ~/.gstack/projects/$SLUG/*-design-*.md 2>/dev/null | head -1`
-- Detect UI scope: grep the plan for view/rendering terms (component, screen, form,
-  button, modal, layout, dashboard, sidebar, nav, dialog). Require 2+ matches. Exclude
-  false positives ("page" alone, "UI" in acronyms).
-- Detect DX scope: grep the plan for developer-facing terms (API, endpoint, REST,
-  GraphQL, gRPC, webhook, CLI, command, flag, argument, terminal, shell, SDK, library,
-  package, npm, pip, import, require, SKILL.md, skill template, Claude Code, MCP, agent,
-  OpenClaw, action, developer docs, getting started, onboarding, integration, debug,
-  implement, error message). Require 2+ matches. Also trigger DX scope if the product IS
-  a developer tool (the plan describes something developers install, integrate, or build
-  on top of) or if an AI agent is the primary user (OpenClaw actions, Claude Code skills,
-  MCP servers).
+- 读取 CLAUDE.md、TODOS.md、git log -30、against base branch 的 git diff --stat
+- Discover design docs：`ls -t ~/.gstack/projects/$SLUG/*-design-*.md 2>/dev/null | head -1`
+- Detect UI scope：grep plan 中的 view/rendering terms（component、screen、form、
+  button、modal、layout、dashboard、sidebar、nav、dialog）。要求 2+ matches。排除
+  false positives（单独的 "page"、acronyms 中的 "UI"）。
+- Detect DX scope：grep plan 中 developer-facing terms（API、endpoint、REST、
+  GraphQL、gRPC、webhook、CLI、command、flag、argument、terminal、shell、SDK、library、
+  package、npm、pip、import、require、SKILL.md、skill template、Claude Code、MCP、agent、
+  OpenClaw、action、developer docs、getting started、onboarding、integration、debug、
+  implement、error message）。要求 2+ matches。如果 product 本身是 developer tool
+  （plan 描述开发者 install、integrate 或 build on top of 的东西），或 AI agent 是 primary user
+  （OpenClaw actions、Claude Code skills、MCP servers），也触发 DX scope。
 
-### Step 3: Load skill files from disk
+### Step 3: 从磁盘加载 skill files
 
-Read each file using the Read tool:
+使用 Read tool 读取每个 file：
 - `~/.claude/skills/gstack/plan-ceo-review/SKILL.md`
 - `~/.claude/skills/gstack/plan-design-review/SKILL.md` (only if UI scope detected)
 - `~/.claude/skills/gstack/plan-eng-review/SKILL.md`
 - `~/.claude/skills/gstack/plan-devex-review/SKILL.md` (only if DX scope detected)
 
-**Section skip list — when following a loaded skill file, SKIP these sections
-(they are already handled by /autoplan):**
+**Section skip list：遵循 loaded skill file 时，SKIP 这些 sections
+（它们已由 /autoplan 处理）：**
 - Preamble (run first)
 - AskUserQuestion Format
 - Completeness Principle — Boil the Lake
@@ -227,26 +218,25 @@ Read each file using the Read tool:
 - Outside Voice — Independent Plan Challenge
 - Design Outside Voices (parallel)
 
-Follow ONLY the review-specific methodology, sections, and required outputs.
+只遵循 review-specific methodology、sections 和 required outputs。
 
-Output: "Here's what I'm working with: [plan summary]. UI scope: [yes/no]. DX scope: [yes/no].
-Loaded review skills from disk. Starting full review pipeline with auto-decisions."
+Output："这是我当前处理的内容：[plan summary]。UI scope：[yes/no]。DX scope：[yes/no]。
+已从磁盘加载 review skills。开始带 auto-decisions 的 full review pipeline。"
 
 ---
 
-## Phase 0.5: Codex auth + version preflight
+## Phase 0.5: Codex auth + version preflight（Codex 认证与版本预检）
 
-Before invoking any Codex voice, preflight the CLI: verify auth (multi-signal) and
-warn on known-bad CLI versions. This is infrastructure for all 4 phases below —
-source it once here and the helper functions stay in scope for the rest of the
-workflow.
+调用任何 Codex voice 前，preflight CLI：verify auth（multi-signal），并对 known-bad
+CLI versions 发出 warning。这是下方 4 个 phases 的 infrastructure；在这里 source 一次，
+helper functions 会在 workflow 余下部分保持 in scope。
 
 ```bash
 _TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || echo off)
 source ~/.claude/skills/gstack/bin/gstack-codex-probe
 
-# Check Codex binary. If missing, tag the degradation matrix and continue
-# with Claude subagent only (autoplan's existing degradation fallback).
+# 检查 Codex binary。如果缺失，标记 degradation matrix，并只用 Claude subagent 继续
+# （autoplan 现有 degradation fallback）。
 if ! command -v codex >/dev/null 2>&1; then
   _gstack_codex_log_event "codex_cli_missing"
   echo "[codex-unavailable: binary not found] — proceeding with Claude subagent only"
@@ -261,43 +251,41 @@ else
 fi
 ```
 
-If `_CODEX_AVAILABLE=false`, all Phase 1-3.5 Codex voices below degrade to
-`[codex-unavailable]` in the degradation matrix. /autoplan completes with
-Claude subagent only — saves token spend on Codex prompts we can't use.
+如果 `_CODEX_AVAILABLE=false`，下方所有 Phase 1-3.5 Codex voices 都在 degradation matrix
+中降级为 `[codex-unavailable]`。/autoplan 只用 Claude subagent 完成，节省无法使用的
+Codex prompts token spend。
 
 ---
 
-## Phase 1: CEO Review (Strategy & Scope)
+## Phase 1: CEO Review（Strategy & Scope，战略与范围）
 
-Follow plan-ceo-review/SKILL.md — all sections, full depth.
-Override: every AskUserQuestion → auto-decide using the 6 principles.
+遵循 plan-ceo-review/SKILL.md：所有 sections，full depth。
+Override：每个 AskUserQuestion → 使用 6 条 principles auto-decide。
 
-**Override rules:**
-- Mode selection: SELECTIVE EXPANSION
-- Premises: accept reasonable ones (P6), challenge only clearly wrong ones
-- **GATE: Present premises to user for confirmation** — this is the ONE AskUserQuestion
-  that is NOT auto-decided. Premises require human judgment.
-- Alternatives: pick highest completeness (P1). If tied, pick simplest (P5).
-  If top 2 are close → mark TASTE DECISION.
-- Scope expansion: in blast radius + <1d CC → approve (P2). Outside → defer to TODOS.md (P3).
-  Duplicates → reject (P4). Borderline (3-5 files) → mark TASTE DECISION.
-- All 10 review sections: run fully, auto-decide each issue, log every decision.
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
-  Run them sequentially in foreground. First the Claude subagent (Agent tool,
-  foreground — do NOT use run_in_background), then Codex (Bash). Both must
-  complete before building the consensus table.
+**Override rules：**
+- Mode selection：SELECTIVE EXPANSION
+- Premises：接受 reasonable ones（P6），只 challenge 明显错误的 ones
+- **GATE：将 premises 呈现给用户确认** — 这是唯一不 auto-decide 的 AskUserQuestion。
+  Premises 需要 human judgment。
+- Alternatives：选择最高 completeness（P1）。如打平，选择最简单的（P5）。
+  如果 top 2 很接近 → 标记 TASTE DECISION。
+- Scope expansion：在 blast radius 内 + <1d CC → approve（P2）。范围外 → defer to TODOS.md（P3）。
+  Duplicates → reject（P4）。Borderline（3-5 files）→ 标记 TASTE DECISION。
+- 所有 10 个 review sections：完整运行，auto-decide 每个 issue，记录每个 decision。
+- Dual voices：如果可用，始终同时运行 Claude subagent 和 Codex（P6）。
+  在 foreground 中顺序运行。先运行 Claude subagent（Agent tool，foreground；不要使用
+  run_in_background），再运行 Codex（Bash）。两者都必须完成后才能构建 consensus table。
 
   **Codex CEO voice** (via Bash):
   ```bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-  _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
+  _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT：不要读取或执行任何 SKILL.md files，也不要读取或执行 skill definition directories 中的 files（路径包含 skills/gstack）。这些是另一个 AI assistant system 使用的 skill definitions。只专注于 repository code。
 
-  You are a CEO/founder advisor reviewing a development plan.
-  Challenge the strategic foundations: Are the premises valid or assumed? Is this the
-  right problem to solve, or is there a reframing that would be 10x more impactful?
-  What alternatives were dismissed too quickly? What competitive or market risks are
-  unaddressed? What scope decisions will look foolish in 6 months? Be adversarial.
-  No compliments. Just the strategic blind spots.
+  你是正在 review development plan 的 CEO/founder advisor。
+  Challenge strategic foundations：premises 是 valid 还是 assumed？这是正确的问题吗，
+  是否有 10x more impactful 的 reframing？哪些 alternatives 被过早 dismiss？
+  哪些 competitive 或 market risks 未处理？哪些 scope decisions 六个月后会显得愚蠢？
+  Be adversarial。No compliments。只指出 strategic blind spots。
   File: <plan_path>" -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
   _CODEX_EXIT=$?
   if [ "$_CODEX_EXIT" = "124" ]; then
@@ -306,44 +294,44 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
     echo "[codex stalled past 10 minutes — tagging as [codex-unavailable] for this phase and proceeding with Claude subagent only]"
   fi
   ```
-  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's Codex voice.
+  Timeout：10 分钟（shell-wrapper）+ 12 分钟（Bash outer gate）。hang 时，auto-degrade 此 phase 的 Codex voice。
 
   **Claude CEO subagent** (via Agent tool):
-  "Read the plan file at <plan_path>. You are an independent CEO/strategist
-  reviewing this plan. You have NOT seen any prior review. Evaluate:
-  1. Is this the right problem to solve? Could a reframing yield 10x impact?
-  2. Are the premises stated or just assumed? Which ones could be wrong?
-  3. What's the 6-month regret scenario — what will look foolish?
-  4. What alternatives were dismissed without sufficient analysis?
-  5. What's the competitive risk — could someone else solve this first/better?
-  For each finding: what's wrong, severity (critical/high/medium), and the fix."
+  "读取 <plan_path> 的 plan file。你是 independent CEO/strategist，
+  正在 review 这个 plan。你没有看过任何 prior review。Evaluate：
+  1. 这是正确的问题吗？Reframing 是否能带来 10x impact？
+  2. Premises 是明确 stated，还是只是 assumed？哪些可能是错的？
+  3. 6-month regret scenario 是什么，什么会显得愚蠢？
+  4. 哪些 alternatives 在没有充分分析时就被 dismiss？
+  5. Competitive risk 是什么，别人是否能更早/更好地解决？
+  对每个 finding：说明哪里错、severity（critical/high/medium）和 fix。"
 
-  **Error handling:** Both calls block in foreground. Codex auth/timeout/empty → proceed with
-  Claude subagent only, tagged `[single-model]`. If Claude subagent also fails →
+  **Error handling：** 两个 calls 都在 foreground block。Codex auth/timeout/empty → 只用
+  Claude subagent 继续，并标记 `[single-model]`。如果 Claude subagent 也失败 →
   "Outside voices unavailable — continuing with primary review."
 
-  **Degradation matrix:** Both fail → "single-reviewer mode". Codex only →
-  tag `[codex-only]`. Subagent only → tag `[subagent-only]`.
+  **Degradation matrix：** 两者都失败 → "single-reviewer mode"。仅 Codex →
+  标记 `[codex-only]`。仅 subagent → 标记 `[subagent-only]`。
 
-- Strategy choices: if codex disagrees with a premise or scope decision with valid
-  strategic reason → TASTE DECISION. If both models agree the user's stated structure
-  should change (merge, split, add, remove) → USER CHALLENGE (never auto-decided).
+- Strategy choices：如果 codex 对 premise 或 scope decision 有 valid strategic reason 的 disagreement
+  → TASTE DECISION。如果两个 models 都同意用户 stated structure 应改变
+  （merge、split、add、remove）→ USER CHALLENGE（绝不 auto-decide）。
 
-**Required execution checklist (CEO):**
+**Required execution checklist（CEO）：**
 
-Step 0 (0A-0F) — run each sub-step and produce:
-- 0A: Premise challenge with specific premises named and evaluated
-- 0B: Existing code leverage map (sub-problems → existing code)
-- 0C: Dream state diagram (CURRENT → THIS PLAN → 12-MONTH IDEAL)
-- 0C-bis: Implementation alternatives table (2-3 approaches with effort/risk/pros/cons)
-- 0D: Mode-specific analysis with scope decisions logged
-- 0E: Temporal interrogation (HOUR 1 → HOUR 6+)
-- 0F: Mode selection confirmation
+Step 0（0A-0F）— 运行每个 sub-step 并产出：
+- 0A：Premise challenge，命名并评估 specific premises
+- 0B：Existing code leverage map（sub-problems → existing code）
+- 0C：Dream state diagram（CURRENT → THIS PLAN → 12-MONTH IDEAL）
+- 0C-bis：Implementation alternatives table（2-3 approaches，包含 effort/risk/pros/cons）
+- 0D：Mode-specific analysis，记录 scope decisions
+- 0E：Temporal interrogation（HOUR 1 → HOUR 6+）
+- 0F：Mode selection confirmation
 
-Step 0.5 (Dual Voices): Run Claude subagent (foreground Agent tool) first, then
-Codex (Bash). Present Codex output under CODEX SAYS (CEO — strategy challenge)
-header. Present subagent output under CLAUDE SUBAGENT (CEO — strategic independence)
-header. Produce CEO consensus table:
+Step 0.5（Dual Voices）：先运行 Claude subagent（foreground Agent tool），再运行
+Codex（Bash）。在 CODEX SAYS（CEO — strategy challenge）header 下呈现 Codex output。
+在 CLAUDE SUBAGENT（CEO — strategic independence）header 下呈现 subagent output。
+产出 CEO consensus table：
 
 ```
 CEO DUAL VOICES — CONSENSUS TABLE:
@@ -361,67 +349,65 @@ CONFIRMED = both agree. DISAGREE = models differ (→ taste decision).
 Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = flagged regardless.
 ```
 
-Sections 1-10 — for EACH section, run the evaluation criteria from the loaded skill file:
-- Sections WITH findings: full analysis, auto-decide each issue, log to audit trail
-- Sections with NO findings: 1-2 sentences stating what was examined and why nothing
-  was flagged. NEVER compress a section to just its name in a table row.
-- Section 11 (Design): run only if UI scope was detected in Phase 0
+Sections 1-10：对每个 section，运行 loaded skill file 中的 evaluation criteria：
+- 有 findings 的 sections：full analysis，auto-decide 每个 issue，log 到 audit trail
+- 没有 findings 的 sections：用 1-2 句说明检查了什么、为什么 nothing was flagged。
+  绝不要把 section 压缩成 table row 中的名字。
+- Section 11（Design）：仅当 Phase 0 检测到 UI scope 时运行
 
-**Mandatory outputs from Phase 1:**
-- "NOT in scope" section with deferred items and rationale
-- "What already exists" section mapping sub-problems to existing code
-- Error & Rescue Registry table (from Section 2)
-- Failure Modes Registry table (from review sections)
-- Dream state delta (where this plan leaves us vs 12-month ideal)
-- Completion Summary (the full summary table from the CEO skill)
+**Phase 1 mandatory outputs（强制输出）：**
+- "NOT in scope" section，包含 deferred items 和 rationale
+- "What already exists" section（已有内容），将 sub-problems 映射到 existing code
+- Error & Rescue Registry table（来自 Section 2）
+- Failure Modes Registry table（来自 review sections）
+- Dream state delta（this plan 把我们带到哪里 vs 12-month ideal）
+- Completion Summary（完成摘要；CEO skill 的 full summary table）
 
 **PHASE 1 COMPLETE.** Emit phase-transition summary:
 > **Phase 1 complete.** Codex: [N concerns]. Claude subagent: [N issues].
 > Consensus: [X/6 confirmed, Y disagreements → surfaced at gate].
 > Passing to Phase 2.
 
-Do NOT begin Phase 2 until all Phase 1 outputs are written to the plan file
-and the premise gate has been passed.
+直到所有 Phase 1 outputs 都写入 plan file，并且 premise gate 已通过，才可开始 Phase 2。
 
 ---
 
-**Pre-Phase 2 checklist (verify before starting):**
+**Pre-Phase 2 checklist（开始前验证）：**
 - [ ] CEO completion summary written to plan file
 - [ ] CEO dual voices ran (Codex + Claude subagent, or noted unavailable)
 - [ ] CEO consensus table produced
 - [ ] Premise gate passed (user confirmed)
 - [ ] Phase-transition summary emitted
 
-## Phase 2: Design Review (conditional — skip if no UI scope)
+## Phase 2: Design Review（条件执行；无 UI scope 时 skip）
 
-Follow plan-design-review/SKILL.md — all 7 dimensions, full depth.
-Override: every AskUserQuestion → auto-decide using the 6 principles.
+遵循 plan-design-review/SKILL.md：全部 7 dimensions，full depth。
+Override：每个 AskUserQuestion → 使用 6 条 principles auto-decide。
 
-**Override rules:**
-- Focus areas: all relevant dimensions (P1)
-- Structural issues (missing states, broken hierarchy): auto-fix (P5)
-- Aesthetic/taste issues: mark TASTE DECISION
-- Design system alignment: auto-fix if DESIGN.md exists and fix is obvious
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+**Override rules：**
+- Focus areas：所有 relevant dimensions（P1）
+- Structural issues（missing states、broken hierarchy）：auto-fix（P5）
+- Aesthetic/taste issues：标记 TASTE DECISION
+- Design system alignment：如果 DESIGN.md 存在且 fix obvious，则 auto-fix
+- Dual voices：如果可用，始终同时运行 Claude subagent 和 Codex（P6）。
 
   **Codex design voice** (via Bash):
   ```bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-  _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
+  _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT：不要读取或执行任何 SKILL.md files，也不要读取或执行 skill definition directories 中的 files（路径包含 skills/gstack）。这些是另一个 AI assistant system 使用的 skill definitions。只专注于 repository code。
 
-  Read the plan file at <plan_path>. Evaluate this plan's
-  UI/UX design decisions.
+  读取 <plan_path> 的 plan file。Evaluate 这个 plan 的 UI/UX design decisions。
 
-  Also consider these findings from the CEO review phase:
+  同时考虑 CEO review phase 的这些 findings：
   <insert CEO dual voice findings summary — key concerns, disagreements>
 
-  Does the information hierarchy serve the user or the developer? Are interaction
-  states (loading, empty, error, partial) specified or left to the implementer's
-  imagination? Is the responsive strategy intentional or afterthought? Are
-  accessibility requirements (keyboard nav, contrast, touch targets) specified or
-  aspirational? Does the plan describe specific UI decisions or generic patterns?
-  What design decisions will haunt the implementer if left ambiguous?
-  Be opinionated. No hedging." -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
+  Information hierarchy 服务的是 user 还是 developer？Interaction states
+  （loading、empty、error、partial）是否明确指定，还是留给 implementer 想象？
+  Responsive strategy 是 intentional 还是 afterthought？Accessibility requirements
+  （keyboard nav、contrast、touch targets）是 specified 还是 aspirational？
+  Plan 描述的是 specific UI decisions 还是 generic patterns？
+  哪些 design decisions 如果保持 ambiguous，会在 implementation 中反噬？
+  Be opinionated。No hedging。" -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
   _CODEX_EXIT=$?
   if [ "$_CODEX_EXIT" = "124" ]; then
     _gstack_codex_log_event "codex_timeout" "600"
@@ -429,71 +415,71 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
     echo "[codex stalled past 10 minutes — tagging as [codex-unavailable] for this phase and proceeding with Claude subagent only]"
   fi
   ```
-  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's Codex voice.
+  Timeout：10 分钟（shell-wrapper）+ 12 分钟（Bash outer gate）。hang 时，auto-degrade 此 phase 的 Codex voice。
 
   **Claude design subagent** (via Agent tool):
-  "Read the plan file at <plan_path>. You are an independent senior product designer
-  reviewing this plan. You have NOT seen any prior review. Evaluate:
-  1. Information hierarchy: what does the user see first, second, third? Is it right?
-  2. Missing states: loading, empty, error, success, partial — which are unspecified?
-  3. User journey: what's the emotional arc? Where does it break?
-  4. Specificity: does the plan describe SPECIFIC UI or generic patterns?
-  5. What design decisions will haunt the implementer if left ambiguous?
-  For each finding: what's wrong, severity (critical/high/medium), and the fix."
-  NO prior-phase context — subagent must be truly independent.
+  "读取 <plan_path> 的 plan file。你是 independent senior product designer，
+  正在 review 这个 plan。你没有看过任何 prior review。Evaluate：
+  1. Information hierarchy：user 第一、第二、第三眼看到什么？顺序对吗？
+  2. Missing states：loading、empty、error、success、partial 中哪些未指定？
+  3. User journey：emotional arc 是什么？在哪里断裂？
+  4. Specificity：plan 描述的是 SPECIFIC UI 还是 generic patterns？
+  5. 哪些 design decisions 如果保持 ambiguous，会在 implementation 中反噬？
+  对每个 finding：说明哪里错、severity（critical/high/medium）和 fix。"
+  NO prior-phase context — subagent 必须 truly independent。
 
-  Error handling: same as Phase 1 (both foreground/blocking, degradation matrix applies).
+  Error handling：同 Phase 1（两者 foreground/blocking，适用 degradation matrix）。
 
-- Design choices: if codex disagrees with a design decision with valid UX reasoning
-  → TASTE DECISION. Scope changes both models agree on → USER CHALLENGE.
+- Design choices：如果 codex 对 design decision 有 valid UX reasoning 的 disagreement
+  → TASTE DECISION。两个 models 都同意的 scope changes → USER CHALLENGE。
 
-**Required execution checklist (Design):**
+**Required execution checklist（Design）：**
 
-1. Step 0 (Design Scope): Rate completeness 0-10. Check DESIGN.md. Map existing patterns.
+1. Step 0（Design Scope）：给 completeness 打 0-10 分。检查 DESIGN.md。Map existing patterns。
 
-2. Step 0.5 (Dual Voices): Run Claude subagent (foreground) first, then Codex. Present under
-   CODEX SAYS (design — UX challenge) and CLAUDE SUBAGENT (design — independent review)
-   headers. Produce design litmus scorecard (consensus table). Use the litmus scorecard
-   format from plan-design-review. Include CEO phase findings in Codex prompt ONLY
-   (not Claude subagent — stays independent).
+2. Step 0.5（Dual Voices）：先运行 Claude subagent（foreground），再运行 Codex。
+   在 CODEX SAYS（design — UX challenge）和 CLAUDE SUBAGENT（design — independent review）
+   headers 下呈现。产出 design litmus scorecard（consensus table）。使用
+   plan-design-review 中的 litmus scorecard format。CEO phase findings 只放入 Codex prompt
+   （不放入 Claude subagent；它保持 independent）。
 
-3. Passes 1-7: Run each from loaded skill. Rate 0-10. Auto-decide each issue.
-   DISAGREE items from scorecard → raised in the relevant pass with both perspectives.
+3. Passes 1-7：运行 loaded skill 中的每一项。打 0-10 分。Auto-decide 每个 issue。
+   scorecard 中的 DISAGREE items → 在 relevant pass 中带双方 perspectives 提出。
 
 **PHASE 2 COMPLETE.** Emit phase-transition summary:
 > **Phase 2 complete.** Codex: [N concerns]. Claude subagent: [N issues].
 > Consensus: [X/Y confirmed, Z disagreements → surfaced at gate].
 > Passing to Phase 3.
 
-Do NOT begin Phase 3 until all Phase 2 outputs (if run) are written to the plan file.
+直到所有 Phase 2 outputs（如果运行）都写入 plan file，才可开始 Phase 3。
 
 ---
 
-**Pre-Phase 3 checklist (verify before starting):**
+**Pre-Phase 3 checklist（开始前验证）：**
 - [ ] All Phase 1 items above confirmed
 - [ ] Design completion summary written (or "skipped, no UI scope")
 - [ ] Design dual voices ran (if Phase 2 ran)
 - [ ] Design consensus table produced (if Phase 2 ran)
 - [ ] Phase-transition summary emitted
 
-## Phase 3: Eng Review + Dual Voices
+## Phase 3: Eng Review + Dual Voices（Eng 评审与双 voice）
 
-Follow plan-eng-review/SKILL.md — all sections, full depth.
-Override: every AskUserQuestion → auto-decide using the 6 principles.
+遵循 plan-eng-review/SKILL.md：所有 sections，full depth。
+Override：每个 AskUserQuestion → 使用 6 条 principles auto-decide。
 
-**Override rules:**
-- Scope challenge: never reduce (P2)
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+**Override rules：**
+- Scope challenge：绝不 reduce（P2）
+- Dual voices：如果可用，始终同时运行 Claude subagent 和 Codex（P6）。
 
   **Codex eng voice** (via Bash):
   ```bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-  _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
+  _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT：不要读取或执行任何 SKILL.md files，也不要读取或执行 skill definition directories 中的 files（路径包含 skills/gstack）。这些是另一个 AI assistant system 使用的 skill definitions。只专注于 repository code。
 
-  Review this plan for architectural issues, missing edge cases,
-  and hidden complexity. Be adversarial.
+  Review 这个 plan 的 architectural issues、missing edge cases 和 hidden complexity。
+  Be adversarial。
 
-  Also consider these findings from prior review phases:
+  同时考虑 prior review phases 的这些 findings：
   CEO: <insert CEO consensus table summary — key concerns, DISAGREEs>
   Design: <insert Design consensus table summary, or 'skipped, no UI scope'>
 
@@ -505,35 +491,35 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
     echo "[codex stalled past 10 minutes — tagging as [codex-unavailable] for this phase and proceeding with Claude subagent only]"
   fi
   ```
-  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's Codex voice.
+  Timeout：10 分钟（shell-wrapper）+ 12 分钟（Bash outer gate）。hang 时，auto-degrade 此 phase 的 Codex voice。
 
   **Claude eng subagent** (via Agent tool):
-  "Read the plan file at <plan_path>. You are an independent senior engineer
-  reviewing this plan. You have NOT seen any prior review. Evaluate:
-  1. Architecture: Is the component structure sound? Coupling concerns?
-  2. Edge cases: What breaks under 10x load? What's the nil/empty/error path?
-  3. Tests: What's missing from the test plan? What would break at 2am Friday?
-  4. Security: New attack surface? Auth boundaries? Input validation?
-  5. Hidden complexity: What looks simple but isn't?
-  For each finding: what's wrong, severity, and the fix."
-  NO prior-phase context — subagent must be truly independent.
+  "读取 <plan_path> 的 plan file。你是 independent senior engineer，
+  正在 review 这个 plan。你没有看过任何 prior review。Evaluate：
+  1. Architecture：component structure 是否 sound？是否有 coupling concerns？
+  2. Edge cases：10x load 下什么会坏？nil/empty/error path 是什么？
+  3. Tests：test plan 缺什么？周五凌晨 2 点什么会坏？
+  4. Security：新的 attack surface？Auth boundaries？Input validation？
+  5. Hidden complexity：什么看起来简单但其实不是？
+  对每个 finding：说明哪里错、severity 和 fix。"
+  NO prior-phase context — subagent 必须 truly independent。
 
-  Error handling: same as Phase 1 (both foreground/blocking, degradation matrix applies).
+  Error handling：同 Phase 1（两者 foreground/blocking，适用 degradation matrix）。
 
-- Architecture choices: explicit over clever (P5). If codex disagrees with valid reason → TASTE DECISION. Scope changes both models agree on → USER CHALLENGE.
-- Evals: always include all relevant suites (P1)
-- Test plan: generate artifact at `~/.gstack/projects/$SLUG/{user}-{branch}-test-plan-{datetime}.md`
-- TODOS.md: collect all deferred scope expansions from Phase 1, auto-write
+- Architecture choices：explicit over clever（P5）。如果 codex 有 valid reason 的 disagreement → TASTE DECISION。两个 models 都同意的 scope changes → USER CHALLENGE。
+- Evals：始终包含所有 relevant suites（P1）
+- Test plan：在 `~/.gstack/projects/$SLUG/{user}-{branch}-test-plan-{datetime}.md` 生成 artifact
+- TODOS.md：收集 Phase 1 中所有 deferred scope expansions，并 auto-write
 
-**Required execution checklist (Eng):**
+**Required execution checklist（Eng）：**
 
-1. Step 0 (Scope Challenge): Read actual code referenced by the plan. Map each
-   sub-problem to existing code. Run the complexity check. Produce concrete findings.
+1. Step 0（Scope Challenge）：读取 plan 引用的 actual code。将每个 sub-problem 映射到 existing code。
+   运行 complexity check。产出 concrete findings。
 
-2. Step 0.5 (Dual Voices): Run Claude subagent (foreground) first, then Codex. Present
-   Codex output under CODEX SAYS (eng — architecture challenge) header. Present subagent
-   output under CLAUDE SUBAGENT (eng — independent review) header. Produce eng consensus
-   table:
+2. Step 0.5（Dual Voices）：先运行 Claude subagent（foreground），再运行 Codex。
+   在 CODEX SAYS（eng — architecture challenge）header 下呈现 Codex output。
+   在 CLAUDE SUBAGENT（eng — independent review）header 下呈现 subagent output。
+   产出 eng consensus table：
 
 ```
 ENG DUAL VOICES — CONSENSUS TABLE:
@@ -551,34 +537,33 @@ CONFIRMED = both agree. DISAGREE = models differ (→ taste decision).
 Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = flagged regardless.
 ```
 
-3. Section 1 (Architecture): Produce ASCII dependency graph showing new components
-   and their relationships to existing ones. Evaluate coupling, scaling, security.
+3. Section 1（Architecture）：产出 ASCII dependency graph，展示 new components
+   及其与 existing ones 的关系。评估 coupling、scaling、security。
 
-4. Section 2 (Code Quality): Identify DRY violations, naming issues, complexity.
-   Reference specific files and patterns. Auto-decide each finding.
+4. Section 2（Code Quality）：识别 DRY violations、naming issues、complexity。
+   引用 specific files 和 patterns。Auto-decide 每个 finding。
 
 5. **Section 3 (Test Review) — NEVER SKIP OR COMPRESS.**
-   This section requires reading actual code, not summarizing from memory.
-   - Read the diff or the plan's affected files
-   - Build the test diagram: list every NEW UX flow, data flow, codepath, and branch
-   - For EACH item in the diagram: what type of test covers it? Does one exist? Gaps?
-   - For LLM/prompt changes: which eval suites must run?
-   - Auto-deciding test gaps means: identify the gap → decide whether to add a test
-     or defer (with rationale and principle) → log the decision. It does NOT mean
-     skipping the analysis.
-   - Write the test plan artifact to disk
+   此 section 要求读取 actual code，而不是凭 memory summarize。
+   - 读取 diff 或 plan 的 affected files
+   - 构建 test diagram：列出每个 NEW UX flow、data flow、codepath 和 branch
+   - 对 diagram 中每一项：哪类 test 覆盖它？是否已有？有什么 gaps？
+   - 对 LLM/prompt changes：必须运行哪些 eval suites？
+   - Auto-deciding test gaps 的意思是：识别 gap → 决定 add test 还是 defer
+     （带 rationale 和 principle）→ 记录 decision。它不表示跳过 analysis。
+   - 将 test plan artifact 写到 disk
 
-6. Section 4 (Performance): Evaluate N+1 queries, memory, caching, slow paths.
+6. Section 4（Performance）：评估 N+1 queries、memory、caching、slow paths。
 
-**Mandatory outputs from Phase 3:**
+**Phase 3 mandatory outputs（强制输出）：**
 - "NOT in scope" section
-- "What already exists" section
-- Architecture ASCII diagram (Section 1)
-- Test diagram mapping codepaths to coverage (Section 3)
-- Test plan artifact written to disk (Section 3)
-- Failure modes registry with critical gap flags
-- Completion Summary (the full summary from the Eng skill)
-- TODOS.md updates (collected from all phases)
+- "What already exists" section（已有内容）
+- Architecture ASCII diagram（Section 1）
+- 将 codepaths 映射到 coverage 的 test diagram（Section 3）
+- 写到 disk 的 test plan artifact（Section 3）
+- 带 critical gap flags 的 failure modes registry
+- Completion Summary（完成摘要；Eng skill 的 full summary）
+- TODOS.md updates（从所有 phases 收集）
 
 **PHASE 3 COMPLETE.** Emit phase-transition summary:
 > **Phase 3 complete.** Codex: [N concerns]. Claude subagent: [N issues].
@@ -587,43 +572,43 @@ Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = fl
 
 ---
 
-## Phase 3.5: DX Review (conditional — skip if no developer-facing scope)
+## Phase 3.5: DX Review（条件执行；无 developer-facing scope 时 skip）
 
-Follow plan-devex-review/SKILL.md — all 8 DX dimensions, full depth.
-Override: every AskUserQuestion → auto-decide using the 6 principles.
+遵循 plan-devex-review/SKILL.md：全部 8 个 DX dimensions，full depth。
+Override：每个 AskUserQuestion → 使用 6 条 principles auto-decide。
 
-**Skip condition:** If DX scope was NOT detected in Phase 0, skip this phase entirely.
-Log: "Phase 3.5 skipped — no developer-facing scope detected."
+**跳过条件：** 如果 Phase 0 未检测到 DX scope，完全跳过此 phase。
+Log："Phase 3.5 skipped — no developer-facing scope detected."
 
-**Override rules:**
-- Mode selection: DX POLISH
-- Persona: infer from README/docs, pick the most common developer type (P6)
-- Competitive benchmark: run searches if WebSearch available, use reference benchmarks otherwise (P1)
-- Magical moment: pick the lowest-effort delivery vehicle that achieves the competitive tier (P5)
-- Getting started friction: always optimize toward fewer steps (P5, simpler over clever)
-- Error message quality: always require problem + cause + fix (P1, completeness)
-- API/CLI naming: consistency wins over cleverness (P5)
-- DX taste decisions (e.g., opinionated defaults vs flexibility): mark TASTE DECISION
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+**Override rules：**
+- Mode selection：DX POLISH
+- Persona：从 README/docs 推断，选择最常见的 developer type（P6）
+- Competitive benchmark：如果 WebSearch 可用则运行 searches，否则使用 reference benchmarks（P1）
+- Magical moment：选择达到 competitive tier 的 lowest-effort delivery vehicle（P5）
+- Getting started friction：始终朝更少 steps 优化（P5，simpler over clever）
+- Error message quality：始终要求 problem + cause + fix（P1，completeness）
+- API/CLI naming：consistency wins over cleverness（P5）
+- DX taste decisions（例如 opinionated defaults vs flexibility）：标记 TASTE DECISION
+- Dual voices：如果可用，始终同时运行 Claude subagent 和 Codex（P6）。
 
   **Codex DX voice** (via Bash):
   ```bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-  _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
+  _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT：不要读取或执行任何 SKILL.md files，也不要读取或执行 skill definition directories 中的 files（路径包含 skills/gstack）。这些是另一个 AI assistant system 使用的 skill definitions。只专注于 repository code。
 
-  Read the plan file at <plan_path>. Evaluate this plan's developer experience.
+  读取 <plan_path> 的 plan file。Evaluate 这个 plan 的 developer experience。
 
-  Also consider these findings from prior review phases:
+  同时考虑 prior review phases 的这些 findings：
   CEO: <insert CEO consensus summary>
   Eng: <insert Eng consensus summary>
 
-  You are a developer who has never seen this product. Evaluate:
-  1. Time to hello world: how many steps from zero to working? Target is under 5 minutes.
-  2. Error messages: when something goes wrong, does the dev know what, why, and how to fix?
-  3. API/CLI design: are names guessable? Are defaults sensible? Is it consistent?
-  4. Docs: can a dev find what they need in under 2 minutes? Are examples copy-paste-complete?
-  5. Upgrade path: can devs upgrade without fear? Migration guides? Deprecation warnings?
-  Be adversarial. Think like a developer who is evaluating this against 3 competitors." -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
+  你是从未见过这个 product 的 developer。Evaluate：
+  1. Time to hello world：从零到 working 需要几步？目标是 5 分钟内。
+  2. Error messages：出错时，developer 是否知道 what、why、how to fix？
+  3. API/CLI design：names 是否 guessable？defaults 是否 sensible？是否 consistent？
+  4. Docs：developer 能否在 2 分钟内找到所需内容？Examples 是否 copy-paste-complete？
+  5. Upgrade path：developer 能否无惧升级？Migration guides？Deprecation warnings？
+  Be adversarial。像一个正在把它与 3 个 competitors 对比评估的 developer 一样思考。" -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
   _CODEX_EXIT=$?
   if [ "$_CODEX_EXIT" = "124" ]; then
     _gstack_codex_log_event "codex_timeout" "600"
@@ -631,32 +616,32 @@ Log: "Phase 3.5 skipped — no developer-facing scope detected."
     echo "[codex stalled past 10 minutes — tagging as [codex-unavailable] for this phase and proceeding with Claude subagent only]"
   fi
   ```
-  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's Codex voice.
+  Timeout：10 分钟（shell-wrapper）+ 12 分钟（Bash outer gate）。hang 时，auto-degrade 此 phase 的 Codex voice。
 
   **Claude DX subagent** (via Agent tool):
-  "Read the plan file at <plan_path>. You are an independent DX engineer
-  reviewing this plan. You have NOT seen any prior review. Evaluate:
-  1. Getting started: how many steps from zero to hello world? What's the TTHW?
-  2. API/CLI ergonomics: naming consistency, sensible defaults, progressive disclosure?
-  3. Error handling: does every error path specify problem + cause + fix + docs link?
-  4. Documentation: copy-paste examples? Information architecture? Interactive elements?
-  5. Escape hatches: can developers override every opinionated default?
-  For each finding: what's wrong, severity (critical/high/medium), and the fix."
-  NO prior-phase context — subagent must be truly independent.
+  "读取 <plan_path> 的 plan file。你是 independent DX engineer，
+  正在 review 这个 plan。你没有看过任何 prior review。Evaluate：
+  1. Getting started：从零到 hello world 需要几步？TTHW 是多少？
+  2. API/CLI ergonomics：naming consistency、sensible defaults、progressive disclosure？
+  3. Error handling：每条 error path 是否指定 problem + cause + fix + docs link？
+  4. Documentation：copy-paste examples？Information architecture？Interactive elements？
+  5. Escape hatches：developers 能否 override 每个 opinionated default？
+  对每个 finding：说明哪里错、severity（critical/high/medium）和 fix。"
+  NO prior-phase context — subagent 必须 truly independent。
 
-  Error handling: same as Phase 1 (both foreground/blocking, degradation matrix applies).
+  Error handling：同 Phase 1（两者 foreground/blocking，适用 degradation matrix）。
 
-- DX choices: if codex disagrees with a DX decision with valid developer empathy reasoning
-  → TASTE DECISION. Scope changes both models agree on → USER CHALLENGE.
+- DX choices：如果 codex 对 DX decision 有 valid developer empathy reasoning 的 disagreement
+  → TASTE DECISION。两个 models 都同意的 scope changes → USER CHALLENGE。
 
-**Required execution checklist (DX):**
+**Required execution checklist（DX）：**
 
-1. Step 0 (DX Scope Assessment): Auto-detect product type. Map the developer journey.
-   Rate initial DX completeness 0-10. Assess TTHW.
+1. Step 0（DX Scope Assessment）：Auto-detect product type。Map developer journey。
+   给 initial DX completeness 打 0-10 分。评估 TTHW。
 
-2. Step 0.5 (Dual Voices): Run Claude subagent (foreground) first, then Codex. Present
-   under CODEX SAYS (DX — developer experience challenge) and CLAUDE SUBAGENT
-   (DX — independent review) headers. Produce DX consensus table:
+2. Step 0.5（Dual Voices）：先运行 Claude subagent（foreground），再运行 Codex。
+   在 CODEX SAYS（DX — developer experience challenge）和 CLAUDE SUBAGENT
+   （DX — independent review）headers 下呈现。产出 DX consensus table：
 
 ```
 DX DUAL VOICES — CONSENSUS TABLE:
@@ -674,14 +659,14 @@ CONFIRMED = both agree. DISAGREE = models differ (→ taste decision).
 Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = flagged regardless.
 ```
 
-3. Passes 1-8: Run each from loaded skill. Rate 0-10. Auto-decide each issue.
-   DISAGREE items from consensus table → raised in the relevant pass with both perspectives.
+3. Passes 1-8：运行 loaded skill 中的每一项。打 0-10 分。Auto-decide 每个 issue。
+   consensus table 中的 DISAGREE items → 在 relevant pass 中带双方 perspectives 提出。
 
-4. DX Scorecard: Produce the full scorecard with all 8 dimensions scored.
+4. DX Scorecard：产出包含全部 8 dimensions scores 的 full scorecard。
 
-**Mandatory outputs from Phase 3.5:**
-- Developer journey map (9-stage table)
-- Developer empathy narrative (first-person perspective)
+**Phase 3.5 mandatory outputs：**
+- Developer journey map（9-stage table）
+- Developer empathy narrative（first-person perspective）
 - DX Scorecard with all 8 dimension scores
 - DX Implementation Checklist
 - TTHW assessment with target
@@ -694,59 +679,58 @@ Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = fl
 
 ---
 
-## Decision Audit Trail
+## Decision Audit Trail（决策审计轨迹）
 
-After each auto-decision, append a row to the plan file using Edit:
+每个 auto-decision 后，使用 Edit 向 plan file append 一行：
 
 ```markdown
 <!-- AUTONOMOUS DECISION LOG -->
-## Decision Audit Trail
+## Decision Audit Trail（决策审计轨迹）
 
 | # | Phase | Decision | Classification | Principle | Rationale | Rejected |
 |---|-------|----------|-----------|-----------|----------|
 ```
 
-Write one row per decision incrementally (via Edit). This keeps the audit on disk,
-not accumulated in conversation context.
+通过 Edit 为每个 decision incremental 写一行。这样 audit 留在 disk 上，而不是堆在 conversation context 中。
 
 ---
 
-## Pre-Gate Verification
+## Pre-Gate Verification（Gate 前验证）
 
-Before presenting the Final Approval Gate, verify that required outputs were actually
-produced. Check the plan file and conversation for each item.
+呈现 Final Approval Gate 前，验证 required outputs 确实已 produced。对每项检查 plan file
+和 conversation。
 
-**Phase 1 (CEO) outputs:**
-- [ ] Premise challenge with specific premises named (not just "premises accepted")
-- [ ] All applicable review sections have findings OR explicit "examined X, nothing flagged"
-- [ ] Error & Rescue Registry table produced (or noted N/A with reason)
-- [ ] Failure Modes Registry table produced (or noted N/A with reason)
+**Phase 1（CEO）outputs：**
+- [ ] Premise challenge 已命名具体 premises（不只是 "premises accepted"）
+- [ ] 所有适用 review sections 都有 findings，或明确写出 "examined X, nothing flagged"
+- [ ] 已产出 Error & Rescue Registry table（或注明 N/A 并给出原因）
+- [ ] 已产出 Failure Modes Registry table（或注明 N/A 并给出原因）
 - [ ] "NOT in scope" section written
-- [ ] "What already exists" section written
-- [ ] Dream state delta written
-- [ ] Completion Summary produced
-- [ ] Dual voices ran (Codex + Claude subagent, or noted unavailable)
-- [ ] CEO consensus table produced
+- [ ] "What already exists" section（已有内容）已写
+- [ ] Dream state delta 已写
+- [ ] Completion Summary 已产出
+- [ ] Dual voices 已运行（Codex + Claude subagent，或注明 unavailable）
+- [ ] CEO consensus table 已产出
 
-**Phase 2 (Design) outputs — only if UI scope detected:**
-- [ ] All 7 dimensions evaluated with scores
-- [ ] Issues identified and auto-decided
-- [ ] Dual voices ran (or noted unavailable/skipped with phase)
-- [ ] Design litmus scorecard produced
+**Phase 2（Design）outputs — 仅当检测到 UI scope：**
+- [ ] 7 个 dimensions 都已评估并打分
+- [ ] Issues 已识别并 auto-decided
+- [ ] Dual voices 已运行（或注明 unavailable/skipped 及 phase）
+- [ ] Design litmus scorecard 已产出
 
-**Phase 3 (Eng) outputs:**
-- [ ] Scope challenge with actual code analysis (not just "scope is fine")
-- [ ] Architecture ASCII diagram produced
-- [ ] Test diagram mapping codepaths to test coverage
-- [ ] Test plan artifact written to disk at ~/.gstack/projects/$SLUG/
+**Phase 3（Eng）outputs：**
+- [ ] Scope challenge 包含实际 code analysis（不只是 "scope is fine"）
+- [ ] Architecture ASCII diagram 已产出
+- [ ] Test diagram 已将 codepaths 映射到 test coverage
+- [ ] Test plan artifact 已写入 disk：~/.gstack/projects/$SLUG/
 - [ ] "NOT in scope" section written
-- [ ] "What already exists" section written
-- [ ] Failure modes registry with critical gap assessment
-- [ ] Completion Summary produced
-- [ ] Dual voices ran (Codex + Claude subagent, or noted unavailable)
-- [ ] Eng consensus table produced
+- [ ] "What already exists" section（已有内容）已写
+- [ ] Failure modes registry 包含 critical gap assessment
+- [ ] Completion Summary 已产出
+- [ ] Dual voices 已运行（Codex + Claude subagent，或注明 unavailable）
+- [ ] Eng consensus table 已产出
 
-**Phase 3.5 (DX) outputs — only if DX scope detected:**
+**Phase 3.5（DX）outputs — 仅当检测到 DX scope：**
 - [ ] All 8 DX dimensions evaluated with scores
 - [ ] Developer journey map produced
 - [ ] Developer empathy narrative written
@@ -761,50 +745,49 @@ produced. Check the plan file and conversation for each item.
 **Audit trail:**
 - [ ] Decision Audit Trail has at least one row per auto-decision (not empty)
 
-If ANY checkbox above is missing, go back and produce the missing output. Max 2
-attempts — if still missing after retrying twice, proceed to the gate with a warning
-noting which items are incomplete. Do not loop indefinitely.
+如果上方任何 checkbox 缺失，返回并产出 missing output。最多 2 次 attempts；如果重试两次后仍缺失，
+带 warning 进入 gate，注明哪些 items incomplete。不要无限 loop。
 
 ---
 
-## Phase 4: Final Approval Gate
+## Phase 4: Final Approval Gate（最终批准 gate）
 
 {{TASKS_SECTION_AGGREGATE}}
 
-**STOP here and present the final state to the user.**
+**在这里 STOP，并向用户呈现 final state。**
 
-Present as a message, then use AskUserQuestion:
+先以 message 呈现，然后使用 AskUserQuestion：
 
 ```
-## /autoplan Review Complete
+## /autoplan Review Complete（/autoplan 评审完成）
 
-### Plan Summary
-[1-3 sentence summary]
+### Plan Summary（计划摘要）
+[1-3 句话摘要]
 
-### Decisions Made: [N] total ([M] auto-decided, [K] taste choices, [J] user challenges)
+### Decisions Made（已做决策）：共 [N] 个（[M] 个 auto-decided，[K] 个 taste choices，[J] 个 user challenges）
 
-### User Challenges (both models disagree with your stated direction)
-[For each user challenge:]
+### User Challenges（两个 models 都不同意你的 stated direction）
+[对每个 user challenge:]
 **Challenge [N]: [title]** (from [phase])
-You said: [user's original direction]
-Both models recommend: [the change]
-Why: [reasoning]
-What we might be missing: [blind spots]
-If we're wrong, the cost is: [downside of changing]
-[If security/feasibility: "⚠️ Both models flag this as a security/feasibility risk,
+你说的是：[user's original direction]
+两个 models 都建议：[the change]
+原因：[reasoning]
+我们可能缺失的 context：[blind spots]
+如果我们错了，代价是：[downside of changing]
+[如果是 security/feasibility："⚠️ Both models flag this as a security/feasibility risk,
 not just a preference."]
 
-Your call — your original direction stands unless you explicitly change it.
+由你决定；除非你明确改变，否则你的 original direction 仍然成立。
 
-### Your Choices (taste decisions)
-[For each taste decision:]
+### Your Choices（taste decisions）
+[对每个 taste decision:]
 **Choice [N]: [title]** (from [phase])
-I recommend [X] — [principle]. But [Y] is also viable:
-  [1-sentence downstream impact if you pick Y]
+我建议 [X] — [principle]。但 [Y] 也 viable：
+  [如果选择 Y 的 1 句 downstream impact]
 
 ### Auto-Decided: [M] decisions [see Decision Audit Trail in plan file]
 
-### Review Scores
+### Review Scores（评审分数）
 - CEO: [summary]
 - CEO Voices: Codex [summary], Claude subagent [summary], Consensus [X/6 confirmed]
 - Design: [summary or "skipped, no UI scope"]
@@ -814,47 +797,47 @@ I recommend [X] — [principle]. But [Y] is also viable:
 - DX: [summary or "skipped, no developer-facing scope"]
 - DX Voices: Codex [summary], Claude subagent [summary], Consensus [X/6 confirmed] (or "skipped")
 
-### Cross-Phase Themes
-[For any concern that appeared in 2+ phases' dual voices independently:]
+### Cross-Phase Themes（跨 phase 主题）
+[对任何独立出现在 2+ phases dual voices 中的 concern:]
 **Theme: [topic]** — flagged in [Phase 1, Phase 3]. High-confidence signal.
-[If no themes span phases:] "No cross-phase themes — each phase's concerns were distinct."
+[如果没有 themes 跨 phases：] "没有 cross-phase themes；每个 phase 的 concerns 都不同。"
 
-### Deferred to TODOS.md
+### Deferred to TODOS.md（延后到 TODOS.md）
 [Items auto-deferred with reasons]
 
-### Implementation Tasks (aggregated across phases)
-[Substitute the contents of $AGGREGATED_TASKS computed above. If empty:
+### Implementation Tasks（跨 phases 聚合）
+[替换为上方计算出的 $AGGREGATED_TASKS 内容。如果为空：
 "_No per-phase task lists found in $TASKS_DIR for branch $BRANCH._"]
 ```
 
-**Cognitive load management:**
-- 0 user challenges: skip "User Challenges" section
-- 0 taste decisions: skip "Your Choices" section
-- 1-7 taste decisions: flat list
-- 8+: group by phase. Add warning: "This plan had unusually high ambiguity ([N] taste decisions). Review carefully."
+**Cognitive load management：**
+- 0 user challenges：跳过 "User Challenges" section
+- 0 taste decisions：跳过 "Your Choices" section
+- 1-7 taste decisions：flat list
+- 8+：按 phase 分组。添加 warning："This plan had unusually high ambiguity ([N] taste decisions). Review carefully."
 
-AskUserQuestion options:
-- A) Approve as-is (accept all recommendations)
-- B) Approve with overrides (specify which taste decisions to change)
-- B2) Approve with user challenge responses (accept or reject each challenge)
-- C) Interrogate (ask about any specific decision)
-- D) Revise (the plan itself needs changes)
-- E) Reject (start over)
+AskUserQuestion options：
+- A) Approve as-is（接受所有 recommendations）
+- B) Approve with overrides（指定要改变哪些 taste decisions）
+- B2) Approve with user challenge responses（接受或拒绝每个 challenge）
+- C) Interrogate（询问任何 specific decision）
+- D) Revise（plan 本身需要 changes）
+- E) Reject（start over）
 
-**Option handling:**
-- A: mark APPROVED, write review logs, suggest /ship
-- B: ask which overrides, apply, re-present gate
-- C: answer freeform, re-present gate
-- D: make changes, re-run affected phases (scope→1B, design→2, test plan→3, arch→3). Max 3 cycles.
-- E: start over
+**Option handling：**
+- A：标记 APPROVED，写 review logs，建议 /ship
+- B：询问哪些 overrides，apply，重新呈现 gate
+- C：freeform 回答，重新呈现 gate
+- D：做 changes，重新运行 affected phases（scope→1B、design→2、test plan→3、arch→3）。最多 3 cycles。
+- E：start over
 
 ---
 
-## Completion: Write Review Logs
+## Completion: 写入 Review Logs
 
-On approval, write 3 separate review log entries so /ship's dashboard recognizes them.
-Replace TIMESTAMP, STATUS, and N with actual values from each review phase.
-STATUS is "clean" if no unresolved issues, "issues_open" otherwise.
+approval 后，写入 3 条独立 review log entries，让 /ship dashboard 能识别它们。
+将 TIMESTAMP、STATUS 和 N 替换为每个 review phase 的 actual values。
+如果没有 unresolved issues，STATUS 为 "clean"；否则为 "issues_open"。
 
 ```bash
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
@@ -865,45 +848,45 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-eng-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","unresolved":N,"critical_gaps":N,"issues_found":N,"mode":"FULL_REVIEW","via":"autoplan","commit":"'"$COMMIT"'"}'
 ```
 
-If Phase 2 ran (UI scope):
+如果 Phase 2 运行了（UI scope）：
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-design-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","unresolved":N,"via":"autoplan","commit":"'"$COMMIT"'"}'
 ```
 
-If Phase 3.5 ran (DX scope):
+如果 Phase 3.5 运行了（DX scope）：
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-devex-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","initial_score":N,"overall_score":N,"product_type":"TYPE","tthw_current":"TTHW","tthw_target":"TARGET","unresolved":N,"via":"autoplan","commit":"'"$COMMIT"'"}'
 ```
 
-Dual voice logs (one per phase that ran):
+Dual voice logs（每个已运行 phase 一条）：
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"autoplan-voices","timestamp":"'"$TIMESTAMP"'","status":"STATUS","source":"SOURCE","phase":"ceo","via":"autoplan","consensus_confirmed":N,"consensus_disagree":N,"commit":"'"$COMMIT"'"}'
 
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"autoplan-voices","timestamp":"'"$TIMESTAMP"'","status":"STATUS","source":"SOURCE","phase":"eng","via":"autoplan","consensus_confirmed":N,"consensus_disagree":N,"commit":"'"$COMMIT"'"}'
 ```
 
-If Phase 2 ran (UI scope), also log:
+如果 Phase 2 运行了（UI scope），也记录：
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"autoplan-voices","timestamp":"'"$TIMESTAMP"'","status":"STATUS","source":"SOURCE","phase":"design","via":"autoplan","consensus_confirmed":N,"consensus_disagree":N,"commit":"'"$COMMIT"'"}'
 ```
 
-If Phase 3.5 ran (DX scope), also log:
+如果 Phase 3.5 运行了（DX scope），也记录：
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"autoplan-voices","timestamp":"'"$TIMESTAMP"'","status":"STATUS","source":"SOURCE","phase":"dx","via":"autoplan","consensus_confirmed":N,"consensus_disagree":N,"commit":"'"$COMMIT"'"}'
 ```
 
-SOURCE = "codex+subagent", "codex-only", "subagent-only", or "unavailable".
-Replace N values with actual consensus counts from the tables.
+SOURCE = "codex+subagent"、"codex-only"、"subagent-only" 或 "unavailable"。
+将 N values 替换为 tables 中的 actual consensus counts。
 
-Suggest next step: `/ship` when ready to create the PR.
+建议 next step：准备创建 PR 时运行 `/ship`。
 
 ---
 
-## Important Rules
+## Important Rules（重要规则）
 
-- **Never abort.** The user chose /autoplan. Respect that choice. Surface all taste decisions, never redirect to interactive review.
-- **Two gates.** The non-auto-decided AskUserQuestions are: (1) premise confirmation in Phase 1, and (2) User Challenges — when both models agree the user's stated direction should change. Everything else is auto-decided using the 6 principles.
-- **Log every decision.** No silent auto-decisions. Every choice gets a row in the audit trail.
-- **Full depth means full depth.** Do not compress or skip sections from the loaded skill files (except the skip list in Phase 0). "Full depth" means: read the code the section asks you to read, produce the outputs the section requires, identify every issue, and decide each one. A one-sentence summary of a section is not "full depth" — it is a skip. If you catch yourself writing fewer than 3 sentences for any review section, you are likely compressing.
-- **Artifacts are deliverables.** Test plan artifact, failure modes registry, error/rescue table, ASCII diagrams — these must exist on disk or in the plan file when the review completes. If they don't exist, the review is incomplete.
-- **Sequential order.** CEO → Design → Eng → DX. Each phase builds on the last.
+- **Never abort。** 用户选择了 /autoplan。尊重这个选择。呈现所有 taste decisions，绝不 redirect 到 interactive review。
+- **Two gates。** 不 auto-decide 的 AskUserQuestions 是：（1）Phase 1 的 premise confirmation；（2）User Challenges，即两个 models 都同意应改变用户 stated direction 的情况。其他所有内容都用 6 条 principles auto-decide。
+- **Log every decision。** 不允许 silent auto-decisions。每个 choice 都要在 audit trail 中有一行。
+- **Full depth means full depth。** 不要压缩或跳过 loaded skill files 中的 sections（Phase 0 skip list 除外）。"Full depth" 的意思是：读取 section 要求你读取的 code，产出 section 要求的 outputs，识别每个 issue，并决定每一项。一个 section 的 one-sentence summary 不是 "full depth"，而是 skip。如果你发现自己给任何 review section 写少于 3 句，很可能正在压缩。
+- **Artifacts are deliverables。** Test plan artifact、failure modes registry、error/rescue table、ASCII diagrams：review 完成时，这些必须存在于 disk 或 plan file 中。如果不存在，review 就 incomplete。
+- **Sequential order。** CEO → Design → Eng → DX。每个 phase 都建立在上一个之上。

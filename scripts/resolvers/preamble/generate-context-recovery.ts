@@ -3,9 +3,9 @@ import type { TemplateContext } from '../types';
 export function generateContextRecovery(ctx: TemplateContext): string {
   const binDir = ctx.host === 'codex' ? '$GSTACK_BIN' : ctx.paths.binDir;
 
-  return `## Context Recovery
+  return `## Context Recovery（上下文恢复）
 
-At session start or after compaction, recover recent project context.
+在 session start 或 compaction 后，恢复最近的 project context。
 
 \`\`\`bash
 eval "$(${binDir}/gstack-slug 2>/dev/null)"
@@ -27,5 +27,5 @@ if [ -d "$_PROJ" ]; then
 fi
 \`\`\`
 
-If artifacts are listed, read the newest useful one. If \`LAST_SESSION\` or \`LATEST_CHECKPOINT\` appears, give a 2-sentence welcome back summary. If \`RECENT_PATTERN\` clearly implies a next skill, suggest it once.`;
+如果列出了 artifacts，读取最新且有用的一个。如果出现 \`LAST_SESSION\` 或 \`LATEST_CHECKPOINT\`，给出 2 句 welcome back summary。如果 \`RECENT_PATTERN\` 明确指向下一个 skill，只建议一次。`;
 }

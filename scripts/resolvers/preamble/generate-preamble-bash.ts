@@ -13,7 +13,7 @@ GSTACK_DESIGN="$GSTACK_ROOT/design/dist"
 `
     : '';
 
-  return `## Preamble (run first)
+  return `## Preamble (run first)（Preamble，先运行）
 
 \`\`\`bash
 ${runtimeRoot}_UPD=$(${ctx.paths.binDir}/gstack-update-check 2>/dev/null || ${ctx.paths.localSkillRoot}/bin/gstack-update-check 2>/dev/null || true)
@@ -90,11 +90,11 @@ _CHECKPOINT_MODE=$(${ctx.paths.binDir}/gstack-config get checkpoint_mode 2>/dev/
 _CHECKPOINT_PUSH=$(${ctx.paths.binDir}/gstack-config get checkpoint_push 2>/dev/null || echo "false")
 echo "CHECKPOINT_MODE: $_CHECKPOINT_MODE"
 echo "CHECKPOINT_PUSH: $_CHECKPOINT_PUSH"
-# Plan-mode hint for skills like /spec that branch behavior on plan-mode state.
-# Claude Code exposes plan mode via system reminders; we detect best-effort
-# from CLAUDE_PLAN_FILE (set by the harness when plan mode is active) and
-# fall back to "inactive". Codex hosts and Claude execution mode both end up
-# inactive, which is the safe default (defaults to file+execute pipeline).
+# Plan mode 提示：供 /spec 这类会根据 plan-mode 状态分支的 skills 使用。
+# Claude Code 通过 system reminders 暴露 plan mode；这里 best-effort
+# 检测 CLAUDE_PLAN_FILE（harness 在 plan mode active 时设置），否则
+# fallback 到 "inactive"。Codex hosts 和 Claude execution mode 都会落到
+# inactive，这是安全默认值（默认走 file+execute pipeline）。
 if [ -n "\${CLAUDE_PLAN_FILE:-}\${GSTACK_PLAN_MODE_FORCE:-}" ]; then
   export GSTACK_PLAN_MODE="active"
 elif [ "\${GSTACK_PLAN_MODE:-}" = "active" ]; then

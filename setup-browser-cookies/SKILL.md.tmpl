@@ -3,10 +3,10 @@ name: setup-browser-cookies
 preamble-tier: 1
 version: 1.0.0
 description: |
-  Import cookies from your real Chromium browser into the headless browse session.
-  Opens an interactive picker UI where you select which cookie domains to import.
-  Use before QA testing authenticated pages. Use when asked to "import cookies",
-  "login to the site", or "authenticate the browser". (gstack)
+  将你真实 Chromium browser 中的 cookies 导入 headless browse session。
+  打开 interactive picker UI，让你选择要导入哪些 cookie domains。
+  在 QA testing authenticated pages 前使用。当用户要求 "import cookies"、
+  "login to the site" 或 "authenticate the browser" 时使用。（gstack）
 triggers:
   - import browser cookies
   - login to test site
@@ -19,70 +19,70 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# Setup Browser Cookies
+# Setup Browser Cookies（设置浏览器 cookies）
 
-Import logged-in sessions from your real Chromium browser into the headless browse session.
+将真实 Chromium browser 中的 logged-in sessions 导入 headless browse session。
 
-## CDP mode check
+## CDP mode check（CDP mode 检查）
 
-First, check if browse is already connected to the user's real browser:
+首先，检查 browse 是否已经连接到用户的真实 browser：
 ```bash
 $B status 2>/dev/null | grep -q "Mode: cdp" && echo "CDP_MODE=true" || echo "CDP_MODE=false"
 ```
-If `CDP_MODE=true`: tell the user "Not needed — you're connected to your real browser via CDP. Your cookies and sessions are already available." and stop. No cookie import needed.
+如果 `CDP_MODE=true`：告诉用户 "不需要导入：你已经通过 CDP 连接到真实 browser，cookies 和 sessions 已可用。" 然后停止。不需要 cookie import。
 
-## How it works
+## How it works（工作方式）
 
-1. Find the browse binary
-2. Run `cookie-import-browser` to detect installed browsers and open the picker UI
-3. User selects which cookie domains to import in their browser
-4. Cookies are decrypted and loaded into the Playwright session
+1. 找到 browse binary
+2. 运行 `cookie-import-browser`，检测 installed browsers 并打开 picker UI
+3. 用户在 browser 中选择要导入哪些 cookie domains
+4. Cookies 被 decrypt 并 loaded into Playwright session
 
-## Steps
+## Steps（步骤）
 
-### 1. Find the browse binary
+### 1. 查找 browse binary
 
 {{BROWSE_SETUP}}
 
-### 2. Open the cookie picker
+### 2. 打开 cookie picker
 
 ```bash
 $B cookie-import-browser
 ```
 
-This auto-detects installed Chromium browsers and opens
-an interactive picker UI in your default browser where you can:
-- Switch between installed browsers
+这会 auto-detect installed Chromium browsers，并在 default browser 中打开 interactive picker UI。
+你可以：
+- 在 installed browsers 之间切换
 - Search domains
-- Click "+" to import a domain's cookies
-- Click trash to remove imported cookies
+- 点击 "+" 导入某个 domain 的 cookies
+- 点击 trash 移除 imported cookies
 
-Tell the user: **"Cookie picker opened — select the domains you want to import in your browser, then tell me when you're done."**
+告诉用户：**"Cookie picker 已打开：请在 browser 中选择要导入的 domains，完成后告诉我。"**
 
-### 3. Direct import (alternative)
+### 3. Direct import（alternative）
 
-If the user specifies a domain directly (e.g., `/setup-browser-cookies github.com`), skip the UI:
+如果用户直接指定 domain（例如 `/setup-browser-cookies github.com`），跳过 UI：
 
 ```bash
 $B cookie-import-browser comet --domain github.com
 ```
 
-Replace `comet` with the appropriate browser if specified.
+如果指定了 browser，用相应 browser 替换 `comet`。
 
-### 4. Verify
+### 4. Verify（验证）
 
-After the user confirms they're done:
+用户确认完成后：
 
 ```bash
 $B cookies
 ```
 
-Show the user a summary of imported cookies (domain counts).
+向用户展示 imported cookies summary（domain counts）。
 
-## Notes
+## Notes（备注）
 
-- On macOS, the first import per browser may trigger a Keychain dialog — click "Allow" / "Always Allow"
-- On Linux, `v11` cookies may require `secret-tool`/libsecret access; `v10` cookies use Chromium's standard fallback key
-- Cookie picker is served on the same port as the browse server (no extra process)
-- Only domain names and cookie counts are shown in the UI — no cookie values are exposed
-- The browse session persists cookies between commands, so imported cookies work immediately
+- 在 macOS 上，每个 browser 的首次 import 可能触发 Keychain dialog：点击 "Allow" / "Always Allow"
+- 在 Linux 上，`v11` cookies 可能需要 `secret-tool`/libsecret access；`v10` cookies 使用 Chromium 的 standard fallback key
+- Cookie picker 与 browse server 使用同一 port（无额外 process）
+- UI 中只显示 domain names 和 cookie counts：不暴露 cookie values
+- Browse session 会在 commands 之间持久化 cookies，因此 imported cookies 会立即生效

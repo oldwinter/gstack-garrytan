@@ -1,26 +1,26 @@
-# How to document a feature you just shipped
+# 如何为刚 shipped 的 feature 补文档
 
-This is the post-ship workflow: you merged a PR, the docs are stale, and you want a coverage map plus filled gaps in one pass. You'll run `/document-release` to audit, then `/document-generate` to fill the gaps it finds.
+这是 post-ship workflow：你已经 merge 一个 PR，docs 已 stale，并希望一次得到 coverage map 和补齐 gaps。你会运行 `/document-release` 做 audit，然后运行 `/document-generate` 填补它发现的 gaps。
 
-## Prerequisites
+## 前置条件
 
-- gstack installed (`./setup` complete; verify with `which gstack` or by typing `/` in Claude Code and seeing skills listed)
-- The branch with your shipped feature is checked out
-- A PR exists on GitHub or GitLab (recommended — the workflow updates the PR body with a coverage map)
+- 已安装 gstack（`./setup` 完成；用 `which gstack` 验证，或在 Claude Code 中输入 `/` 并看到 skills listed）
+- 已 checkout 包含 shipped feature 的 branch
+- GitHub 或 GitLab 上存在 PR（推荐，因为 workflow 会用 coverage map 更新 PR body）
 
-If no PR exists yet, run `/ship` first to create one; that's what `/document-release` is designed to run against.
+如果还没有 PR，先运行 `/ship` 创建；这正是 `/document-release` 设计要配合运行的对象。
 
-## Steps
+## Steps（步骤）
 
-### 1. Audit current coverage
+### 1. Audit current coverage（审计当前覆盖）
 
-Run:
+运行：
 
 ```
 /document-release
 ```
 
-The skill walks your diff against the base branch, extracts new public surface (skills, CLI flags, config options, API endpoints, new modules), and scores each entity across the four Diataxis quadrants. You'll see a coverage map like:
+Skill 会遍历你相对 base branch 的 diff，extract new public surface（skills、CLI flags、config options、API endpoints、new modules），并按四个 Diataxis quadrants 为每个 entity score。你会看到类似 coverage map：
 
 ```
 Coverage map:
@@ -30,76 +30,76 @@ Coverage map:
   FooProcessor     ❌            ❌        ❌          ❌
 ```
 
-Items with zero coverage are **critical gaps**. Items with only reference coverage are **common gaps**. Both land in the PR body as a `### Documentation Debt` subsection so reviewers see them.
+Zero coverage 的 items 是 **critical gaps**。只有 reference coverage 的 items 是 **common gaps**。两者都会作为 `### Documentation Debt` subsection 落到 PR body 中，让 reviewers 看见。
 
-If `/document-release` reports everything is covered, you're done. Skip the rest of this how-to.
+如果 `/document-release` 报告全部 covered，就完成了。跳过本 how-to 剩余部分。
 
-### 2. Read the documentation debt section in the PR body
+### 2. 阅读 PR body 中的 documentation debt section
 
-Open your PR (the skill prints the URL). Scroll to `## Documentation` → `### Documentation Debt`. Each item is tagged with the Diataxis quadrant that would fill it:
+打开 PR（skill 会打印 URL）。滚动到 `## Documentation` -> `### Documentation Debt`。每个 item 都会标注能填补它的 Diataxis quadrant：
 
 ```
-### Documentation Debt
+### Documentation Debt（文档债）
 
-- ⚠️ /new-skill — has reference in AGENTS.md but no how-to example in README. Diataxis quadrant: how-to.
-- ⚠️ FooProcessor — zero coverage. Diataxis quadrants: reference, explanation.
+- ⚠️ /new-skill — AGENTS.md 中有 reference，但 README 中没有 how-to example。Diataxis quadrant: how-to.
+- ⚠️ FooProcessor — zero coverage。Diataxis quadrants: reference, explanation.
 ```
 
-This is the input to the next step. Each line tells you what's missing and which quadrant fills it.
+这是下一步的 input。每行都告诉你缺什么，以及哪个 quadrant 可以填补。
 
-### 3. Fill the gaps with /document-generate
+### 3. 用 /document-generate 填补 gaps
 
-Run:
+运行：
 
 ```
 /document-generate
 ```
 
-When the skill asks about scope, tell it the specific entities flagged in the debt section. The skill reads the codebase (its Step 1 archaeology phase is mandatory), partitions by Diataxis quadrant, and writes the missing docs.
+当 skill 询问 scope 时，告诉它 debt section 中 flagged 的 specific entities。Skill 会读取 codebase（它的 Step 1 archaeology phase 是 mandatory）、按 Diataxis quadrant partition，并写入 missing docs。
 
-You can also let the skill auto-discover: if /document-release passed you the gaps explicitly (it does this when chained), `/document-generate` already knows what to write.
+你也可以让 skill auto-discover：如果 /document-release 已明确传给它 gaps（chained 时会这样），`/document-generate` 已经知道要写什么。
 
-### 4. Verify the gaps closed
+### 4. 验证 gaps 已关闭
 
-Re-run `/document-release`:
+重新运行 `/document-release`：
 
 ```
 /document-release
 ```
 
-The coverage map should now show the previously-flagged entities with green checkmarks in the previously-empty quadrants. The PR body's Documentation Debt section should be empty or reduced to items you intentionally deferred.
+Coverage map 现在应该显示之前 flagged 的 entities 在之前 empty 的 quadrants 中有 green checkmarks。PR body 的 Documentation Debt section 应为空，或只剩你有意 deferred 的 items。
 
-## Verification
+## 验证
 
-Open your PR and confirm:
+打开 PR 并确认：
 
-1. The PR body has a `## Documentation` section with a doc-diff preview.
-2. The `### Documentation Debt` subsection lists zero critical gaps (or only items you knowingly deferred).
-3. Each generated doc file in `docs/` opens cleanly and cross-links to siblings (reference → how-to → tutorial → explanation).
-4. Run `grep -rE '\]\([^)]*\.md\)' docs/` and verify no link points to a missing file.
+1. PR body 有 `## Documentation` section，并包含 doc-diff preview。
+2. `### Documentation Debt` subsection 列出 zero critical gaps（或只有你明确 deferred 的 items）。
+3. `docs/` 中每个 generated doc file 都能 cleanly open，并 cross-link 到 sibling docs（reference -> how-to -> tutorial -> explanation）。
+4. 运行 `grep -rE '\]\([^)]*\.md\)' docs/`，确认没有 link 指向 missing file。
 
-If all four check, your PR is ready to land with complete documentation.
+四项都通过后，你的 PR 就可以带着完整 documentation land。
 
-## Troubleshooting
+## 故障排查
 
 **`/document-release` reports "No public surface changes detected."**
-The diff is internal-only (refactors, tests, infra). No docs are needed. Skip to landing.
+Diff 是 internal-only（refactors、tests、infra）。不需要 docs。直接进入 landing。
 
-**The Diataxis quadrant tag on a gap doesn't match what you'd expect.**
-The skill uses an entity taxonomy to decide which quadrants matter (CLI flags want reference + how-to; internal modules want reference + explanation; user-facing features want all four). If you disagree, you can override by hand-editing the docs after generation. The audit is a guide, not a constraint.
+**Gap 上的 Diataxis quadrant tag 和你预期不一致。**
+Skill 使用 entity taxonomy 判断哪些 quadrants 重要（CLI flags 需要 reference + how-to；internal modules 需要 reference + explanation；user-facing features 需要 all four）。如果不同意，可以在 generation 后手动 edit docs。Audit 是 guide，不是 constraint。
 
-**`/document-generate` writes a tutorial that takes 8 steps to reach a working result.**
-Tutorials should hit a working result in 3 steps or fewer. Re-run the skill and ask it to compress, or hand-edit. The Step 8 Quality Self-Review catches some of these but not all.
+**`/document-generate` 写出的 tutorial 需要 8 steps 才达到 working result。**
+Tutorials 应在 3 steps 或更少步骤内达到 working result。重新运行 skill 并要求 compress，或手动 edit。Step 8 Quality Self-Review 会捕捉其中一些，但不是全部。
 
-**You want to document a feature but no PR exists yet.**
-Run `/ship` first to create the PR, then this workflow. Without a PR, `/document-release` can still audit but skips the PR-body update.
+**你想 document feature，但还没有 PR。**
+先运行 `/ship` 创建 PR，然后走这个 workflow。没有 PR 时，`/document-release` 仍可 audit，但会跳过 PR-body update。
 
-**A generated reference doc has hallucinated API signatures.**
-File a bug. The skill's Step 1 archaeology is supposed to read implementation files end-to-end, not just signatures, specifically to prevent this. Include the generated text and the actual code so we can trace why the archaeology missed it.
+**Generated reference doc hallucinated API signatures。**
+提交 bug。Skill 的 Step 1 archaeology 应该 end-to-end 读取 implementation files，而不只是 signatures，专门为了防止这种问题。请包含 generated text 和 actual code，方便 trace archaeology 为什么漏掉。
 
-## Related
+## 相关
 
-- **Tutorial: first time using `/document-generate`:** [tutorial-document-generate.md](./tutorial-document-generate.md)
-- **Why gstack uses the Diataxis framework:** [explanation-diataxis-in-gstack.md](./explanation-diataxis-in-gstack.md)
-- **Reference for the audit skill:** [`document-release/SKILL.md`](../document-release/SKILL.md)
-- **Reference for the generation skill:** [`document-generate/SKILL.md`](../document-generate/SKILL.md)
+- **Tutorial：第一次使用 `/document-generate`：** [tutorial-document-generate.md](./tutorial-document-generate.md)
+- **为什么 gstack 使用 Diataxis framework：** [explanation-diataxis-in-gstack.md](./explanation-diataxis-in-gstack.md)
+- **Audit skill reference：** [`document-release/SKILL.md`](../document-release/SKILL.md)
+- **Generation skill reference：** [`document-generate/SKILL.md`](../document-generate/SKILL.md)

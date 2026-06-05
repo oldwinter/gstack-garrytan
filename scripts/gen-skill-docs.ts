@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Generate SKILL.md files from .tmpl templates.
+ * 从 .tmpl templates 生成 SKILL.md files。
  *
  * Pipeline:
  *   read .tmpl → find {{PLACEHOLDERS}} → resolve from source → format → write .md
  *
- * Supports --dry-run: generate to memory, exit 1 if different from committed file.
- * Used by skill:check and CI freshness checks.
+ * 支持 --dry-run：生成到 memory；如果和 committed file 不同则 exit 1。
+ * 供 skill:check 和 CI freshness checks 使用。
  */
 
 import { COMMAND_DESCRIPTIONS } from '../browse/src/commands';
@@ -27,18 +27,16 @@ const ROOT = path.resolve(import.meta.dir, '..');
 const DRY_RUN = process.argv.includes('--dry-run');
 
 // ─── GBrain Detection Override ──────────────────────────────
-// When --respect-detection is passed, read ~/.gstack/gbrain-detection.json
-// and un-suppress GBRAIN_CONTEXT_LOAD + GBRAIN_SAVE_RESULTS for hosts that
-// statically suppress them (claude, codex, slate, factory, opencode,
-// openclaw, cursor, kiro). Detection state is produced by
-// bin/gstack-gbrain-detect and persisted by `gstack-config gbrain-refresh`
-// or by ./setup.
+// 传入 --respect-detection 时，读取 ~/.gstack/gbrain-detection.json，
+// 并对静态 suppress GBRAIN_CONTEXT_LOAD + GBRAIN_SAVE_RESULTS 的 hosts
+//（claude、codex、slate、factory、opencode、openclaw、cursor、kiro）
+// 取消 suppress。Detection state 由 bin/gstack-gbrain-detect 生成，并由
+// `gstack-config gbrain-refresh` 或 ./setup 持久化。
 //
-// Default (no flag): static suppressedResolvers honored as-is. Used by
-// `bun run gen:skill-docs` (CI + canonical checked-in SKILL.md files) so
-// the committed output is reproducible regardless of any developer's
-// local gbrain installation state. Use `bun run gen:skill-docs:user`
-// (which adds --respect-detection) for user-local installs.
+// 默认（无 flag）：按原样尊重 static suppressedResolvers。`bun run gen:skill-docs`
+//（CI + canonical checked-in SKILL.md files）使用此模式，因此无论开发者本机
+// gbrain installation state 如何，committed output 都 reproducible。user-local
+// installs 使用 `bun run gen:skill-docs:user`（会添加 --respect-detection）。
 const RESPECT_DETECTION = process.argv.includes('--respect-detection');
 
 function loadGbrainOverride(): { detected: boolean } {
@@ -56,10 +54,9 @@ function loadGbrainOverride(): { detected: boolean } {
 const GBRAIN_OVERRIDE = loadGbrainOverride();
 
 /**
- * Compute effective suppressedResolvers for a host, applying the gbrain
- * detection override when enabled. When the override fires, GBRAIN_*
- * resolvers are removed from the suppression set so they render in the
- * generated SKILL.md.
+ * 计算某个 host 的 effective suppressedResolvers，并在启用时应用 gbrain
+ * detection override。override 触发时，GBRAIN_* resolvers 会从 suppression
+ * set 中移除，以便渲染进 generated SKILL.md。
  */
 function effectiveSuppressedResolvers(hostConfig: HostConfig): Set<string> {
   let list = hostConfig.suppressedResolvers || [];
@@ -84,12 +81,12 @@ const HOST_ARG_VAL: HostArg = (() => {
   }
 })();
 
-// For single-host mode, HOST is the host. For --host all, it's set per iteration below.
+// single-host mode 下，HOST 就是该 host。--host all 时，下方每次 iteration 会设置它。
 let HOST: Host = HOST_ARG_VAL === 'all' ? 'claude' : HOST_ARG_VAL;
 
 // ─── Model Overlay Selection ────────────────────────────────
-// --model is explicit. We do NOT auto-detect from host (host ≠ model).
-// Default is 'claude'. Missing overlay file → empty string (graceful).
+// --model 是 explicit。不要从 host auto-detect（host ≠ model）。
+// 默认是 'claude'。overlay file 缺失 → empty string（graceful）。
 import { ALL_MODEL_NAMES, resolveModel, type Model } from './models';
 const MODEL_ARG = process.argv.find(a => a.startsWith('--model'));
 const MODEL_ARG_VAL: Model = (() => {
@@ -103,10 +100,10 @@ const MODEL_ARG_VAL: Model = (() => {
 })();
 
 // ─── Catalog Mode (v1.45.0.0 T4) ────────────────────────────
-// 'trim' (default): shorten frontmatter description to lead sentence,
-// move routing/voice prose into a "## When to invoke" body section, and
-// emit scripts/proactive-suggestions.json (single file across all skills).
-// 'full': legacy v1.44 behavior — full description stays in frontmatter.
+// 'trim'（默认）：将 frontmatter description 缩短到 lead sentence，
+// 把 routing/voice prose 移入 "## When to invoke" body section，并 emit
+// scripts/proactive-suggestions.json（跨所有 skills 的 single file）。
+// 'full'：legacy v1.44 behavior，full description 保留在 frontmatter 中。
 const CATALOG_MODE_ARG = process.argv.find(a => a.startsWith('--catalog-mode'));
 const CATALOG_MODE: 'trim' | 'full' = (() => {
   if (!CATALOG_MODE_ARG) return 'trim';
@@ -120,11 +117,11 @@ const CATALOG_MODE: 'trim' | 'full' = (() => {
 })();
 
 // ─── Explain-level Overlay ──────────────────────────────────
-// --explain-level=terse compresses preamble prose (writing-style, completeness,
-// confusion-protocol, context-health) to a single pointer line at gen time.
-// Default keeps the runtime-conditional behavior (sections render unconditionally,
-// the model skips them when EXPLAIN_LEVEL: terse appears in the preamble echo).
-// Opt-in via the build flag so most users get the runtime-flexible default.
+// --explain-level=terse 在 gen time 将 preamble prose（writing-style、completeness、
+// confusion-protocol、context-health）压缩为单行 pointer。
+// 默认保留 runtime-conditional behavior（sections 无条件 render；当 preamble echo 中
+// 出现 EXPLAIN_LEVEL: terse 时，model 跳过它们）。
+// 通过 build flag opt-in，让大多数用户获得 runtime-flexible default。
 const EXPLAIN_LEVEL_ARG = process.argv.find(a => a.startsWith('--explain-level'));
 const EXPLAIN_LEVEL: 'default' | 'terse' = (() => {
   if (!EXPLAIN_LEVEL_ARG) return 'default';
@@ -137,20 +134,20 @@ const EXPLAIN_LEVEL: 'default' | 'terse' = (() => {
   return val;
 })();
 
-// HostPaths, HOST_PATHS, and TemplateContext imported from ./resolvers/types (line 7-8)
-// Design constants (AI_SLOP_BLACKLIST, OPENAI_HARD_REJECTIONS, OPENAI_LITMUS_CHECKS)
-// live in ./resolvers/constants and are consumed by resolvers directly.
+// HostPaths、HOST_PATHS 和 TemplateContext 从 ./resolvers/types import（line 7-8）。
+// Design constants（AI_SLOP_BLACKLIST、OPENAI_HARD_REJECTIONS、OPENAI_LITMUS_CHECKS）
+// 位于 ./resolvers/constants，并由 resolvers 直接消费。
 
 // ─── External Host Helpers ───────────────────────────────────
 
-// Re-export local copy for use in this file (matches codex-helpers.ts)
-// Accepts optional frontmatter name to support directory/invocation name divergence
+// Re-export local copy，供此文件使用（匹配 codex-helpers.ts）。
+// 接受 optional frontmatter name，以支持 directory/invocation name divergence。
 function externalSkillName(skillDir: string, frontmatterName?: string): string {
-  // Root skill (skillDir === '' or '.') always maps to 'gstack' regardless of frontmatter
+  // Root skill（skillDir === '' 或 '.'）无论 frontmatter 如何都映射到 'gstack'。
   if (skillDir === '.' || skillDir === '') return 'gstack';
-  // Use frontmatter name when it differs from directory name (e.g., run-tests/ with name: test)
+  // frontmatter name 与 directory name 不同时使用前者（例如 run-tests/ 且 name: test）。
   const baseName = frontmatterName && frontmatterName !== skillDir ? frontmatterName : skillDir;
-  // Don't double-prefix: gstack-upgrade → gstack-upgrade (not gstack-gstack-upgrade)
+  // 不要 double-prefix：gstack-upgrade → gstack-upgrade（不是 gstack-gstack-upgrade）。
   if (baseName.startsWith('gstack-')) return baseName;
   return `gstack-${baseName}`;
 }
@@ -196,8 +193,8 @@ function extractNameAndDescription(content: string): { name: string; description
 // ─── Voice Trigger Processing ────────────────────────────────
 
 /**
- * Extract voice-triggers YAML list from frontmatter.
- * Returns an array of trigger strings, or [] if no voice-triggers field.
+ * 从 frontmatter 提取 voice-triggers YAML list。
+ * 返回 trigger strings array；没有 voice-triggers field 时返回 []。
  */
 function extractVoiceTriggers(content: string): string[] {
   const fmStart = content.indexOf('---\n');
@@ -220,26 +217,26 @@ function extractVoiceTriggers(content: string): string[] {
 }
 
 /**
- * Preprocess voice triggers: fold voice-triggers YAML field into description,
- * then strip the field from frontmatter. Must run BEFORE transformFrontmatter
- * and extractNameAndDescription so all hosts see the updated description.
+ * 预处理 voice triggers：把 voice-triggers YAML field fold 进 description，
+ * 然后从 frontmatter strip 此 field。必须在 transformFrontmatter 和
+ * extractNameAndDescription 之前运行，确保所有 hosts 都看到更新后的 description。
  */
 function processVoiceTriggers(content: string): string {
   const triggers = extractVoiceTriggers(content);
   if (triggers.length === 0) return content;
 
-  // Strip voice-triggers block from frontmatter
+  // 从 frontmatter strip voice-triggers block
   content = content.replace(/^voice-triggers:\n(?:\s+-\s+"[^"]*"\n?)*/m, '');
 
-  // Get current description (after stripping voice-triggers, so it's clean)
+  // 获取当前 description（strip voice-triggers 后，因此是 clean 的）
   const { description } = extractNameAndDescription(content);
   if (!description) return content;
 
-  // Build new description with voice triggers appended
+  // 构建追加了 voice triggers 的新 description
   const voiceLine = `Voice triggers (speech-to-text aliases): ${triggers.map(t => `"${t}"`).join(', ')}.`;
   const newDescription = description + '\n' + voiceLine;
 
-  // Replace old indented description with new in frontmatter
+  // 用新 description 替换 frontmatter 中的旧 indented description
   const oldIndented = description.split('\n').map(l => `  ${l}`).join('\n');
   const newIndented = newDescription.split('\n').map(l => `  ${l}`).join('\n');
   content = content.replace(oldIndented, newIndented);
@@ -247,34 +244,33 @@ function processVoiceTriggers(content: string): string {
   return content;
 }
 
-// Export for testing
+// Export for testing（供测试使用）
 export { extractVoiceTriggers, processVoiceTriggers };
 
 // ─── Catalog Trim (v1.45.0.0 T4) ─────────────────────────────
 //
-// Frontmatter `description:` blocks today pack: a one-line outcome, "Use when
-// asked to..." voice triggers, "Proactively..." routing guidance, and a
-// "(gstack)" tag. This pile is the always-loaded catalog surface — every
-// session pays for the full text. The catalog trim splits the description
-// into a one-line catalog entry (lead sentence + "(gstack)") that stays in
-// the frontmatter, and a "## When to invoke" body section that holds the
-// routing/voice triggers prose for in-skill discovery. A registry written
-// to scripts/proactive-suggestions.json (one entry per skill) makes routing
-// available to agents that need it without paying the always-loaded cost.
+// 目前 frontmatter `description:` blocks 会堆进：一行 outcome、"Use when
+// asked to..." voice triggers、"Proactively..." routing guidance，以及
+// "(gstack)" tag。这堆内容是 always-loaded catalog surface，每个 session 都要为全文付费。
+// catalog trim 会把 description 拆成留在 frontmatter 中的一行 catalog entry
+//（lead sentence + "(gstack)"），以及承载 routing/voice triggers prose 的
+// "## When to invoke" body section，供 in-skill discovery 使用。写入
+// scripts/proactive-suggestions.json 的 registry（每个 skill 一条 entry）让需要 routing
+// 的 agents 可用，而无需支付 always-loaded cost。
 //
-// Opt-out: `--catalog-mode=full` keeps v1.44 behavior (no trim, full
-// description in frontmatter). Use when debugging routing regressions or
-// when shipping skills to hosts that depend on the legacy fat catalog.
+// Opt-out：`--catalog-mode=full` 保留 v1.44 behavior（no trim，full description
+// 留在 frontmatter）。调试 routing regressions，或向依赖 legacy fat catalog 的 hosts
+// shipping skills 时使用。
 
 export interface CatalogParts {
-  lead: string;            // First sentence — kept in catalog
+  lead: string;            // First sentence — 保留在 catalog 中
   routingProse: string;    // "Use when asked to...", "Proactively..." paragraphs
   voiceLine: string | null; // "Voice triggers (speech-to-text aliases): ..." line if present
   hasGstackTag: boolean;
 }
 
 export function splitCatalogDescription(description: string): CatalogParts {
-  // Voice triggers line (folded in by processVoiceTriggers earlier)
+  // Voice triggers line（前面由 processVoiceTriggers fold 进来）
   const voiceMatch = description.match(/Voice triggers \(speech-to-text aliases\):[^\n]+/);
   const voiceLine = voiceMatch ? voiceMatch[0] : null;
   let working = voiceLine ? description.replace(voiceLine, '').trim() : description.trim();
@@ -282,21 +278,18 @@ export function splitCatalogDescription(description: string): CatalogParts {
   const hasGstackTag = /\(gstack\)/.test(working);
   if (hasGstackTag) working = working.replace(/\(gstack\)/, '').trim();
 
-  // Lead = first sentence (up to first period followed by space or end of string).
-  // We tolerate sentences with embedded periods (URLs, "v1.45.0.0") by requiring
-  // the period to be followed by whitespace OR end-of-text.
-  // First normalize to single-line for sentence detection, then back out.
+  // Lead = first sentence（到第一个后接 space 或 string end 的 period）。
+  // 为容忍 embedded periods（URLs、"v1.45.0.0"），要求 period 后接 whitespace 或 end-of-text。
+  // 先 normalize 为 single-line 做 sentence detection，然后再还原。
   const collapsed = working.replace(/\s+/g, ' ').trim();
   const sentenceMatch = collapsed.match(/^([^.!?]*[.!?])(?:\s|$)/);
-  // sentenceLead is the FULL first sentence (no truncation). We compute routing
-  // from this position, then optionally truncate the displayed lead afterwards.
-  // Truncating first then computing routing was the v1.45.0.0 bug — when the
-  // first sentence exceeded 200 chars, the routing extraction would lose the
-  // entire tail of the description (design-consultation's "Use when..."
-  // routing prose silently dropped).
+  // sentenceLead 是完整 first sentence（不 truncate）。我们从此位置计算 routing，
+  // 然后可选 truncate displayed lead。先 truncate 再计算 routing 是 v1.45.0.0 bug：
+  // 当 first sentence 超过 200 chars 时，routing extraction 会丢失 description 的整个 tail
+  //（design-consultation 的 "Use when..." routing prose 被静默丢弃）。
   const sentenceLead = sentenceMatch ? sentenceMatch[1].trim() : collapsed.split(/\s/).slice(0, 20).join(' ');
 
-  // Routing prose: everything AFTER the first sentence boundary in the collapsed view.
+  // Routing prose：collapsed view 中 first sentence boundary 之后的所有内容。
   const leadInCollapsed = collapsed.indexOf(sentenceLead);
   const routingCollapsed = leadInCollapsed >= 0
     ? collapsed.slice(leadInCollapsed + sentenceLead.length).trim()
@@ -310,10 +303,10 @@ export function splitCatalogDescription(description: string): CatalogParts {
     const lastSpace = trunc.lastIndexOf(' ');
     lead = (lastSpace > 60 ? trunc.slice(0, lastSpace) : trunc) + '...';
   }
-  // Restore line breaks for routing prose by mapping back to original layout.
-  // Use original whitespace structure where possible; fall back to collapsed.
-  // Anchor recovery on sentenceLead (the untruncated first sentence) — not
-  // `lead` (which may have a "..." suffix and won't substring-match `working`).
+  // 通过映射回 original layout 来恢复 routing prose 的 line breaks。
+  // 尽可能使用 original whitespace structure；否则 fallback 到 collapsed。
+  // Anchor recovery 使用 sentenceLead（未 truncate 的 first sentence），而不是
+  // `lead`（可能有 "..." suffix，无法 substring-match `working`）。
   let routingProse = routingCollapsed;
   const collapsedLeadIdx = working.replace(/\s+/g, ' ').indexOf(sentenceLead);
   if (collapsedLeadIdx >= 0) {
@@ -335,16 +328,16 @@ export function splitCatalogDescription(description: string): CatalogParts {
   return { lead, routingProse, voiceLine, hasGstackTag };
 }
 
-/** Build the catalog-trimmed `description:` block. */
+/** 构建 catalog-trimmed `description:` block。 */
 export function buildTrimmedDescription(parts: CatalogParts): string {
   const lead = parts.lead.trim();
   const suffix = parts.hasGstackTag ? ' (gstack)' : '';
   return `${lead}${suffix}`;
 }
 
-/** Build the body section that holds the routing/voice prose. */
+/** 构建承载 routing/voice prose 的 body section。 */
 export function buildWhenToInvokeSection(parts: CatalogParts): string {
-  const lines: string[] = ['## When to invoke this skill', ''];
+  const lines: string[] = ['## When to invoke this skill（何时调用此 skill）', ''];
   if (parts.routingProse) {
     lines.push(parts.routingProse);
     lines.push('');
@@ -357,16 +350,16 @@ export function buildWhenToInvokeSection(parts: CatalogParts): string {
 }
 
 /**
- * Render a string as a YAML inline scalar value (the text after `key: `),
- * quoting only when a plain scalar would be invalid or ambiguous.
+ * 将 string 渲染为 YAML inline scalar value（`key: ` 后面的文本），
+ * 仅当 plain scalar 无效或 ambiguous 时加引号。
  *
- * The bug this guards (#1778): a description like "Ship workflow: detect..."
- * emitted as a plain scalar has an interior ": " that a strict YAML parser
- * (Codex/OpenAI skill loading) reads as a nested mapping and rejects with
- * "mapping values are not allowed in this context". When quoting is needed we
- * fall back to JSON.stringify, which produces a double-quoted scalar that YAML
- * accepts verbatim (YAML is a superset of JSON for flow scalars). Strings that
- * are already valid plain scalars pass through unchanged to keep regen diffs small.
+ * 此处防护的 bug（#1778）：像 "Ship workflow: detect..." 这样的 description
+ * 如果作为 plain scalar emit，会带有 interior ": "；strict YAML parser
+ *（Codex/OpenAI skill loading）会把它读成 nested mapping，并用
+ * "mapping values are not allowed in this context" 拒绝。需要 quoting 时，
+ * fallback 到 JSON.stringify，生成 YAML 可 verbatim 接受的 double-quoted scalar
+ *（YAML 是 JSON flow scalars 的 superset）。已经是 valid plain scalars 的字符串
+ * 保持不变，以减少 regen diffs。
  */
 export function toYamlInlineScalar(s: string): string {
   const needsQuote =
@@ -374,33 +367,32 @@ export function toYamlInlineScalar(s: string): string {
     s !== s.trim() ||                       // leading/trailing whitespace
     /:(\s|$)/.test(s) ||                    // "foo: bar" / trailing colon → mapping ambiguity
     /\s#/.test(s) ||                        // " #" → inline comment
+    /[^\x00-\x7F]/.test(s) ||               // strict YAML parsers 会拒绝部分 UTF-8 plain scalars
     /^[\s>|&*!%@`"'#,\[\]{}?-]/.test(s);    // leading YAML indicator char
   return needsQuote ? JSON.stringify(s) : s;
 }
 
 /**
- * Apply catalog trim to a SKILL.md body:
- *  - shorten frontmatter `description:` to lead + (gstack)
- *  - insert "## When to invoke" body section AFTER the generated header
- *    (so it lands near the top of body content, where routing guidance
- *    belongs)
+ * 对 SKILL.md body 应用 catalog trim：
+ *  - 将 frontmatter `description:` 缩短为 lead + (gstack)
+ *  - 在 generated header 之后插入 "## When to invoke" body section
+ *    （让它落在 body content 靠前位置，也就是 routing guidance 应在的位置）
  *
- * Returns the rewritten content plus the parts (used for proactive-suggestions
- * JSON aggregation at the end of the run).
+ * 返回 rewritten content 和 parts（用于 run 末尾的 proactive-suggestions JSON aggregation）。
  */
 export function applyCatalogTrim(content: string, skillName: string): { content: string; parts: CatalogParts } | null {
-  // Locate description block in frontmatter
+  // 在 frontmatter 中定位 description block
   if (!content.startsWith('---\n')) return null;
   const fmEnd = content.indexOf('\n---', 4);
   if (fmEnd === -1) return null;
   const frontmatter = content.slice(4, fmEnd);
 
-  // Match `description: |` block + indented body lines
+  // 匹配 `description: |` block + indented body lines
   const descMatch = frontmatter.match(/^description:\s*\|?\s*\n((?:\s{2,}.*(?:\n|$))+)/m)
                     || frontmatter.match(/^description:\s+(.+)$/m);
   if (!descMatch) return null;
 
-  // Extract full description text
+  // 提取 full description text
   let descText: string;
   if (descMatch[0].startsWith('description: |') || /^description:\s*\|/.test(descMatch[0])) {
     descText = descMatch[1].split('\n').map(l => l.replace(/^\s{2}/, '')).join('\n').trim();
@@ -408,34 +400,34 @@ export function applyCatalogTrim(content: string, skillName: string): { content:
     descText = descMatch[1].trim();
   }
 
-  // Skip skills with very short descriptions (already trimmed or no routing prose).
-  // Below ~120 chars, splitting adds no value.
+  // 跳过 description 很短的 skills（已 trimmed，或没有 routing prose）。
+  // 低于约 120 chars 时，拆分没有价值。
   if (descText.length < 120) return null;
 
   const parts = splitCatalogDescription(descText);
-  // If lead + (gstack) is already most of the text, no trim needed.
+  // 如果 lead + (gstack) 已经占据大部分文本，则无需 trim。
   const trimmedLen = buildTrimmedDescription(parts).length;
   if (trimmedLen >= descText.length - 20) return null;
 
-  // Replace description in frontmatter — keep trailing newline so the next
-  // YAML field doesn't collide on the same line as the description value.
-  // Quote the value when it would be an invalid YAML plain scalar (the common
-  // case: an interior ": " like "Ship workflow: detect..." which a strict YAML
-  // parser reads as a nested mapping and rejects — #1778). toYamlInlineScalar
-  // only quotes when needed, so descriptions without special chars stay plain.
+  // 替换 frontmatter 中的 description；保留 trailing newline，避免下一个
+  // YAML field 与 description value 出现在同一行。
+  // 当 value 会成为 invalid YAML plain scalar 时加引号（常见 case：像
+  // "Ship workflow: detect..." 这样的 interior ": "，strict YAML parser 会把它
+  // 读成 nested mapping 并拒绝，见 #1778）。toYamlInlineScalar 只在需要时加引号，
+  // 因此没有 special chars 的 descriptions 仍保持 plain。
   const newDesc = buildTrimmedDescription(parts);
-  // Function replacer (not a string) so a `$` in the description — e.g. a future
-  // skill referencing `$B`/`$D` — can't be interpreted as a `$&`/`$1` replacement
-  // pattern and silently corrupt the frontmatter.
+  // 使用 function replacer（不是 string），避免 description 中的 `$`（例如未来某个
+  // skill 引用 `$B`/`$D`）被解释为 `$&`/`$1` replacement pattern，从而静默 corrupt
+  // frontmatter。
   const newDescLine = `description: ${toYamlInlineScalar(newDesc)}\n`;
   const newFrontmatter = frontmatter.replace(descMatch[0], () => newDescLine);
   let newContent = '---\n' + newFrontmatter + content.slice(fmEnd);
 
-  // Insert body section after frontmatter (after the closing ---\n and any
-  // existing GENERATED header). We insert before the first non-comment line.
+  // 在 frontmatter 后插入 body section（closing ---\n 和任何 existing GENERATED header 之后）。
+  // 插入到第一条 non-comment line 之前。
   const bodyStart = newContent.indexOf('\n---\n') + 5;
   const whenToInvoke = '\n' + buildWhenToInvokeSection(parts).trim() + '\n';
-  // Skip past the generated header if present (it lives after frontmatter close)
+  // 如果存在 generated header，则跳过它（它位于 frontmatter close 之后）。
   const headerMatch = newContent.slice(bodyStart).match(/^(<!--[^>]*-->\s*\n)+/);
   const insertAt = bodyStart + (headerMatch ? headerMatch[0].length : 0);
   newContent = newContent.slice(0, insertAt) + whenToInvoke + '\n' + newContent.slice(insertAt);
@@ -467,17 +459,17 @@ policy:
 }
 
 /**
- * Transform frontmatter for external hosts.
- * Claude: strips `sensitive:` field (only Factory uses it).
- * Codex: keeps name + description only, enforces 1024-char limit.
- * Factory: keeps name + description + user-invocable, conditionally adds disable-model-invocation.
+ * 为 external hosts transform frontmatter。
+ * Claude：strip `sensitive:` field（只有 Factory 使用它）。
+ * Codex：仅保留 name + description，并强制 1024-char limit。
+ * Factory：保留 name + description + user-invocable，并按条件添加 disable-model-invocation。
  */
 function transformFrontmatter(content: string, host: Host): string {
   const hostConfig = getHostConfig(host);
   const fm = hostConfig.frontmatter;
 
   if (fm.mode === 'denylist') {
-    // Denylist mode: strip listed fields, keep everything else
+    // Denylist mode：strip listed fields，保留其他所有内容
     for (const field of fm.stripFields || []) {
       if (field === 'voice-triggers') {
         content = content.replace(/^voice-triggers:\n(?:\s+-\s+"[^"]*"\n?)*/m, '');
@@ -488,7 +480,7 @@ function transformFrontmatter(content: string, host: Host): string {
     return content;
   }
 
-  // Allowlist mode: reconstruct frontmatter with only allowed fields
+  // Allowlist mode：仅用 allowed fields reconstruct frontmatter
   const fmStart = content.indexOf('---\n');
   if (fmStart !== 0) return content;
   const fmEnd = content.indexOf('\n---', fmStart + 4);
@@ -497,7 +489,7 @@ function transformFrontmatter(content: string, host: Host): string {
   const body = content.slice(fmEnd + 4);
   const { name, description } = extractNameAndDescription(content);
 
-  // Description limit enforcement
+  // Description limit enforcement（描述长度限制）
   if (fm.descriptionLimit) {
     const behavior = fm.descriptionLimitBehavior || 'error';
     if (description.length > fm.descriptionLimit) {
@@ -509,15 +501,15 @@ function transformFrontmatter(content: string, host: Host): string {
       } else if (behavior === 'warn') {
         console.warn(`WARNING: ${hostConfig.displayName} description for "${name}" exceeds ${fm.descriptionLimit} chars`);
       }
-      // 'truncate' — silently proceed
+      // 'truncate' — 静默继续
     }
   }
 
-  // Build frontmatter with allowed fields
+  // 用 allowed fields 构建 frontmatter
   const indentedDesc = description.split('\n').map(l => `  ${l}`).join('\n');
   let newFm = `---\nname: ${name}\ndescription: |\n${indentedDesc}\n`;
 
-  // Add extra fields (host-wide)
+  // 添加 extra fields（host-wide）
   if (fm.extraFields) {
     for (const [key, value] of Object.entries(fm.extraFields)) {
       if (key !== 'name' && key !== 'description') {
@@ -526,7 +518,7 @@ function transformFrontmatter(content: string, host: Host): string {
     }
   }
 
-  // Add conditional fields
+  // 添加 conditional fields
   if (fm.conditionalFields) {
     for (const rule of fm.conditionalFields) {
       const match = Object.entries(rule.if).every(([k, v]) =>
@@ -540,11 +532,11 @@ function transformFrontmatter(content: string, host: Host): string {
     }
   }
 
-  // Preserve additional keepFields beyond name and description
+  // 保留 name 和 description 之外的 additional keepFields
   if (fm.keepFields) {
     for (const field of fm.keepFields) {
       if (field === 'name' || field === 'description') continue;
-      // Match YAML field with possible multi-line/array value (indented lines after colon)
+      // 匹配可能带 multi-line/array value 的 YAML field（colon 后的 indented lines）
       const fieldMatch = frontmatter.match(new RegExp(`^${field}:(.*(?:\\n(?:[ \\t]+.+))*)`, 'm'));
       if (fieldMatch) {
         newFm += `${field}:${fieldMatch[1]}\n`;
@@ -552,7 +544,7 @@ function transformFrontmatter(content: string, host: Host): string {
     }
   }
 
-  // Rename fields (copy values from template frontmatter with new keys)
+  // Rename fields（用 new keys 复制 template frontmatter 中的 values）
   if (fm.renameFields) {
     for (const [oldName, newName] of Object.entries(fm.renameFields)) {
       const fieldMatch = frontmatter.match(new RegExp(`^${oldName}:(.+(?:\\n(?:\\s+.+)*)?)`, 'm'));
@@ -567,13 +559,13 @@ function transformFrontmatter(content: string, host: Host): string {
 }
 
 /**
- * Extract hook descriptions from frontmatter for inline safety prose.
- * Returns a description of what the hooks do, or null if no hooks.
+ * 从 frontmatter 提取 hook descriptions，用于 inline safety prose。
+ * 返回 hooks 行为描述；没有 hooks 时返回 null。
  */
 function extractHookSafetyProse(tmplContent: string): string | null {
   if (!tmplContent.match(/^hooks:/m)) return null;
 
-  // Parse the hook matchers to build a human-readable safety description
+  // Parse hook matchers，以构建 human-readable safety description
   const matchers: string[] = [];
   const matcherRegex = /matcher:\s*"(\w+)"/g;
   let m;
@@ -583,32 +575,32 @@ function extractHookSafetyProse(tmplContent: string): string | null {
 
   if (matchers.length === 0) return null;
 
-  // Build safety prose based on what tools are hooked
+  // 根据 hooked tools 构建 safety prose
   const toolDescriptions: Record<string, string> = {
-    Bash: 'check bash commands for destructive operations (rm -rf, DROP TABLE, force-push, git reset --hard, etc.) before execution',
-    Edit: 'verify file edits are within the allowed scope boundary before applying',
-    Write: 'verify file writes are within the allowed scope boundary before applying',
+    Bash: '在执行前检查 bash commands 是否包含 destructive operations（rm -rf、DROP TABLE、force-push、git reset --hard 等）',
+    Edit: '在应用前确认 file edits 位于允许的 scope boundary 内',
+    Write: '在应用前确认 file writes 位于允许的 scope boundary 内',
   };
 
   const safetyChecks = matchers
     .map(t => toolDescriptions[t] || `check ${t} operations for safety`)
     .join(', and ');
 
-  return `> **Safety Advisory:** This skill includes safety checks that ${safetyChecks}. When using this skill, always pause and verify before executing potentially destructive operations. If uncertain about a command's safety, ask the user for confirmation before proceeding.`;
+  return `> **Safety Advisory:** 此 skill 包含 safety checks：${safetyChecks}。使用此 skill 时，在执行 potentially destructive operations 前始终暂停并验证。如果不确定某条 command 是否安全，先向用户确认再继续。`;
 }
 
 // ─── External Host Config (now derived from hosts/*.ts) ──────
-// EXTERNAL_HOST_CONFIG replaced by getHostConfig() from hosts/index.ts
+// EXTERNAL_HOST_CONFIG 已由 hosts/index.ts 中的 getHostConfig() 替代
 
 // ─── Template Processing ────────────────────────────────────
 
 const GENERATED_HEADER = `<!-- AUTO-GENERATED from {{SOURCE}} — do not edit directly -->\n<!-- Regenerate: bun run gen:skill-docs -->\n`;
 
 /**
- * Apply a host's configured path + tool rewrites. Extracted so both SKILL.md
- * (via processExternalHost) and section files (via processSectionTemplate) get
- * identical per-host treatment — a section's cross-references must rewrite the
- * same way the parent skill's do, or external hosts get wrong paths.
+ * 应用 host 配置的 path + tool rewrites。抽出此函数，让 SKILL.md
+ *（通过 processExternalHost）和 section files（通过 processSectionTemplate）获得
+ * 完全一致的 per-host treatment；section 的 cross-references 必须和 parent skill
+ * 以同样方式 rewrite，否则 external hosts 会得到错误 paths。
  */
 function applyHostRewrites(content: string, hostConfig: HostConfig): string {
   let result = content;
@@ -624,10 +616,10 @@ function applyHostRewrites(content: string, hostConfig: HostConfig): string {
 }
 
 /**
- * Resolve {{PLACEHOLDER}} / {{NAME:arg}} tokens against the RESOLVERS registry,
- * honoring host suppression and appliesTo gating, then assert nothing is left
- * unresolved. Extracted so SKILL.md and section templates resolve through the
- * exact same path — a security/sanitization fix to one can't miss the other.
+ * 用 RESOLVERS registry resolve {{PLACEHOLDER}} / {{NAME:arg}} tokens，
+ * 同时尊重 host suppression 和 appliesTo gating，然后断言没有 unresolved 剩余。
+ * 抽出此函数，让 SKILL.md 和 section templates 走完全相同 path；这样针对一侧的
+ * security/sanitization fix 不会漏掉另一侧。
  */
 function resolvePlaceholders(
   tmplContent: string,
@@ -635,9 +627,9 @@ function resolvePlaceholders(
   hostConfig: HostConfig,
   relTmplPath: string,
 ): string {
-  // effectiveSuppressedResolvers() honors --respect-detection: when gbrain is
-  // detected locally, GBRAIN_* resolvers un-suppress. Shared by SKILL.md and
-  // section generation so both paths get the same gbrain-aware behavior.
+  // effectiveSuppressedResolvers() 尊重 --respect-detection：本地检测到 gbrain 时，
+  // GBRAIN_* resolvers 会 un-suppress。SKILL.md 和 section generation 共用此逻辑，
+  // 因此两条路径获得相同的 gbrain-aware behavior。
   const suppressed = effectiveSuppressedResolvers(hostConfig);
   const onePass = (input: string): string =>
     input.replace(/\{\{(\w+(?::[^}]+)?)\}\}/g, (_match, fullKey) => {
@@ -652,11 +644,11 @@ function resolvePlaceholders(
       return args.length > 0 ? resolve(ctx, args) : resolve(ctx);
     });
 
-  // Multi-pass: a resolver may emit content that itself contains {{TOKENS}} — the
-  // {{SECTION:id}} resolver inlines a section template (with its own resolvers)
-  // for non-Claude hosts. .replace() doesn't re-scan inserted text, so loop until
-  // the output stabilizes. Bounded to avoid an infinite loop if a resolver ever
-  // emits its own placeholder; 6 passes is far more nesting than any skill needs.
+  // Multi-pass：resolver 可能 emit 自身包含 {{TOKENS}} 的 content；
+  // {{SECTION:id}} resolver 会为 non-Claude hosts inline section template
+  //（带自己的 resolvers）。.replace() 不会重新扫描 inserted text，所以循环直到
+  // output 稳定。加 bound 是为避免 resolver emit 自己 placeholder 时无限循环；
+  // 6 passes 已远超任何 skill 所需 nesting。
   let content = tmplContent;
   for (let pass = 0; pass < 6; pass++) {
     const next = onePass(content);
@@ -672,11 +664,11 @@ function resolvePlaceholders(
 }
 
 /**
- * Build the TemplateContext from a template's frontmatter. Shared by SKILL.md
- * and section generation so sections inherit the SAME context the parent skill
- * resolves with (skillName, tier, benefitsFrom, interactive) — enforced by
- * test/template-context-parity.test.ts. skillNameOverride lets section
- * generation pin the parent skill's name instead of deriving "sections".
+ * 从 template frontmatter 构建 TemplateContext。SKILL.md 和 section generation 共用，
+ * 因此 sections 会继承 parent skill resolve 时使用的同一个 context
+ *（skillName、tier、benefitsFrom、interactive）；由 test/template-context-parity.test.ts
+ * enforce。skillNameOverride 让 section generation pin parent skill name，
+ * 而不是派生出 "sections"。
  */
 function buildContext(
   tmplContent: string,
@@ -701,8 +693,8 @@ function buildContext(
 }
 
 /**
- * Process external host output: routing, frontmatter, path rewrites, metadata.
- * Shared between Codex and Factory (and future external hosts).
+ * 处理 external host output：routing、frontmatter、path rewrites、metadata。
+ * Codex、Factory 和未来 external hosts 共用。
  */
 function processExternalHost(
   content: string,
@@ -720,7 +712,7 @@ function processExternalHost(
   fs.mkdirSync(outputDir, { recursive: true });
   const outputPath = path.join(outputDir, 'SKILL.md');
 
-  // Guard against symlink loops
+  // 防止 symlink loops
   let symlinkLoop = false;
   const claudePath = ctx.tmplPath.replace(/\.tmpl$/, '');
   try {
@@ -730,26 +722,26 @@ function processExternalHost(
       symlinkLoop = true;
     }
   } catch {
-    // realpathSync fails if file doesn't exist yet — no symlink loop
+    // 文件尚不存在时 realpathSync 会失败；此时没有 symlink loop
   }
 
-  // Extract hook safety prose BEFORE transforming frontmatter (which strips hooks)
+  // 在 transform frontmatter 前提取 hook safety prose（transform 会 strip hooks）
   const safetyProse = extractHookSafetyProse(tmplContent);
 
-  // Transform frontmatter (host-aware)
+  // Transform frontmatter（host-aware）
   let result = transformFrontmatter(content, host);
 
-  // Insert safety advisory at the top of the body (after frontmatter)
+  // 在 body 顶部插入 safety advisory（frontmatter 之后）
   if (safetyProse) {
     const bodyStart = result.indexOf('\n---') + 4;
     result = result.slice(0, bodyStart) + '\n' + safetyProse + '\n' + result.slice(bodyStart);
   }
 
-  // Config-driven path + tool rewrites (shared with processSectionTemplate so
-  // section cross-references get the same per-host treatment as SKILL.md).
+  // Config-driven path + tool rewrites（与 processSectionTemplate 共用，
+  // 让 section cross-references 获得与 SKILL.md 相同的 per-host treatment）。
   result = applyHostRewrites(result, hostConfig);
 
-  // Config-driven: generate metadata (e.g., openai.yaml for Codex)
+  // Config-driven：生成 metadata（例如 Codex 的 openai.yaml）
   if (hostConfig.generation.generateMetadata && !symlinkLoop) {
     const agentsDir = path.join(outputDir, 'agents');
     fs.mkdirSync(agentsDir, { recursive: true });
@@ -1011,51 +1003,50 @@ for (const currentHost of hostsToRun) {
 
       const gstackLite = `# gstack-lite Planning Discipline
 
-Injected by the orchestrator into spawned Claude Code sessions. Append to existing CLAUDE.md.
+由 orchestrator 注入 spawned Claude Code sessions。追加到现有 CLAUDE.md。
 
 ## Planning Discipline
-1. Read every file you will modify. Understand existing patterns first.
-2. Before writing code, state your plan: what, why, which files, test case, risk.
-3. When ambiguous, prefer: completeness over shortcuts, existing patterns over new ones,
-   reversible choices over irreversible ones, safe defaults over clever ones.
-4. Self-review your changes before reporting done. Check for: missed files, broken
-   imports, untested paths, style inconsistencies.
-5. Report when done: what shipped, what decisions you made, anything uncertain.
+1. 阅读你将修改的每个 file。先理解 existing patterns。
+2. 写 code 前说明 plan：做什么、为什么、哪些 files、test case、risk。
+3. 遇到 ambiguous 情况时，优先：completeness over shortcuts、existing patterns over new ones、
+   reversible choices over irreversible ones、safe defaults over clever ones。
+4. 报告完成前先 self-review changes。检查：missed files、broken imports、untested paths、style inconsistencies。
+5. 完成后报告：ship 了什么、做了哪些 decisions、还有什么 uncertain。
 `;
       fs.writeFileSync(path.join(openclawDir, 'gstack-lite-CLAUDE.md'), gstackLite);
       console.log('GENERATED: openclaw/gstack-lite-CLAUDE.md');
 
       const gstackFull = `# gstack-full Pipeline
 
-Injected by the orchestrator for complete feature builds. Append to existing CLAUDE.md.
+由 orchestrator 为 complete feature builds 注入。追加到现有 CLAUDE.md。
 
 ## Full Pipeline
-1. Read CLAUDE.md and understand the project context.
-2. Run /autoplan to review your approach (CEO + eng + design review pipeline).
-3. Implement the approved plan. Follow the planning discipline above.
-4. Run /ship to create a PR with tests, changelog, and version bump.
-5. Report back: PR URL, what shipped, decisions made, anything uncertain.
+1. 阅读 CLAUDE.md 并理解 project context。
+2. 运行 /autoplan review 你的 approach（CEO + eng + design review pipeline）。
+3. 实现 approved plan。遵循上面的 planning discipline。
+4. 运行 /ship 创建带 tests、changelog 和 version bump 的 PR。
+5. 回报：PR URL、ship 了什么、做了哪些 decisions、还有什么 uncertain。
 
-Do not ask for human input until the PR is ready for review.
+PR ready for review 之前，不要请求 human input。
 `;
       fs.writeFileSync(path.join(openclawDir, 'gstack-full-CLAUDE.md'), gstackFull);
       console.log('GENERATED: openclaw/gstack-full-CLAUDE.md');
 
       const gstackPlan = `# gstack-plan: Full Review Gauntlet
 
-Injected by the orchestrator when the user wants to plan a Claude Code project.
-Append to existing CLAUDE.md.
+当用户想规划 Claude Code project 时由 orchestrator 注入。
+追加到现有 CLAUDE.md。
 
 ## Planning Pipeline
-1. Read CLAUDE.md and understand the project context.
-2. Run /office-hours to produce a design doc (problem statement, premises, alternatives).
-3. Run /autoplan to review the design (CEO + eng + design + DX reviews + codex adversarial).
-4. Save the final reviewed plan to a file the orchestrator can reference later.
-   Write it to: plans/<project-slug>-plan-<date>.md in the current repo.
-   Include the design doc, all review decisions, and the implementation sequence.
-5. Report back to the orchestrator:
+1. 阅读 CLAUDE.md 并理解 project context。
+2. 运行 /office-hours 生成 design doc（problem statement、premises、alternatives）。
+3. 运行 /autoplan review design（CEO + eng + design + DX reviews + codex adversarial）。
+4. 将最终 reviewed plan 保存到 orchestrator 后续可引用的 file。
+   写入当前 repo 的：plans/<project-slug>-plan-<date>.md。
+   包含 design doc、所有 review decisions 和 implementation sequence。
+5. 回报 orchestrator：
    - Plan file path
-   - One-paragraph summary of what was designed and the key decisions
+   - 一段话 summary：设计了什么，以及 key decisions
    - List of accepted scope expansions (if any)
    - Recommended next step (usually: spawn a new session with gstack-full to implement)
 
@@ -1092,7 +1083,7 @@ The orchestrator will persist the plan link to its own memory/knowledge store.
       const payload = {
         $schema: 'https://gstack.dev/schemas/proactive-suggestions.json',
         catalog_mode: 'trim',
-        note: 'Routing / voice-trigger prose extracted from SKILL.md frontmatter descriptions during catalog trim. Loaded on demand when routing guidance is needed.',
+        note: 'Routing / voice-trigger prose 在 catalog trim 期间从 SKILL.md frontmatter descriptions 抽取。需要 routing guidance 时按需加载。',
         skills: sortedSkills,
       };
       const serialized = JSON.stringify(payload, null, 2) + '\n';

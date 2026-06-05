@@ -1,20 +1,20 @@
-# How to test iOS apps with GStack iOS
+# 如何使用 GStack iOS 测试 iOS apps
 
-This is the end-to-end walkthrough for the iOS QA capability that ships with gstack: install the canonical Swift templates into your app, connect a real iPhone over USB, and drive it from any agent (Claude Code locally, or any HTTP-capable agent over Tailscale). No simulators, no XCTest harness, no WebDriverAgent.
+这是 gstack 随附的 iOS QA capability 的端到端 walkthrough：把 canonical Swift templates 安装进你的 app，通过 USB 连接真实 iPhone，并从任何 agent 驱动它（本地 Claude Code，或通过 Tailscale 的任何 HTTP-capable agent）。不需要 simulators，不需要 XCTest harness，不需要 WebDriverAgent。
 
-Everything below has been verified end-to-end on a real iPhone 17 Pro Max running iOS 26.5. The same flow works on any iOS 16+ device.
+下方所有流程都已在运行 iOS 26.5 的真实 iPhone 17 Pro Max 上完成端到端验证。同样流程适用于任何 iOS 16+ device。
 
-## What you'll need
+## 你需要准备什么
 
-- macOS with Xcode 16.0+ installed (`xcrun devicectl --version` must succeed). Xcode 16 ships the CoreDevice tunnel `devicectl` uses to reach the device over USB.
-- A real iPhone running iOS 16 or later. Unlocked, paired with your Mac, with **Developer Mode** enabled in Settings → Privacy & Security.
-- An Apple developer team — the free personal team works fine for live-device debug deploys. You'll need the team ID (e.g. `623FYQ2M88`), not the certificate ID. Find it in Xcode → Settings → Accounts → your Apple ID → team list. The setup signs the app for your device on first deploy via `-allowProvisioningUpdates -allowProvisioningDeviceRegistration`.
-- gstack installed (`./setup` complete; `bin/gstack-ios-qa-daemon` must be on disk and executable).
-- Bun runtime on PATH (`bun --version`). The Mac-side daemon is a bun process.
+- 已安装 Xcode 16.0+ 的 macOS（`xcrun devicectl --version` 必须成功）。Xcode 16 提供 CoreDevice tunnel，`devicectl` 会用它通过 USB 访问 device。
+- 运行 iOS 16 或更高版本的真实 iPhone。已解锁、已与 Mac paired，并在 Settings -> Privacy & Security 中启用 **Developer Mode**。
+- Apple developer team，free personal team 对 live-device debug deploys 已足够。你需要 team ID（例如 `623FYQ2M88`），不是 certificate ID。可在 Xcode -> Settings -> Accounts -> your Apple ID -> team list 找到。Setup 首次 deploy 时会通过 `-allowProvisioningUpdates -allowProvisioningDeviceRegistration` 为你的 device 签名 app。
+- 已安装 gstack（`./setup` 完成；`bin/gstack-ios-qa-daemon` 必须存在且 executable）。
+- PATH 上有 Bun runtime（`bun --version`）。Mac-side daemon 是 bun process。
 
-For the optional remote-agent (Tailscale) mode, you'll additionally need Tailscale installed on the Mac with `/var/run/tailscale.sock` readable.
+对于 optional remote-agent（Tailscale）mode，还需要 Mac 已安装 Tailscale，且 `/var/run/tailscale.sock` 可读。
 
-## Architecture in one breath
+## 一句话架构
 
 ```
 ┌─────────────────┐   tailnet (opt)    ┌──────────────────────┐   USB CoreDevice    ┌─────────────────────┐
@@ -24,25 +24,25 @@ For the optional remote-agent (Tailscale) mode, you'll additionally need Tailsca
 └─────────────────┘                    └──────────────────────┘                     └─────────────────────┘
 ```
 
-- iOS app embeds a `StateServer` (`DebugBridge` SPM library, `#if DEBUG` only) listening on `::1` + `127.0.0.1` port 9999. Bearer-token gated. Boot token rotates within ~5 seconds of daemon spawn so anything scraping `os_log` past then sees a dead credential.
-- Mac daemon brokers traffic over the CoreDevice IPv6 tunnel that `xcrun devicectl` opens automatically when a paired device is connected.
-- In Tailscale mode, the daemon exposes a separate listener bound to your tailnet IP, with capability tiers (observe / interact / mutate / restore) enforced per session token. Tokens are minted explicitly by the Mac owner via `gstack-ios-qa-mint`; remote callers never auto-allowlist.
+- iOS app 嵌入 `StateServer`（`DebugBridge` SPM library，仅 `#if DEBUG`），监听 `::1` + `127.0.0.1` port 9999。Bearer-token gated。Boot token 会在 daemon spawn 后约 5 秒内 rotate，因此之后 scrape `os_log` 的任何东西都会看到 dead credential。
+- Mac daemon 通过 paired device 连接时 `xcrun devicectl` 自动打开的 CoreDevice IPv6 tunnel broker traffic。
+- 在 Tailscale mode 中，daemon 会暴露绑定到 tailnet IP 的 separate listener，并按 session token enforce capability tiers（observe / interact / mutate / restore）。Tokens 由 Mac owner 通过 `gstack-ios-qa-mint` 显式 mint；remote callers 永远不会 auto-allowlist。
 
-The iOS `StateServer` is loopback-only **always**, even in remote mode. Identity validation happens Mac-side because the iPhone has no way to validate a Tailscale identity.
+iOS `StateServer` **始终**是 loopback-only，即使在 remote mode 中也是如此。Identity validation 发生在 Mac-side，因为 iPhone 无法验证 Tailscale identity。
 
-## Step 1: Add the DebugBridge templates to your iOS app
+## Step 1：把 DebugBridge templates 添加到 iOS app
 
-The templates live at `~/.claude/skills/gstack/ios-qa/templates/` after `./setup`. The fastest install is to invoke the `/ios-qa` skill in Claude Code from your app's root — it reads your Swift source, codegens typed `@Observable` state accessors, and lays down the templates with your bundle ID. Or do it by hand:
+`./setup` 后，templates 位于 `~/.claude/skills/gstack/ios-qa/templates/`。最快安装方式是在 app root 中从 Claude Code invoke `/ios-qa` skill：它会读取 Swift source，codegen typed `@Observable` state accessors，并用你的 bundle ID 放置 templates。也可以手动操作：
 
-1. Copy these into a `DebugBridge/` SPM package inside your app workspace:
-   - `Sources/DebugBridgeCore/StateServer.swift` (from `StateServer.swift.template`)
-   - `Sources/DebugBridgeCore/DebugBridgeManager.swift` (from `DebugBridgeManager.swift.template`)
-   - `Sources/DebugBridgeTouch/DebugBridgeTouch.m` + `Sources/DebugBridgeTouch/include/DebugBridgeTouch.h` (from the two `.template` files)
-   - `Sources/DebugBridgeUI/Bridges.swift` (from `Bridges.swift.template`)
-   - `Sources/DebugBridgeUI/DebugOverlay.swift` (from `DebugOverlay.swift.template`)
-   - `Package.swift` (from `Package.swift.template`)
-2. Add the package as a local dependency of your app. Depend on the `DebugBridgeUI` product with `condition: .when(configuration: .debug)`. `DebugBridgeCore` and `DebugBridgeTouch` come in transitively.
-3. In your `@main` App init, gate the wiring on `#if DEBUG`:
+1. 把这些文件 copy 到 app workspace 内的 `DebugBridge/` SPM package：
+   - `Sources/DebugBridgeCore/StateServer.swift`（来自 `StateServer.swift.template`）
+   - `Sources/DebugBridgeCore/DebugBridgeManager.swift`（来自 `DebugBridgeManager.swift.template`）
+   - `Sources/DebugBridgeTouch/DebugBridgeTouch.m` + `Sources/DebugBridgeTouch/include/DebugBridgeTouch.h`（来自两个 `.template` files）
+   - `Sources/DebugBridgeUI/Bridges.swift`（来自 `Bridges.swift.template`）
+   - `Sources/DebugBridgeUI/DebugOverlay.swift`（来自 `DebugOverlay.swift.template`）
+   - `Package.swift`（来自 `Package.swift.template`）
+2. 把 package 作为 app 的 local dependency 添加。依赖 `DebugBridgeUI` product，并设置 `condition: .when(configuration: .debug)`。`DebugBridgeCore` 和 `DebugBridgeTouch` 会 transitively 引入。
+3. 在 `@main` App init 中，用 `#if DEBUG` gate wiring：
 
    ```swift
    #if DEBUG
@@ -55,13 +55,13 @@ The templates live at `~/.claude/skills/gstack/ios-qa/templates/` after `./setup
    #endif
    ```
 
-The three Swift targets split as: `DebugBridgeCore` is cross-platform (so `swift build` on a CI Mac host can validate the bulk of the code without UIKit), `DebugBridgeUI` and `DebugBridgeTouch` are iOS-only (they link UIKit). `DebugBridgeTouch` is Objective-C — it carries the KIF-derived UITouch synthesis with the iOS 18+ `_UIHitTestContext` fix that makes SwiftUI Button taps actually fire.
+三个 Swift targets 的拆分是：`DebugBridgeCore` cross-platform（因此 CI Mac host 上的 `swift build` 可以不依赖 UIKit 验证大部分代码），`DebugBridgeUI` 和 `DebugBridgeTouch` iOS-only（它们 link UIKit）。`DebugBridgeTouch` 是 Objective-C，它承载 KIF-derived UITouch synthesis，并带有 iOS 18+ `_UIHitTestContext` fix，使 SwiftUI Button taps 能真正触发。
 
-The structural Release-build guard is the `.when(configuration: .debug)` clause in `Package.swift`. SwiftPM refuses to link any `DebugBridge*` target in a Release build, so the bridge cannot ship to TestFlight even if you forget to clean up.
+Structural Release-build guard 是 `Package.swift` 中的 `.when(configuration: .debug)` clause。SwiftPM 会拒绝在 Release build 中 link 任何 `DebugBridge*` target，因此即使忘记 cleanup，bridge 也无法 ship 到 TestFlight。
 
-## Step 2: Build + install to the device
+## Step 2：Build + install 到 device
 
-From the app's project directory:
+在 app project directory 中运行：
 
 ```
 xcodebuild \
@@ -75,7 +75,7 @@ xcodebuild \
   build
 ```
 
-Then install + launch:
+然后安装并启动：
 
 ```
 UDID=$(xcrun devicectl list devices 2>/dev/null | awk 'NR>2 && $0!="" {print $(NF-2); exit}')
@@ -83,25 +83,25 @@ xcrun devicectl device install app --device "$UDID" /tmp/build/Build/Products/De
 xcrun devicectl device process launch --device "$UDID" --terminate-existing your.bundle.id
 ```
 
-If the phone is locked you'll get `FBSOpenApplicationServiceErrorDomain error 1 — Locked`. Unlock and retry. First-time installs surface a Trust dialog on the phone; tap Trust, then re-run.
+如果 phone locked，会看到 `FBSOpenApplicationServiceErrorDomain error 1 — Locked`。解锁后 retry。首次 install 会在 phone 上出现 Trust dialog；点击 Trust，然后重新运行。
 
-## Step 3: Start the Mac-side daemon
+## Step 3：启动 Mac-side daemon
 
-Two options.
+有两个选项。
 
-**Option A — let the skill spawn it.** Run `/ios-qa` in Claude Code from anywhere; the skill spawns the daemon on demand, bootstraps the tunnel, rotates the boot token, and exposes the device through the proxy. Cleanest path for local-USB use.
+**Option A：让 skill spawn 它。** 从任意位置在 Claude Code 中运行 `/ios-qa`；skill 会按需 spawn daemon、bootstrap tunnel、rotate boot token，并通过 proxy 暴露 device。这是 local-USB use 最干净的路径。
 
-**Option B — start it yourself.** Run:
+**Option B：自己启动。** 运行：
 
 ```
 gstack-ios-qa-daemon
 ```
 
-The daemon prints `READY: port=<n> pid=<pid>` once both loopback listeners are bound. The default port is 9099. Spawners can read that line with a ~5 second timeout to confirm readiness; you can also point `curl` at the printed port.
+当两个 loopback listeners 都已 bound，daemon 会打印 `READY: port=<n> pid=<pid>`。默认 port 是 9099。Spawners 可用约 5 秒 timeout 读取该行确认 readiness；你也可以把 `curl` 指向打印出的 port。
 
-Either way the daemon takes an exclusive flock on `~/.gstack/ios-qa-daemon.pid` — running it twice from two Claude Code sessions is safe; the second invocation discovers the running daemon's port and joins.
+无论哪种方式，daemon 都会在 `~/.gstack/ios-qa-daemon.pid` 上拿 exclusive flock。从两个 Claude Code sessions 运行两次是安全的；第二次 invocation 会发现 running daemon 的 port 并 join。
 
-Set these env vars to target a specific device or bundle:
+设置这些 env vars 可指定 device 或 bundle：
 
 ```
 GSTACK_IOS_TARGET_UDID=248C3A58-B843-5BDB-8F5D-89ADB7D7BF6A
@@ -109,41 +109,41 @@ GSTACK_IOS_TARGET_BUNDLE_ID=com.yourorg.yourapp
 GSTACK_IOS_DAEMON_PORT=9099       # loopback listener port; default 9099
 ```
 
-If `GSTACK_IOS_TARGET_UDID` is unset, the daemon picks the first paired connected device.
+如果 `GSTACK_IOS_TARGET_UDID` 未设置，daemon 会选择第一个 paired connected device。
 
-## Step 4: Drive the device
+## Step 4：驱动 device
 
-Once the daemon is running, you have an HTTP surface at `http://127.0.0.1:9099` (or `[::1]:9099`). The skill flow does this for you, but the raw endpoints are:
+Daemon 运行后，你会在 `http://127.0.0.1:9099`（或 `[::1]:9099`）得到 HTTP surface。Skill flow 会帮你处理这些，但 raw endpoints 如下：
 
-| Endpoint | What it does | Auth |
+| Endpoint | 作用 | Auth |
 |---|---|---|
-| `GET /healthz` | Version probe. | none (loopback) |
-| `POST /auth/rotate` | Daemon-only; rotates the boot token to an in-memory-only value. | boot token |
-| `POST /session/acquire` | Acquire the per-device session lock. Returns `{session_id, ttl_seconds}`. | bearer |
-| `POST /session/release` | Release the lock. | bearer + session |
-| `GET /screenshot` | Capture a PNG of the active window. Returns `{png_base64: "..."}`. | bearer |
-| `GET /elements` | Accessibility-tree snapshot. | bearer |
-| `GET /state/snapshot` | Dump every `@Snapshotable` field as JSON. | bearer |
-| `POST /state/restore` | Atomically restore a full snapshot. | bearer + session, mutate tier |
-| `POST /tap` `{x,y}` | Synthesize a real UITouch at window coordinates. SwiftUI Buttons fire. | bearer + session, interact tier |
-| `POST /swipe` `{from_x,from_y,to_x,to_y}` | Scroll the nearest enclosing UIScrollView. | bearer + session, interact tier |
-| `POST /type` `{text}` | Set text on the current first responder. | bearer + session, interact tier |
+| `GET /healthz` | Version probe。 | none（loopback） |
+| `POST /auth/rotate` | Daemon-only；把 boot token rotate 成 in-memory-only value。 | boot token |
+| `POST /session/acquire` | Acquire per-device session lock。返回 `{session_id, ttl_seconds}`。 | bearer |
+| `POST /session/release` | Release lock。 | bearer + session |
+| `GET /screenshot` | Capture active window PNG。返回 `{png_base64: "..."}`。 | bearer |
+| `GET /elements` | Accessibility-tree snapshot。 | bearer |
+| `GET /state/snapshot` | Dump every `@Snapshotable` field as JSON。 | bearer |
+| `POST /state/restore` | Atomically restore full snapshot。 | bearer + session, mutate tier |
+| `POST /tap` `{x,y}` | 在 window coordinates synthesize real UITouch。SwiftUI Buttons 会触发。 | bearer + session, interact tier |
+| `POST /swipe` `{from_x,from_y,to_x,to_y}` | Scroll nearest enclosing UIScrollView。 | bearer + session, interact tier |
+| `POST /type` `{text}` | 设置 current first responder 上的 text。 | bearer + session, interact tier |
 
-Mutating requests require both an `Authorization: Bearer <token>` header AND an `X-Session-Id` header. Read endpoints (`/screenshot`, `/elements`, `GET /state/*`) only need the bearer.
+Mutating requests 同时需要 `Authorization: Bearer <token>` header 和 `X-Session-Id` header。Read endpoints（`/screenshot`、`/elements`、`GET /state/*`）只需要 bearer。
 
-The state snapshot is opt-in per field via a `@Snapshotable` property wrapper on your canonical state struct. Fields you don't annotate never appear in the snapshot, which keeps tokens, PII, and auth state out of recorded fixtures by default.
+State snapshot 通过 canonical state struct 上的 `@Snapshotable` property wrapper 按 field opt-in。未 annotate 的 fields 永远不会出现在 snapshot 中，因此 tokens、PII 和 auth state 默认不会进入 recorded fixtures。
 
-## Step 5: Make remote agents work (optional)
+## Step 5：让 remote agents 工作（optional）
 
-To let an agent on another machine drive the device, run the daemon with `--tailnet`:
+要让另一台机器上的 agent drive device，使用 `--tailnet` 运行 daemon：
 
 ```
 gstack-ios-qa-daemon --tailnet
 ```
 
-The daemon probes `/var/run/tailscale.sock` first; if the socket is missing or unreadable, it refuses to open the tailnet listener at all (loopback still runs). Remote mode never half-starts.
+Daemon 会先 probe `/var/run/tailscale.sock`；如果 socket 缺失或 unreadable，它会拒绝打开 tailnet listener（loopback 仍会运行）。Remote mode 永远不会 half-start。
 
-Then mint a session token for the identity that should be able to connect:
+然后为应该连接的 identity mint session token：
 
 ```
 gstack-ios-qa-mint grant --remote 'alice@example.com' --capability interact
@@ -151,30 +151,30 @@ gstack-ios-qa-mint grant --remote 'tag:ci' --capability mutate --ttl 86400 --not
 gstack-ios-qa-mint list
 ```
 
-Capability tiers are nested: `observe` (read endpoints only) ⊂ `interact` (taps, swipes, type) ⊂ `mutate` (`POST /state/*`) ⊂ `restore` (`POST /state/restore`). Pick the smallest tier that does the job. The allowlist file is at `~/.gstack/ios-qa-allowlist.json` (mode 0600) — the daemon reads it on every `/auth/mint` request, so changes take effect immediately without restarting.
+Capability tiers 是 nested：`observe`（read endpoints only）⊂ `interact`（taps、swipes、type）⊂ `mutate`（`POST /state/*`）⊂ `restore`（`POST /state/restore`）。选择能完成任务的最小 tier。Allowlist file 位于 `~/.gstack/ios-qa-allowlist.json`（mode 0600），daemon 会在每次 `/auth/mint` request 时读取它，因此 changes 无需 restart 即可生效。
 
-The remote agent then hits `POST /auth/mint` against the daemon's tailnet listener. The daemon canonicalizes the caller's identity via tailscaled's WhoIs endpoint, checks the allowlist, and returns a short-lived session token (1 hour default, 24 hour cap). Every authenticated mutating request lands in `~/.gstack/security/ios-qa-audit.jsonl`; rejected requests land in `~/.gstack/security/attempts.jsonl`.
+Remote agent 随后向 daemon 的 tailnet listener 发送 `POST /auth/mint`。Daemon 通过 tailscaled 的 WhoIs endpoint canonicalize caller identity，检查 allowlist，并返回 short-lived session token（默认 1 小时，cap 24 小时）。每个 authenticated mutating request 都会落入 `~/.gstack/security/ios-qa-audit.jsonl`；rejected requests 会落入 `~/.gstack/security/attempts.jsonl`。
 
-## Step 6: Ship a release build
+## Step 6：Ship release build
 
-Before you ship to TestFlight or the App Store, run `/ios-clean`. It removes the `DebugBridge` SPM dependency and strips the `#if DEBUG` wiring from your `@main` App. The structural guard in `Package.swift` (`condition: .when(configuration: .debug)`) means a Release build wouldn't link the bridge even if you forgot to clean up, but `/ios-clean` gives you a tidy diff to review and ship.
+Ship 到 TestFlight 或 App Store 前，运行 `/ios-clean`。它会移除 `DebugBridge` SPM dependency，并从 `@main` App 中 strip `#if DEBUG` wiring。`Package.swift` 中的 structural guard（`condition: .when(configuration: .debug)`）意味着 Release build 即使你忘记 cleanup 也不会 link bridge，但 `/ios-clean` 会给你一个干净 diff 供 review 和 ship。
 
-## Common failures
+## Common failures（常见失败）
 
-| Symptom | What broke |
+| 症状 | 出了什么问题 |
 |---|---|
-| `xcodebuild` fails with `Could not locate device support files for iOS X.Y` | Run `xcodebuild -downloadPlatform iOS` to fetch the device support package for your iPhone's iOS version (~8GB). |
-| Install succeeds, `process launch` fails with `Locked` | The phone is locked. Unlock and retry. |
-| First install on a paired device fails with no clear error | The phone needs to Trust the Mac. Open Settings → General → VPN & Device Management on the phone and confirm. |
-| `Developer Mode` toggle missing from Settings → Privacy | Connect the device to Xcode → Window → Devices and Simulators once, or try any `devicectl device install` against it. iOS will surface the toggle after the first attempt. |
-| `xcrun devicectl device copy from` returns ERROR 7000 | The source path is wrong — boot token lives at `tmp/gstack-ios-qa.token` inside the app's data container (NSTemporaryDirectory), not at the path's root. |
-| `/healthz` returns 200 but `/tap` returns ok:true with no UI change | The phone is paired but the StateServer port may have changed across launches. Re-resolve the CoreDevice IPv6 (`dscacheutil -q host -a name '<DeviceName>.coredevice.local'`). |
-| `403 identity_not_allowed` from `/auth/mint` | The remote caller's identity isn't on the Mac's allowlist. Run `gstack-ios-qa-mint grant --remote <identity> --capability interact` on the Mac. |
-| Daemon won't open the tailnet listener | Tailscale isn't installed, or `/var/run/tailscale.sock` is unreadable. Fix Tailscale, then restart the daemon. Loopback still runs in the meantime. |
-| SwiftUI Button tap returns `ok:true` but the action never fires | You're on iOS 17 or older where `_UIHitTestContext` doesn't exist. The DebugBridgeTouch implementation falls back to plain `hitTest:` which doesn't resolve into SwiftUI's gesture container. Update to iOS 18+ on the device, or tap a UIKit control instead. |
+| `xcodebuild` fails with `Could not locate device support files for iOS X.Y` | 运行 `xcodebuild -downloadPlatform iOS`，为 iPhone 的 iOS version fetch device support package（约 8GB）。 |
+| Install succeeds, `process launch` fails with `Locked` | Phone locked。解锁并 retry。 |
+| First install on a paired device fails with no clear error | Phone 需要 Trust 这台 Mac。在 phone 上打开 Settings -> General -> VPN & Device Management 并确认。 |
+| `Developer Mode` toggle missing from Settings -> Privacy | 连接 device 到 Xcode -> Window -> Devices and Simulators 一次，或对它尝试任意 `devicectl device install`。iOS 会在第一次 attempt 后显示 toggle。 |
+| `xcrun devicectl device copy from` returns ERROR 7000 | Source path 错了，boot token 位于 app data container（NSTemporaryDirectory）内的 `tmp/gstack-ios-qa.token`，不是 path root。 |
+| `/healthz` returns 200 but `/tap` returns ok:true with no UI change | Phone 已 paired，但 StateServer port 可能跨 launches 改变。重新 resolve CoreDevice IPv6（`dscacheutil -q host -a name '<DeviceName>.coredevice.local'`）。 |
+| `403 identity_not_allowed` from `/auth/mint` | Remote caller identity 不在 Mac allowlist 中。在 Mac 上运行 `gstack-ios-qa-mint grant --remote <identity> --capability interact`。 |
+| Daemon won't open the tailnet listener | Tailscale 未安装，或 `/var/run/tailscale.sock` unreadable。修复 Tailscale，然后 restart daemon。期间 loopback 仍会运行。 |
+| SwiftUI Button tap returns `ok:true` but the action never fires | 你在 iOS 17 或更旧版本，那里不存在 `_UIHitTestContext`。DebugBridgeTouch implementation 会 fallback 到 plain `hitTest:`，它无法 resolve 到 SwiftUI gesture container。把 device 更新到 iOS 18+，或改 tap UIKit control。 |
 
-## What this gets you
+## 这会带来什么
 
-You can write an agent loop in any language that speaks HTTP. Take a screenshot, ask a model what to do, send a tap. Capture state snapshots before and after to record deterministic fixtures for `/ios-fix` regression tests. Add a colleague to the allowlist and they drive your iPhone from their laptop over Tailscale without ever touching the hardware. Plug the same daemon into CI by minting a `tag:ci` session token with mutate-tier capability and a 24-hour TTL.
+你可以用任何支持 HTTP 的语言写 agent loop：take screenshot，问 model 下一步做什么，再 send tap。在操作前后 capture state snapshots，为 `/ios-fix` regression tests 记录 deterministic fixtures。把 colleague 加进 allowlist，他们就能通过 Tailscale 从自己的 laptop drive 你的 iPhone，而无需接触 hardware。通过 mint 一个带 mutate-tier capability 和 24-hour TTL 的 `tag:ci` session token，同一个 daemon 也能接入 CI。
 
-The whole stack is a Mac you already own, an iPhone you already own, a free Apple developer account, and gstack. No paid testing service. No simulator drift. The thing the user sees is what the agent drives.
+整套 stack 只需要你已有的 Mac、已有的 iPhone、free Apple developer account 和 gstack。No paid testing service。No simulator drift。用户看到的东西，就是 agent 驱动的东西。

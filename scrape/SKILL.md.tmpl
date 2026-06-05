@@ -2,12 +2,11 @@
 name: scrape
 version: 1.0.0
 description: |
-  Pull data from a web page. First call on a new intent prototypes the flow
-  via $B primitives and returns JSON. Subsequent calls on a matching intent
-  route to a codified browser-skill and return in ~200ms. Read-only — for
-  mutating flows (form fills, clicks, submissions), use /automate.
-  Use when asked to "scrape", "get data from", "pull", "extract from", or
-  "what's on" a page. (gstack)
+  从 web page 拉取数据。对新 intent 的首次调用会通过 $B primitives prototype flow，
+  并返回 JSON。后续匹配同一 intent 的调用会 route 到 codified browser-skill，
+  约 200ms 返回。Read-only：mutating flows（form fills、clicks、submissions）
+  请使用 /automate。当用户要求 "scrape"、"get data from"、"pull"、
+  "extract from" 或 "what's on" 某 page 时使用。（gstack）
 allowed-tools:
   - Bash
   - Read
@@ -22,131 +21,115 @@ triggers:
 
 {{PREAMBLE}}
 
-# /scrape — pull data from a page
+# /scrape — 从 page 拉取数据
 
-One entry point for getting data off the web. Two paths under the hood:
+从 web 获取数据的单一 entry point。底层有两条 paths：
 
-1. **Match path** (~200ms) — if the user's intent matches an existing
-   browser-skill's triggers, run it via `$B skill run <name>` and emit
-   the JSON.
-2. **Prototype path** (~30s) — no matching skill yet, so drive the page
-   with `$B` primitives, return the JSON, and suggest `/skillify` so the
-   next call lands on the match path.
+1. **Match path**（约 200ms）：如果用户 intent 匹配 existing browser-skill 的 triggers，
+   通过 `$B skill run <name>` 运行它，并 emit JSON。
+2. **Prototype path**（约 30s）：还没有 matching skill，所以用 `$B` primitives 驱动 page，
+   返回 JSON，并建议 `/skillify`，让下一次调用进入 match path。
 
-Read-only by contract. If the intent implies writing (submitting forms,
-clicking buttons that mutate state), refuse and route to `/automate`.
+按 contract，它是 read-only。如果 intent 暗示 writing（submitting forms、clicking buttons
+that mutate state），拒绝并 route 到 `/automate`。
 
-## Step 1 — Determine intent
+## Step 1 — 确定 intent
 
-The user's request after `/scrape` is the intent. If they did not include
-one, ask once:
+`/scrape` 后面的用户请求就是 intent。如果没有包含 intent，只问一次：
 
 > "What do you want to scrape? Describe it in one line, e.g. 'top stories
 > on Hacker News' or 'product names + prices on example.com/products'."
 
-Do not ask multiple clarifying questions up front. Any further questions
-go in the prototype path where they're cheaper.
+不要一开始就问多个 clarifying questions。任何进一步问题都放到 prototype path 中，
+那里成本更低。
 
-## Step 2 — Refuse mutating intents
+## Step 2 — 拒绝 mutating intents
 
-If the intent implies writes — verbs like *submit*, *post*, *send*, *log
-in*, *click X*, *fill the form*, *delete*, *create*, *order*, *book* —
-respond:
+如果 intent 暗示 writes：例如 *submit*、*post*、*send*、*log in*、*click X*、
+*fill the form*、*delete*、*create*、*order*、*book* 这类 verbs，则回应：
 
 > "/scrape is read-only. For mutating flows, use /automate (browser-skills
 > Phase 2 P0 in TODOS.md — not yet shipped). Until then, use $B click /
 > $B fill / $B type directly."
 
-Stop. Do not enter the match or prototype path.
+停止。不要进入 match 或 prototype path。
 
 ## Step 3 — Match phase
 
-List existing browser-skills:
+列出 existing browser-skills：
 
 ```bash
 $B skill list
 ```
 
-For each skill, `$B skill show <name>` exposes the full SKILL.md including
-`triggers:`, `description:`, and `host:`. Read these and judge whether the
-user's intent semantically matches one of them.
+对每个 skill，`$B skill show <name>` 会展示完整 SKILL.md，包括 `triggers:`、
+`description:` 和 `host:`。阅读它们，判断用户 intent 是否 semantically matches 其中一个。
 
-A confident match means **all three** are true:
+Confident match 意味着**以下三项都为真**：
 
-- The intent's domain matches the skill's `host` (or one of its hostnames)
-- A `triggers:` phrase or the `description:` covers the same data the
-  intent asks for
-- The intent does not require args the skill does not declare in `args:`
+- Intent 的 domain 匹配 skill 的 `host`（或其 hostnames 之一）
+- 某个 `triggers:` phrase 或 `description:` 覆盖 intent 请求的同类 data
+- Intent 不需要 skill 在 `args:` 中未声明的 args
 
-If matched, parse any `--arg key=value` from the intent (or pass none for
-zero-arg skills) and run:
+如果 matched，从 intent 解析任何 `--arg key=value`（zero-arg skills 则不传），然后运行：
 
 ```bash
 $B skill run <name> [--arg key=value ...]
 ```
 
-Emit the JSON the skill prints to stdout. Stop.
+Emit 该 skill 打印到 stdout 的 JSON。停止。
 
-If matching is ambiguous (two skills could plausibly fit), pick the
-narrower-tier one (project > global > bundled — `$B skill list` shows the
-tier). If still ambiguous, fall through to the prototype path rather than
-guess wrong.
+如果 matching ambiguous（两个 skills 都看似适合），选择 narrower-tier one
+（project > global > bundled；`$B skill list` 会显示 tier）。如果仍 ambiguous，
+进入 prototype path，不要猜错。
 
-## Step 4 — Prototype phase
+## Step 4 — Prototype phase（原型阶段）
 
-No match. Drive the page using `$B` primitives:
+无 match。使用 `$B` primitives 驱动 page：
 
-1. `$B goto <url>` — navigate to the target. The user's intent usually
-   names a host or a URL; use it directly.
-2. `$B snapshot --text` (or `$B text`) — get a clean text view of the
-   page to find selectors.
-3. `$B html` — pull the raw HTML when you need to parse structured data
-   (lists, tables, repeated rows).
-4. `$B links` — when the intent is to gather URLs.
-5. Iterate: try a selector, check the output, refine.
+1. `$B goto <url>`：navigate 到 target。用户 intent 通常会指出 host 或 URL；直接使用。
+2. `$B snapshot --text`（或 `$B text`）：获取 page 的 clean text view，用来找 selectors。
+3. `$B html`：需要 parse structured data（lists、tables、repeated rows）时拉取 raw HTML。
+4. `$B links`：当 intent 是收集 URLs 时使用。
+5. Iterate：尝试 selector、检查 output、refine。
 
-Emit the result as JSON on stdout (one document, not pretty-printed).
-Use a stable shape — typically `{ "items": [...], "count": N }` or
-similar — so downstream consumers can treat it as data.
+将 result 作为 JSON emit 到 stdout（一个 document，不 pretty-print）。
+使用 stable shape：通常是 `{ "items": [...], "count": N }` 或类似结构，
+让 downstream consumers 可以把它当 data 处理。
 
-## Step 5 — Skillify nudge
+## Step 5 — Skillify nudge（提示转为 skill）
 
-After a successful prototype, append exactly one line:
+Successful prototype 后，精确追加一行：
 
 > "Say /skillify to make this a permanent skill (200ms on next call)."
 
-That is the entire nudge. Do not nag, do not list pros, do not push.
-Proactive surfacing is a Phase 3 knob (`gstack-config browser_skillify_prompts`),
-not this skill's job.
+这就是完整 nudge。不要 nag，不要列 pros，不要 push。
+Proactive surfacing 是 Phase 3 knob（`gstack-config browser_skillify_prompts`），
+不是此 skill 的职责。
 
-## When the prototype fails
+## 当 prototype 失败
 
-If the page loads but data extraction does not yield a sensible JSON shape
-after 3-4 selector attempts:
+如果 page 加载成功，但 data extraction 在 3-4 次 selector attempts 后仍没有产出合理 JSON shape：
 
-- Report what you tried, what came back, and what's blocking (lazy-loaded,
-  JS-rendered, paywalled, etc.).
-- Do NOT write a partial result and call it done.
-- Do NOT suggest /skillify on a broken prototype.
-- Ask the user whether they want to (a) try a different selector, (b)
-  switch to a different page, or (c) stop.
+- 报告你尝试了什么、返回了什么、阻塞点是什么（lazy-loaded、JS-rendered、paywalled 等）。
+- 不要写 partial result 并称之为 done。
+- 不要在 broken prototype 上建议 /skillify。
+- 询问用户是否想要 (a) 尝试不同 selector，(b) 切换到不同 page，或 (c) 停止。
 
-## What this skill does NOT do
+## 此 skill 不做什么
 
-- Mutating actions (use /automate when shipped, or $B primitives directly)
-- Auth flows / cookie import (use /setup-browser-cookies first)
-- Multi-page crawls (this is one-shot per call)
-- Anything that requires the daemon to not be running
+- Mutating actions（/automate shipped 后使用它，或直接用 $B primitives）
+- Auth flows / cookie import（先用 /setup-browser-cookies）
+- Multi-page crawls（每次调用都是 one-shot）
+- 任何要求 daemon 不运行的事
 
-## Output discipline
+## Output discipline（输出纪律）
 
-The match path returns whatever JSON the matched skill emits. The
-prototype path returns whatever JSON you construct. In both cases:
+Match path 返回 matched skill emit 的 JSON。Prototype path 返回你构造的 JSON。两种情况下：
 
-- One JSON document, on stdout.
-- Stderr (or chat) is for logs and the skillify nudge.
-- Do not embed prose around the JSON in the chat reply unless the user
-  asked for an explanation — many `/scrape` callers pipe the output to
-  `jq`.
+- 一个 JSON document，输出到 stdout。
+- Stderr（或 chat）用于 logs 和 skillify nudge。
+- 除非用户要求 explanation，不要在 chat reply 中围绕 JSON 嵌入 prose：许多 `/scrape`
+  callers 会把 output pipe 给 `jq`。
 
 {{LEARNINGS_LOG}}

@@ -120,14 +120,14 @@ export function extractHookSafetyProse(tmplContent: string): string | null {
 
   // Build safety prose based on what tools are hooked
   const toolDescriptions: Record<string, string> = {
-    Bash: 'check bash commands for destructive operations (rm -rf, DROP TABLE, force-push, git reset --hard, etc.) before execution',
-    Edit: 'verify file edits are within the allowed scope boundary before applying',
-    Write: 'verify file writes are within the allowed scope boundary before applying',
+    Bash: '在执行前检查 bash commands 是否包含 destructive operations（rm -rf、DROP TABLE、force-push、git reset --hard 等）',
+    Edit: '在应用前确认 file edits 位于允许的 scope boundary 内',
+    Write: '在应用前确认 file writes 位于允许的 scope boundary 内',
   };
 
   const safetyChecks = matchers
     .map(t => toolDescriptions[t] || `check ${t} operations for safety`)
     .join(', and ');
 
-  return `> **Safety Advisory:** This skill includes safety checks that ${safetyChecks}. When using this skill, always pause and verify before executing potentially destructive operations. If uncertain about a command's safety, ask the user for confirmation before proceeding.`;
+  return `> **Safety Advisory:** 此 skill 包含 safety checks：${safetyChecks}。使用此 skill 时，在执行 potentially destructive operations 前始终暂停并验证。如果不确定某条 command 是否安全，先向用户确认再继续。`;
 }

@@ -2,116 +2,112 @@
 
 > "I don't think I've typed like a line of code probably since December, basically, which is an extremely large change." — [Andrej Karpathy](https://fortune.com/2026/03/21/andrej-karpathy-openai-cofounder-ai-agents-coding-state-of-psychosis-openclaw/), No Priors podcast, March 2026
 
-When I heard Karpathy say this, I wanted to find out how. How does one person ship like a team of twenty? Peter Steinberger built [OpenClaw](https://github.com/openclaw/openclaw) — 247K GitHub stars — essentially solo with AI agents. The revolution is here. A single builder with the right tooling can move faster than a traditional team.
+听到 Karpathy 这句话时，我想知道他是怎么做到的。一个人如何像二十人的团队一样 ship？Peter Steinberger 基本靠 AI agents 单人构建了 [OpenClaw](https://github.com/openclaw/openclaw)，它有 247K GitHub stars。革命已经到来。一个拥有正确工具的 single builder，可以比传统团队移动得更快。
 
-I'm [Garry Tan](https://x.com/garrytan), President & CEO of [Y Combinator](https://www.ycombinator.com/). I've worked with thousands of startups — Coinbase, Instacart, Rippling — when they were one or two people in a garage. Before YC, I was one of the first eng/PM/designers at Palantir, cofounded Posterous (sold to Twitter), and built Bookface, YC's internal social network.
+我是 [Garry Tan](https://x.com/garrytan)，[Y Combinator](https://www.ycombinator.com/) 的 President & CEO。我和数千家 startups 合作过，包括 Coinbase、Instacart、Rippling，那时它们还只是车库里的一两个人。在 YC 之前，我是 Palantir 最早的 eng/PM/designer 之一，共同创办了 Posterous（后卖给 Twitter），并构建了 YC 内部社交网络 Bookface。
 
-**gstack is my answer.** I've been building products for twenty years, and right now I'm shipping more products than I ever have. In the last 60 days: 3 production services, 40+ shipped features, part-time, while running YC full-time. On logical code change — not raw LOC, which AI inflates — my 2026 run rate is **~810× my 2013 pace** (11,417 vs 14 logical lines/day). Year-to-date (through April 18), 2026 has already produced **240× the entire 2013 year**. Measured across 40 public + private `garrytan/*` repos including Bookface, after excluding one demo repo. AI wrote most of it. The point isn't who typed it, it's what shipped.
+**gstack 是我的答案。**我构建产品已经二十年，而现在我 ship 的产品比以往任何时候都多。过去 60 天：3 个 production services、40+ shipped features，而且是在全职运营 YC 的同时 part-time 完成。按 logical code change 计算，而不是 AI 会膨胀的 raw LOC，我 2026 年的 run rate 是 **~810× 我 2013 年的速度**（11,417 vs 14 logical lines/day）。Year-to-date（截至 4 月 18 日），2026 年已经产出了 **整个 2013 年的 240×**。这个统计覆盖包含 Bookface 在内的 40 个 public + private `garrytan/*` repos，并排除了一个 demo repo。大多数代码由 AI 编写。重点不是谁敲了代码，而是什么被 ship 了。
 
-> The LOC critics aren't wrong that raw line counts inflate with AI. They are wrong that normalized-for-inflation, I'm less productive. I'm more productive, by a lot. Full methodology, caveats, and reproduction script: **[On the LOC Controversy](docs/ON_THE_LOC_CONTROVERSY.md)**.
+> LOC 批评者说 raw line counts 会被 AI 膨胀，这并没错。他们错在认为归一化通胀之后，我的生产力下降了。实际上我生产力大幅提高。完整方法、注意事项和复现脚本见：**[On the LOC Controversy](docs/ON_THE_LOC_CONTROVERSY.md)**。
 
-**2026 — 1,237 contributions and counting:**
+**2026 — 1,237 contributions，并且还在增加：**
 
 ![GitHub contributions 2026 — 1,237 contributions, massive acceleration in Jan-Mar](docs/images/github-2026.png)
 
-**2013 — when I built Bookface at YC (772 contributions):**
+**2013 — 我在 YC 构建 Bookface 的那一年（772 contributions）：**
 
 ![GitHub contributions 2013 — 772 contributions building Bookface at YC](docs/images/github-2013.png)
 
-Same person. Different era. The difference is the tooling.
+同一个人。不同的时代。差别在工具。
 
-**gstack is how I do it.** It turns Claude Code into a virtual engineering team — a CEO who rethinks the product, an eng manager who locks architecture, a designer who catches AI slop, a reviewer who finds production bugs, a QA lead who opens a real browser, a security officer who runs OWASP + STRIDE audits, and a release engineer who ships the PR. Twenty-three specialists and eight power tools, all slash commands, all Markdown, all free, MIT license.
+**gstack 是我做到这一点的方法。**它把 Claude Code 变成一个虚拟工程团队：重新思考产品的 CEO、锁定架构的 eng manager、捕捉 AI slop 的 designer、发现 production bugs 的 reviewer、打开真实浏览器的 QA lead、运行 OWASP + STRIDE audits 的 security officer，以及负责 ship PR 的 release engineer。二十三个 specialists 和八个 power tools，全都是 slash commands，全都是 Markdown，全都免费，MIT license。
 
-This is my open source software factory. I use it every day. I'm sharing it because these tools should be available to everyone.
+这是我的 open source software factory。我每天都用它。分享它，是因为这些工具应该属于每个人。
 
-Fork it. Improve it. Make it yours. And if you want to hate on free open source software — you're welcome to, but I'd rather you just try it first.
+Fork 它。改进它。让它成为你的东西。如果你想攻击免费的 open source software，也可以，但我更希望你先试试看。
 
-**Who this is for:**
-- **Founders and CEOs** — especially technical ones who still want to ship
-- **First-time Claude Code users** — structured roles instead of a blank prompt
-- **Tech leads and staff engineers** — rigorous review, QA, and release automation on every PR
+**适合谁：**
+- **创始人和 CEO** — 尤其是仍然想亲自 ship 的 technical founders
+- **第一次使用 Claude Code 的用户** — 用结构化角色代替空白 prompt
+- **Tech leads 和 staff engineers** — 在每个 PR 上获得严谨 review、QA 和 release automation
 
-## Quick start
+## 快速开始
 
-1. Install gstack (30 seconds — see below)
-2. Run `/office-hours` — describe what you're building
-3. Run `/plan-ceo-review` on any feature idea
-4. Run `/review` on any branch with changes
-5. Run `/qa` on your staging URL
-6. Stop there. You'll know if this is for you.
+1. 安装 gstack（30 秒，见下方）
+2. 运行 `/office-hours`，描述你正在构建什么
+3. 对任意 feature idea 运行 `/plan-ceo-review`
+4. 对任意有变更的 branch 运行 `/review`
+5. 对你的 staging URL 运行 `/qa`
+6. 到这里先停下。你会知道它是否适合你。
 
-## Install — 30 seconds
+## 安装 — 30 秒
 
-**Requirements:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Git](https://git-scm.com/), [Bun](https://bun.sh/) v1.0+, [Node.js](https://nodejs.org/) (Windows only)
+**要求：**[Claude Code](https://docs.anthropic.com/en/docs/claude-code)、[Git](https://git-scm.com/)、[Bun](https://bun.sh/) v1.0+、[Node.js](https://nodejs.org/)（仅 Windows）
 
-### Step 1: Install on your machine
+### Step 1：在你的机器上安装
 
-Open Claude Code and paste this. Claude does the rest.
+打开 Claude Code 并粘贴下面内容。剩下的交给 Claude。
 
-> Install gstack: run **`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`** then add a "gstack" section to CLAUDE.md that says to use the /browse skill from gstack for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, and lists the available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn. Then ask the user if they also want to add gstack to the current project so teammates get it.
+> Install gstack: run **`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`**，然后在 CLAUDE.md 中添加一个 "gstack" section，说明所有 web browsing 都使用 gstack 的 /browse skill，永远不要使用 mcp\_\_claude-in-chrome\_\_\* tools，并列出可用 skills：/office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn。然后询问用户是否也想把 gstack 添加到当前项目，以便 teammates 也能使用。
 
-### Step 2: Team mode — auto-update for shared repos (recommended)
+### Step 2：Team mode — shared repos 自动更新（推荐）
 
-From inside your repo, paste this. Switches you to team mode, bootstraps the repo so teammates get gstack automatically, and commits the change:
+在你的 repo 内粘贴下面命令。它会切换到 team mode，bootstrap repo，让 teammates 自动获得 gstack，并提交变更：
 
 ```bash
 (cd ~/.claude/skills/gstack && ./setup --team) && ~/.claude/skills/gstack/bin/gstack-team-init required && git add .claude/ CLAUDE.md && git commit -m "require gstack for AI-assisted work"
 ```
 
-No vendored files in your repo, no version drift, no manual upgrades. Every Claude Code session starts with a fast auto-update check (throttled to once/hour, network-failure-safe, completely silent).
+你的 repo 中不会有 vendored files，没有 version drift，也不需要手动升级。每个 Claude Code session 启动时都会进行快速 auto-update check（限制为每小时一次，网络失败安全，完全静默）。
 
-Swap `required` for `optional` if you'd rather nudge teammates than block them.
+如果你更想提醒 teammates 而不是阻止他们，把 `required` 换成 `optional`。
 
-### OpenClaw
+### OpenClaw（OpenClaw 支持）
 
-OpenClaw spawns Claude Code sessions via ACP, so every gstack skill just works
-when Claude Code has gstack installed. Paste this to your OpenClaw agent:
+OpenClaw 通过 ACP 生成 Claude Code sessions，因此只要 Claude Code 已安装 gstack，每个 gstack skill 都能直接工作。把下面内容粘贴给你的 OpenClaw agent：
 
-> Install gstack: run `git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup` to install gstack for Claude Code. Then add a "Coding Tasks" section to AGENTS.md that says: when spawning Claude Code sessions for coding work, tell the session to use gstack skills. Include these examples — security audit: "Load gstack. Run /cso", code review: "Load gstack. Run /review", QA test a URL: "Load gstack. Run /qa https://...", build a feature end-to-end: "Load gstack. Run /autoplan, implement the plan, then run /ship", plan before building: "Load gstack. Run /office-hours then /autoplan. Save the plan, don't implement."
+> Install gstack: run `git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup` 为 Claude Code 安装 gstack。然后在 AGENTS.md 中添加 "Coding Tasks" section，说明：为 coding work 生成 Claude Code sessions 时，告诉 session 使用 gstack skills。包含这些示例：security audit: "Load gstack. Run /cso"，code review: "Load gstack. Run /review"，QA test a URL: "Load gstack. Run /qa https://..."，build a feature end-to-end: "Load gstack. Run /autoplan, implement the plan, then run /ship"，plan before building: "Load gstack. Run /office-hours then /autoplan. Save the plan, don't implement."
 
-**After setup, just talk to your OpenClaw agent naturally:**
+**设置完成后，直接自然地和 OpenClaw agent 对话：**
 
-| You say | What happens |
+| 你说 | 会发生什么 |
 |---------|-------------|
-| "Fix the typo in README" | Simple — Claude Code session, no gstack needed |
-| "Run a security audit on this repo" | Spawns Claude Code with `Run /cso` |
-| "Build me a notifications feature" | Spawns Claude Code with /autoplan → implement → /ship |
-| "Help me plan the v2 API redesign" | Spawns Claude Code with /office-hours → /autoplan, saves plan |
+| "Fix the typo in README" | 简单任务：Claude Code session，不需要 gstack |
+| "Run a security audit on this repo" | 用 `Run /cso` 生成 Claude Code |
+| "Build me a notifications feature" | 生成 Claude Code，执行 /autoplan → implement → /ship |
+| "Help me plan the v2 API redesign" | 生成 Claude Code，执行 /office-hours → /autoplan，并保存 plan |
 
-See [docs/OPENCLAW.md](docs/OPENCLAW.md) for advanced dispatch routing and
-the gstack-lite/gstack-full prompt templates.
+高级 dispatch routing 和 gstack-lite/gstack-full prompt templates 见 [docs/OPENCLAW.md](docs/OPENCLAW.md)。
 
-### Native OpenClaw Skills (via ClawHub)
+### Native OpenClaw Skills（通过 ClawHub）
 
-Four methodology skills that work directly in your OpenClaw agent, no Claude Code
-session needed. Install from ClawHub:
+四个 methodology skills 可直接在你的 OpenClaw agent 中工作，不需要 Claude Code session。通过 ClawHub 安装：
 
 ```
 clawhub install gstack-openclaw-office-hours gstack-openclaw-ceo-review gstack-openclaw-investigate gstack-openclaw-retro
 ```
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `gstack-openclaw-office-hours` | Product interrogation with 6 forcing questions |
-| `gstack-openclaw-ceo-review` | Strategic challenge with 4 scope modes |
+| `gstack-openclaw-office-hours` | 用 6 个 forcing questions 做 product interrogation |
+| `gstack-openclaw-ceo-review` | 带 4 种 scope modes 的 strategic challenge |
 | `gstack-openclaw-investigate` | Root cause debugging methodology |
 | `gstack-openclaw-retro` | Weekly engineering retrospective |
 
-These are conversational skills. Your OpenClaw agent runs them directly via chat.
+这些是 conversational skills。你的 OpenClaw agent 会直接通过 chat 运行它们。
 
-### Other AI Agents
+### 其他 AI Agents
 
-gstack works on 10 AI coding agents, not just Claude. Setup auto-detects which
-agents you have installed:
+gstack 不只支持 Claude，还支持 10 个 AI coding agents。Setup 会自动检测你安装了哪些 agents：
 
 ```bash
 git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/gstack
 cd ~/gstack && ./setup
 ```
 
-Or target a specific agent with `./setup --host <name>`:
+或者用 `./setup --host <name>` 指定 agent：
 
-| Agent | Flag | Skills install to |
+| Agent | Flag | Skills 安装到 |
 |-------|------|-------------------|
 | OpenAI Codex CLI | `--host codex` | `~/.codex/skills/gstack-*/` |
 | OpenCode | `--host opencode` | `~/.config/opencode/skills/gstack-*/` |
@@ -122,212 +118,207 @@ Or target a specific agent with `./setup --host <name>`:
 | Hermes | `--host hermes` | `~/.hermes/skills/gstack-*/` |
 | GBrain (mod) | `--host gbrain` | `~/.gbrain/skills/gstack-*/` |
 
-**Want to add support for another agent?** See [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
-It's one TypeScript config file, zero code changes.
+**想增加另一个 agent 的支持？**见 [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md)。只需要一个 TypeScript config file，零代码改动。
 
-## See it work
+## 看它如何工作
 
 ```
-You:    I want to build a daily briefing app for my calendar.
+You:    我想为我的日历构建一个 daily briefing app。
 You:    /office-hours
-Claude: [asks about the pain — specific examples, not hypotheticals]
+Claude: [询问痛点 — 具体例子，而不是假设]
 
-You:    Multiple Google calendars, events with stale info, wrong locations.
-        Prep takes forever and the results aren't good enough...
+You:    多个 Google calendars，events 信息过期、地点错误。
+        准备过程永远做不完，结果也不够好……
 
-Claude: I'm going to push back on the framing. You said "daily briefing
-        app." But what you actually described is a personal chief of
-        staff AI.
-        [extracts 5 capabilities you didn't realize you were describing]
-        [challenges 4 premises — you agree, disagree, or adjust]
-        [generates 3 implementation approaches with effort estimates]
-        RECOMMENDATION: Ship the narrowest wedge tomorrow, learn from
-        real usage. The full vision is a 3-month project — start with
-        the daily briefing that actually works.
-        [writes design doc → feeds into downstream skills automatically]
+Claude: 我要挑战一下这个 framing。你说的是 "daily briefing app"，
+        但你实际描述的是一个 personal chief of staff AI。
+        [提取 5 个你没意识到自己正在描述的 capabilities]
+        [挑战 4 个 premises — 你可以同意、不同意或调整]
+        [生成 3 个 implementation approaches，并附 effort estimates]
+        RECOMMENDATION: 明天先 ship 最窄切入点，从真实使用中学习。
+        完整 vision 是一个 3 个月项目 — 先从真正可用的 daily briefing 开始。
+        [写出 design doc → 自动流入 downstream skills]
 
 You:    /plan-ceo-review
-        [reads the design doc, challenges scope, runs 10-section review]
+        [读取 design doc，挑战 scope，运行 10-section review]
 
 You:    /plan-eng-review
-        [ASCII diagrams for data flow, state machines, error paths]
-        [test matrix, failure modes, security concerns]
+        [为 data flow、state machines、error paths 生成 ASCII diagrams]
+        [test matrix、failure modes、security concerns]
 
 You:    Approve plan. Exit plan mode.
-        [writes 2,400 lines across 11 files. ~8 minutes.]
+        [跨 11 个 files 写入 2,400 行。约 8 分钟。]
 
 You:    /review
-        [AUTO-FIXED] 2 issues. [ASK] Race condition → you approve fix.
+        [AUTO-FIXED] 2 issues。[ASK] Race condition → 你批准 fix。
 
 You:    /qa https://staging.myapp.com
-        [opens real browser, clicks through flows, finds and fixes a bug]
+        [打开真实 browser，点击 flows，发现并修复一个 bug]
 
 You:    /ship
         Tests: 42 → 51 (+9 new). PR: github.com/you/app/pull/42
 ```
 
-You said "daily briefing app." The agent said "you're building a chief of staff AI" — because it listened to your pain, not your feature request. Eight commands, end to end. That is not a copilot. That is a team.
+你说的是 “daily briefing app”。agent 说的是“你在构建 chief of staff AI”，因为它听的是你的痛点，而不是你的 feature request。八个命令，端到端。这不是 copilot。这是一个团队。
 
-## The sprint
+## Sprint 流程
 
-gstack is a process, not a collection of tools. The skills run in the order a sprint runs:
+gstack 是一个 process，不是一组工具集合。skills 按 sprint 的顺序运行：
 
 **Think → Plan → Build → Review → Test → Ship → Reflect**
 
-Each skill feeds into the next. `/office-hours` writes a design doc that `/plan-ceo-review` reads. `/plan-eng-review` writes a test plan that `/qa` picks up. `/review` catches bugs that `/ship` verifies are fixed. Nothing falls through the cracks because every step knows what came before it.
+每个 skill 都会喂给下一个。`/office-hours` 写出 `/plan-ceo-review` 会读取的 design doc。`/plan-eng-review` 写出 `/qa` 会接手的 test plan。`/review` 捕捉 bugs，`/ship` 验证它们已修复。不会有东西掉进缝隙，因为每一步都知道前面发生了什么。
 
-| Skill | Your specialist | What they do |
+| Skill | 你的 specialist | 作用 |
 |-------|----------------|--------------|
-| `/office-hours` | **YC Office Hours** | Start here. Six forcing questions that reframe your product before you write code. Pushes back on your framing, challenges premises, generates implementation alternatives. Design doc feeds into every downstream skill. |
-| `/plan-ceo-review` | **CEO / Founder** | Rethink the problem. Find the 10-star product hiding inside the request. Four modes: Expansion, Selective Expansion, Hold Scope, Reduction. |
-| `/plan-eng-review` | **Eng Manager** | Lock in architecture, data flow, diagrams, edge cases, and tests. Forces hidden assumptions into the open. |
-| `/plan-design-review` | **Senior Designer** | Rates each design dimension 0-10, explains what a 10 looks like, then edits the plan to get there. AI Slop detection. Interactive — one AskUserQuestion per design choice. |
-| `/plan-devex-review` | **Developer Experience Lead** | Interactive DX review: explores developer personas, benchmarks against competitors' TTHW, designs your magical moment, traces friction points step by step. Three modes: DX EXPANSION, DX POLISH, DX TRIAGE. 20-45 forcing questions. |
-| `/design-consultation` | **Design Partner** | Build a complete design system from scratch. Researches the landscape, proposes creative risks, generates realistic product mockups. |
-| `/review` | **Staff Engineer** | Find the bugs that pass CI but blow up in production. Auto-fixes the obvious ones. Flags completeness gaps. |
-| `/investigate` | **Debugger** | Systematic root-cause debugging. Iron Law: no fixes without investigation. Traces data flow, tests hypotheses, stops after 3 failed fixes. |
-| `/design-review` | **Designer Who Codes** | Same audit as /plan-design-review, then fixes what it finds. Atomic commits, before/after screenshots. |
-| `/devex-review` | **DX Tester** | Live developer experience audit. Actually tests your onboarding: navigates docs, tries the getting started flow, times TTHW, screenshots errors. Compares against `/plan-devex-review` scores — the boomerang that shows if your plan matched reality. |
-| `/design-shotgun` | **Design Explorer** | "Show me options." Generates 4-6 AI mockup variants, opens a comparison board in your browser, collects your feedback, and iterates. Taste memory learns what you like. Repeat until you love something, then hand it to `/design-html`. |
-| `/design-html` | **Design Engineer** | Turn a mockup into production HTML that actually works. Pretext computed layout: text reflows, heights adjust, layouts are dynamic. 30KB, zero deps. Detects React/Svelte/Vue. Smart API routing per design type (landing page vs dashboard vs form). The output is shippable, not a demo. |
-| `/qa` | **QA Lead** | Test your app, find bugs, fix them with atomic commits, re-verify. Auto-generates regression tests for every fix. |
-| `/qa-only` | **QA Reporter** | Same methodology as /qa but report only. Pure bug report without code changes. |
-| `/pair-agent` | **Multi-Agent Coordinator** | Share your browser with any AI agent. One command, one paste, connected. Works with OpenClaw, Hermes, Codex, Cursor, or anything that can curl. Each agent gets its own tab. Auto-launches headed mode so you watch everything. Auto-starts ngrok tunnel for remote agents. Scoped tokens, tab isolation, rate limiting, activity attribution. |
-| `/cso` | **Chief Security Officer** | OWASP Top 10 + STRIDE threat model. Zero-noise: 17 false positive exclusions, 8/10+ confidence gate, independent finding verification. Each finding includes a concrete exploit scenario. |
-| `/ship` | **Release Engineer** | Sync main, run tests, audit coverage, push, open PR. Bootstraps test frameworks if you don't have one. |
-| `/land-and-deploy` | **Release Engineer** | Merge the PR, wait for CI and deploy, verify production health. One command from "approved" to "verified in production." |
-| `/canary` | **SRE** | Post-deploy monitoring loop. Watches for console errors, performance regressions, and page failures. |
-| `/benchmark` | **Performance Engineer** | Baseline page load times, Core Web Vitals, and resource sizes. Compare before/after on every PR. |
-| `/document-release` | **Technical Writer** | Update all project docs to match what you just shipped. Catches stale READMEs automatically. Builds a Diataxis coverage map (reference / how-to / tutorial / explanation) so gaps are visible in the PR body. |
-| `/document-generate` | **Documentation Author** | Generate missing docs from scratch using the Diataxis framework. Researches the codebase first, then writes reference / how-to / tutorial / explanation docs that actually match the code. Invokable standalone or chained from `/document-release` when the coverage map finds gaps. Learn more: [tutorial](docs/tutorial-document-generate.md) • [how-to](docs/howto-document-a-shipped-feature.md) • [why Diataxis](docs/explanation-diataxis-in-gstack.md). |
-| `/retro` | **Eng Manager** | Team-aware weekly retro. Per-person breakdowns, shipping streaks, test health trends, growth opportunities. `/retro global` runs across all your projects and AI tools (Claude Code, Codex, Gemini). |
-| `/browse` | **QA Engineer** | Give the agent eyes. Real Chromium browser, real clicks, real screenshots. ~100ms per command. `/open-gstack-browser` launches GStack Browser with sidebar, anti-bot stealth, and auto model routing. |
-| `/setup-browser-cookies` | **Session Manager** | Import cookies from your real browser (Chrome, Arc, Brave, Edge) into the headless session. Test authenticated pages. |
-| `/autoplan` | **Review Pipeline** | One command, fully reviewed plan. Runs CEO → design → eng review automatically with encoded decision principles. Surfaces only taste decisions for your approval. |
-| `/spec` | **Spec Author** | Turn vague intent into a precise, executable spec in five phases (why, scope, technical with mandatory code-reading, draft, file). Codex quality gate before file (blocks below 7/10), fail-closed secret redaction, dedupe against existing issues, archive to `$GSTACK_STATE_ROOT/projects/$SLUG/specs/` for team-corpus recall. `--execute` spawns `claude -p` in a fresh worktree; `/ship` auto-closes the source issue on merge. Plan-mode aware. |
-| `/learn` | **Memory** | Manage what gstack learned across sessions. Review, search, prune, and export project-specific patterns, pitfalls, and preferences. Learnings compound across sessions so gstack gets smarter on your codebase over time. |
+| `/office-hours` | **YC Office Hours** | 从这里开始。用六个 forcing questions 在写代码前重新框定产品。它会挑战你的 framing、质疑 premises、生成实现替代方案。Design doc 会流入所有 downstream skills。 |
+| `/plan-ceo-review` | **CEO / Founder** | 重新思考问题。在需求里找出隐藏的 10-star product。四种模式：Expansion、Selective Expansion、Hold Scope、Reduction。 |
+| `/plan-eng-review` | **Eng Manager** | 锁定架构、数据流、图、edge cases 和测试。把隐藏假设强制摊开。 |
+| `/plan-design-review` | **Senior Designer** | 对每个设计维度按 0-10 评分，解释 10 分长什么样，然后编辑 plan 让它达到那个水平。检测 AI Slop。Interactive：每个设计选择一个 AskUserQuestion。 |
+| `/plan-devex-review` | **Developer Experience Lead** | Interactive DX review：探索 developer personas，与竞品 TTHW benchmark，设计 magical moment，逐步追踪摩擦点。三种模式：DX EXPANSION、DX POLISH、DX TRIAGE。20-45 个 forcing questions。 |
+| `/design-consultation` | **Design Partner** | 从零构建完整设计系统。研究 landscape，提出 creative risks，生成 realistic product mockups。 |
+| `/review` | **Staff Engineer** | 找出能通过 CI 但会在 production 中炸掉的 bugs。自动修复显而易见的问题，并标记 completeness gaps。 |
+| `/investigate` | **Debugger** | 系统化 root-cause debugging。铁律：没有调查就不修复。追踪 data flow，测试 hypotheses，三次修复失败后停止。 |
+| `/design-review` | **Designer Who Codes** | 执行与 /plan-design-review 相同的 audit，然后修复发现的问题。原子 commits，before/after screenshots。 |
+| `/devex-review` | **DX Tester** | Live developer experience audit。真实测试 onboarding：浏览 docs、尝试 getting started flow、计时 TTHW、截图 errors。对比 `/plan-devex-review` 分数，形成检验 plan 是否匹配现实的 boomerang。 |
+| `/design-shotgun` | **Design Explorer** | “给我看选项。”生成 4-6 个 AI mockup variants，在浏览器中打开 comparison board，收集反馈并迭代。Taste memory 会学习你喜欢什么。重复直到你喜欢某个方案，再交给 `/design-html`。 |
+| `/design-html` | **Design Engineer** | 把 mockup 转成真正可用的 production HTML。Pretext computed layout：文本会随 resize reflow，高度随内容调整，布局是动态的。30KB，zero deps。检测 React/Svelte/Vue。按 landing page、dashboard、form、card layout 等设计类型 smart API routing。输出是可 ship 的，不是 demo。 |
+| `/qa` | **QA Lead** | 测试你的 app，找 bugs，用原子 commits 修复并重新验证。为每个 fix 自动生成 regression tests。 |
+| `/qa-only` | **QA Reporter** | 方法与 /qa 相同，但只报告，不改代码。纯 bug report。 |
+| `/pair-agent` | **Multi-Agent Coordinator** | 与任何 AI agent 共享你的浏览器。一个命令、一段粘贴，即可连接。支持 OpenClaw、Hermes、Codex、Cursor 或任何能 curl 的工具。每个 agent 都有自己的 tab。自动启动 headed mode 让你观看全过程。为远程 agents 自动启动 ngrok tunnel。Scoped tokens、tab isolation、rate limiting、activity attribution。 |
+| `/cso` | **Chief Security Officer** | OWASP Top 10 + STRIDE threat model。Zero-noise：17 个 false positive exclusions、8/10+ confidence gate、独立 finding verification。每条 finding 都包含具体 exploit scenario。 |
+| `/ship` | **Release Engineer** | Sync main、run tests、audit coverage、push、open PR。如果项目没有 test framework，会自动 bootstrap。 |
+| `/land-and-deploy` | **Release Engineer** | Merge PR，等待 CI 和部署，验证 production health。一个命令从 “approved” 到 “verified in production”。 |
+| `/canary` | **SRE** | Post-deploy monitoring loop。监控 console errors、performance regressions 和 page failures。 |
+| `/benchmark` | **Performance Engineer** | Baseline page load times、Core Web Vitals 和 resource sizes。每个 PR 做 before/after 对比。 |
+| `/document-release` | **Technical Writer** | 更新所有项目文档，使其匹配刚刚 ship 的内容。自动捕捉 stale READMEs。构建 Diataxis coverage map（reference / how-to / tutorial / explanation），让 PR body 中的 gaps 可见。 |
+| `/document-generate` | **Documentation Author** | 使用 Diataxis framework 从零生成缺失文档。先研究 codebase，再写出真正匹配代码的 reference / how-to / tutorial / explanation docs。可独立调用，也可在 `/document-release` 发现 coverage gaps 时串联调用。更多：[tutorial](docs/tutorial-document-generate.md) • [how-to](docs/howto-document-a-shipped-feature.md) • [why Diataxis](docs/explanation-diataxis-in-gstack.md)。 |
+| `/retro` | **Eng Manager** | Team-aware weekly retro。按人拆分、shipping streaks、test health trends、growth opportunities。`/retro global` 会跨所有项目和 AI tools（Claude Code、Codex、Gemini）运行。 |
+| `/browse` | **QA Engineer** | 给 agent 眼睛。真实 Chromium browser、真实点击、真实 screenshots。每个 command 约 100ms。`/open-gstack-browser` 启动带 sidebar、anti-bot stealth 和 auto model routing 的 GStack Browser。 |
+| `/setup-browser-cookies` | **Session Manager** | 从你的真实浏览器（Chrome、Arc、Brave、Edge）导入 cookies 到 headless session。测试 authenticated pages。 |
+| `/autoplan` | **Review Pipeline** | 一个命令得到完整 review 后的 plan。用 encoded decision principles 自动运行 CEO → design → eng review。只把 taste decisions 暴露给你批准。 |
+| `/spec` | **Spec Author** | 将模糊意图转为五阶段精确可执行 spec（why、scope、technical with mandatory code-reading、draft、file）。写入 file 前有 Codex quality gate（低于 7/10 阻止），fail-closed secret redaction，针对既有 issues 去重，并归档到 `$GSTACK_STATE_ROOT/projects/$SLUG/specs/` 供 team-corpus recall。`--execute` 会在 fresh worktree 中生成 `claude -p`；`/ship` 在 merge 后自动关闭 source issue。Plan-mode aware。 |
+| `/learn` | **Memory** | 管理 gstack 跨 sessions 学到的内容。Review、search、prune 并导出 project-specific patterns、pitfalls 和 preferences。Learnings 会跨 sessions 复利，让 gstack 随着时间更懂你的 codebase。 |
 
-### Which review should I use?
+### 我该用哪个 review？
 
-| Building for... | Plan stage (before code) | Live audit (after shipping) |
+| 构建对象 | Plan stage（写代码前） | Live audit（shipping 后） |
 |-----------------|--------------------------|----------------------------|
-| **End users** (UI, web app, mobile) | `/plan-design-review` | `/design-review` |
-| **Developers** (API, CLI, SDK, docs) | `/plan-devex-review` | `/devex-review` |
-| **Architecture** (data flow, perf, tests) | `/plan-eng-review` | `/review` |
-| **All of the above** | `/autoplan` (runs CEO → design → eng → DX, auto-detects which apply) | — |
+| **End users**（UI、web app、mobile） | `/plan-design-review` | `/design-review` |
+| **Developers**（API、CLI、SDK、docs） | `/plan-devex-review` | `/devex-review` |
+| **架构**（data flow、perf、tests） | `/plan-eng-review` | `/review` |
+| **以上全部** | `/autoplan`（运行 CEO → design → eng → DX，并自动检测适用项） | — |
 
-### Power tools
+### Power tools（增强工具）
 
-| Skill | What it does |
+| Skill | 作用 |
 |-------|-------------|
-| `/codex` | **Second Opinion** — independent code review from OpenAI Codex CLI. Three modes: review (pass/fail gate), adversarial challenge, and open consultation. Cross-model analysis when both `/review` and `/codex` have run. |
-| `/careful` | **Safety Guardrails** — warns before destructive commands (rm -rf, DROP TABLE, force-push). Say "be careful" to activate. Override any warning. |
-| `/freeze` | **Edit Lock** — restrict file edits to one directory. Prevents accidental changes outside scope while debugging. |
-| `/guard` | **Full Safety** — `/careful` + `/freeze` in one command. Maximum safety for prod work. |
-| `/unfreeze` | **Unlock** — remove the `/freeze` boundary. |
-| `/open-gstack-browser` | **GStack Browser** — launch GStack Browser with sidebar, anti-bot stealth, auto model routing (Sonnet for actions, Opus for analysis), one-click cookie import, and Claude Code integration. Clean up pages, take smart screenshots, edit CSS, and pass info back to your terminal. |
-| `/setup-deploy` | **Deploy Configurator** — one-time setup for `/land-and-deploy`. Detects your platform, production URL, and deploy commands. |
-| `/setup-gbrain` | **GBrain Onboarding** — from zero to running gbrain in under 5 minutes. PGLite local, Supabase existing URL, or auto-provision a new Supabase project via Management API. MCP registration for Claude Code + per-repo trust triad (read-write/read-only/deny). [Full guide](USING_GBRAIN_WITH_GSTACK.md). |
-| `/sync-gbrain` | **Keep Brain Current** — re-index this repo's code into gbrain via `gbrain sources add` + `gbrain sync --strategy code`, refresh the `## GBrain Search Guidance` block in CLAUDE.md, and auto-remove guidance when the capability check fails. `--incremental` (default), `--full`, `--dry-run`. Idempotent; safe to re-run. |
-| `/gstack-upgrade` | **Self-Updater** — upgrade gstack to latest. Detects global vs vendored install, syncs both, shows what changed. |
-| `/ios-qa` | **iOS Live-Device QA (v1.43.0.0+)** — drive a real iPhone over USB CoreDevice via an embedded `StateServer` in the app. Read Swift source, codegen typed `@Observable` accessors, run the agent loop. Optional `--tailnet` flag exposes the device to OpenClaw or any HTTP-capable agent on your Tailscale tailnet so remote agents can run iOS QA without ever touching the hardware. Capability-tier allowlist (observe/interact/mutate/restore), per-device session lock, audit log. |
-| `/ios-fix`, `/ios-design-review`, `/ios-clean`, `/ios-sync` | iOS bug-fix loop, designer's-eye HIG audit, debug-bridge cleanup, and accessor resync. See `docs/skills.md`. End-to-end walkthrough: [docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md). |
+| `/codex` | **Second Opinion** — 来自 OpenAI Codex CLI 的独立 code review。三种模式：review（pass/fail gate）、adversarial challenge、open consultation。当 `/review` 和 `/codex` 都 review 过同一 branch 时，会做 cross-model analysis。 |
+| `/careful` | **Safety Guardrails** — 在破坏性命令前警告（rm -rf、DROP TABLE、force-push）。说 “be careful” 即可激活。任何警告都可 override。 |
+| `/freeze` | **Edit Lock** — 将文件编辑限制到一个目录。调试时防止意外改到 scope 外代码。 |
+| `/guard` | **Full Safety** — 一个命令启用 `/careful` + `/freeze`。适合 prod work 的最大安全性。 |
+| `/unfreeze` | **Unlock** — 移除 `/freeze` boundary。 |
+| `/open-gstack-browser` | **GStack Browser** — 启动 GStack Browser，带 sidebar、anti-bot stealth、auto model routing（Sonnet 做 actions，Opus 做 analysis）、one-click cookie import 和 Claude Code integration。清理页面、拍 smart screenshots、编辑 CSS，并把信息传回 terminal。 |
+| `/setup-deploy` | **Deploy Configurator** — 为 `/land-and-deploy` 做一次性 setup。检测你的平台、production URL 和 deploy commands。 |
+| `/setup-gbrain` | **GBrain Onboarding** — 5 分钟内从零到运行 gbrain。PGLite local、已有 Supabase URL，或通过 Management API 自动 provision 新 Supabase project。为 Claude Code 注册 MCP，并设置 per-repo trust triad（read-write/read-only/deny）。[完整指南](USING_GBRAIN_WITH_GSTACK.md)。 |
+| `/sync-gbrain` | **Keep Brain Current** — 通过 `gbrain sources add` + `gbrain sync --strategy code` 将本 repo 代码重新索引进 gbrain，刷新 CLAUDE.md 中的 `## GBrain Search Guidance` block，并在 capability check 失败时自动移除 guidance。`--incremental`（默认）、`--full`、`--dry-run`。Idempotent，可安全重复运行。 |
+| `/gstack-upgrade` | **Self-Updater** — 将 gstack 升级到最新版。检测 global vs vendored install，同步两者，并展示变更。 |
+| `/ios-qa` | **iOS Live-Device QA（v1.43.0.0+）** — 通过 USB CoreDevice 和 app 内 embedded `StateServer` 驱动真实 iPhone。读取 Swift source，codegen typed `@Observable` accessors，运行 agent loop。可选 `--tailnet` flag 将设备暴露给 OpenClaw 或任何 HTTP-capable agent，让远程 agents 可通过 Tailscale tailnet 运行 iOS QA，而无需接触硬件。Capability-tier allowlist（observe/interact/mutate/restore）、per-device session lock、audit log。 |
+| `/ios-fix`, `/ios-design-review`, `/ios-clean`, `/ios-sync` | iOS bug-fix loop、designer's-eye HIG audit、debug-bridge cleanup 和 accessor resync。见 `docs/skills.md`。端到端 walkthrough：[docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md)。 |
 
-### New binaries (v0.19)
+### 新 binaries（v0.19）
 
-Beyond the slash-command skills, gstack ships standalone CLIs for workflows that don't belong inside a session:
+除了 slash-command skills，gstack 还提供 standalone CLIs，用于那些不适合放在 session 内的 workflows：
 
-| Command | What it does |
+| Command | 作用 |
 |---------|-------------|
-| `gstack-model-benchmark` | **Cross-model benchmark** — run the same prompt through Claude, GPT (via Codex CLI), and Gemini; compare latency, tokens, cost, and (optionally) LLM-judge quality score. Auth detected per provider, unavailable providers skip cleanly. Output as table, JSON, or markdown. `--dry-run` validates flags + auth without spending API calls. |
-| `gstack-taste-update` | **Design taste learning** — writes approvals and rejections from `/design-shotgun` into a persistent per-project taste profile. Decays 5%/week. Feeds back into future variant generation so the system learns what you actually pick. |
-| `gstack-ios-qa-daemon` | **iOS QA daemon** — Mac-side broker between an agent and a connected iPhone over USB CoreDevice. Loopback by default; `--tailnet` opens a Tailscale-facing listener with identity-gated capability tiers. Single-instance via flock on `~/.gstack/ios-qa-daemon.pid`. See [docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md). |
-| `gstack-ios-qa-mint` | **iOS allowlist manager** — owner-grant CLI for the tailnet allowlist. `grant`/`revoke`/`list` against `~/.gstack/ios-qa-allowlist.json` (mode 0600). Remote agents never auto-allowlist; this is the explicit-intent path. |
+| `gstack-model-benchmark` | **Cross-model benchmark** — 用同一个 prompt 跑 Claude、GPT（通过 Codex CLI）和 Gemini；比较 latency、tokens、cost，以及可选的 LLM-judge quality score。按 provider 检测 auth，不可用 provider 会干净 skip。输出为 table、JSON 或 markdown。`--dry-run` 会验证 flags + auth，不消耗 API calls。 |
+| `gstack-taste-update` | **Design taste learning** — 将 `/design-shotgun` 中的 approvals 和 rejections 写入持久 per-project taste profile。每周衰减 5%。回流到未来 variant generation，让系统学习你实际选择什么。 |
+| `gstack-ios-qa-daemon` | **iOS QA daemon** — Mac-side broker，连接 agent 与通过 USB CoreDevice 连接的 iPhone。默认 loopback；`--tailnet` 打开面向 Tailscale 的 listener，带 identity-gated capability tiers。通过 `~/.gstack/ios-qa-daemon.pid` 上的 flock 保证 single-instance。见 [docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md)。 |
+| `gstack-ios-qa-mint` | **iOS allowlist manager** — tailnet allowlist 的 owner-grant CLI。针对 `~/.gstack/ios-qa-allowlist.json`（mode 0600）执行 `grant`/`revoke`/`list`。Remote agents 永远不会 auto-allowlist；这是 explicit-intent path。 |
 
-### Continuous checkpoint mode (opt-in, local by default)
+### Continuous checkpoint mode（opt-in，默认 local）
 
-Set `gstack-config set checkpoint_mode continuous` and skills auto-commit your work as you go with a `WIP:` prefix plus a structured `[gstack-context]` body (decisions, remaining work, failed approaches). Survives crashes and context switches. `/context-restore` reads those commits to reconstruct session state. `/ship` filter-squashes WIP commits before the PR (preserving non-WIP commits) so bisect stays clean. Push is opt-in via `checkpoint_push=true` — default is local-only so you don't trigger CI on every WIP commit.
+设置 `gstack-config set checkpoint_mode continuous` 后，skills 会随着工作自动 commit，使用 `WIP:` prefix，并带结构化 `[gstack-context]` body（decisions、remaining work、failed approaches）。它可以 survive crashes 和 context switches。`/context-restore` 读取这些 commits 来重建 session state。`/ship` 会在 PR 前 filter-squash WIP commits（保留 non-WIP commits），让 bisect 保持干净。Push 需要通过 `checkpoint_push=true` opt-in；默认 local-only，避免每个 WIP commit 都触发 CI。
 
-### Domain skills + raw CDP escape hatch
+### Domain skills + raw CDP escape hatch（Domain skills 与 raw CDP 逃生口）
 
-Two new browser primitives compound the gstack agent over time:
+两个新的 browser primitives 会让 gstack agent 随时间复利：
 
-- **`$B domain-skill save`** — agent saves a per-site note (e.g., "LinkedIn's Apply button lives in an iframe") that fires automatically next time it visits that hostname. Quarantined → active after 3 successful uses → optional cross-project promotion via `$B domain-skill promote-to-global`. Storage lives alongside `/learn`'s per-project learnings file. Full reference: **[docs/domain-skills.md](docs/domain-skills.md)**.
-- **`$B cdp <Domain.method>`** — raw Chrome DevTools Protocol escape hatch for the rare case curated commands miss. Deny-default: methods must be explicitly added to `browse/src/cdp-allowlist.ts` with a one-line justification. Two-tier mutex serializes browser-scoped CDP calls against per-tab work. Output for data-exfil methods is wrapped in the UNTRUSTED envelope.
+- **`$B domain-skill save`** — agent 保存 per-site note（例如 “LinkedIn's Apply button lives in an iframe”），下次访问同一 hostname 时自动触发。Quarantined → 3 次成功使用后 active → 可选通过 `$B domain-skill promote-to-global` 做 cross-project promotion。存储位置与 `/learn` 的 per-project learnings file 相邻。完整 reference：**[docs/domain-skills.md](docs/domain-skills.md)**。
+- **`$B cdp <Domain.method>`** — raw Chrome DevTools Protocol escape hatch，用于 curated commands 漏掉的少数情况。Deny-default：methods 必须显式添加到 `browse/src/cdp-allowlist.ts`，并附一行 justification。Two-tier mutex 会把 browser-scoped CDP calls 与 per-tab work 串行化。Data-exfil methods 的输出会包在 UNTRUSTED envelope 中。
 
-> Want raw CDP with no rails, no allowlist, no daemon — just thin transport from agent to Chrome? [browser-use/browser-harness-js](https://github.com/browser-use/browser-harness-js) is a different philosophy (agent-authored helpers vs gstack's curated commands) and a good fit if you don't want gstack's security stack. The two can coexist: gstack's `$B cdp` and harness can both attach to the same Chrome via Playwright's `newCDPSession`.
+> 想要没有 rails、没有 allowlist、没有 daemon 的 raw CDP，只要 agent 到 Chrome 的 thin transport？[browser-use/browser-harness-js](https://github.com/browser-use/browser-harness-js) 是另一种哲学（agent-authored helpers vs gstack 的 curated commands），如果你不想要 gstack 的 security stack，它很合适。两者可以共存：gstack 的 `$B cdp` 和 harness 都可以通过 Playwright 的 `newCDPSession` attach 到同一个 Chrome。
 
-**[Deep dives with examples and philosophy for every skill →](docs/skills.md)**
+**[每个 skill 的深入指南、示例和哲学 →](docs/skills.md)**
 
-### Karpathy's four failure modes? Already covered.
+### Karpathy 的四种 failure modes？已经覆盖。
 
-Andrej Karpathy's [AI coding rules](https://github.com/forrestchang/andrej-karpathy-skills) (17K stars) nail four failure modes: wrong assumptions, overcomplexity, orthogonal edits, imperative over declarative. gstack's workflow skills enforce all four. `/office-hours` forces assumptions into the open before code is written. The Confusion Protocol stops Claude from guessing on architectural decisions. `/review` catches unnecessary complexity and drive-by edits. `/ship` transforms tasks into verifiable goals with test-first execution. If you already use Karpathy-style CLAUDE.md rules, gstack is the workflow enforcement layer that makes them stick across entire sprints, not just single prompts.
+Andrej Karpathy 的 [AI coding rules](https://github.com/forrestchang/andrej-karpathy-skills)（17K stars）精准指出四种 failure modes：wrong assumptions、overcomplexity、orthogonal edits、imperative over declarative。gstack 的 workflow skills 会 enforce 这四点。`/office-hours` 在写代码前强制把 assumptions 摊开。Confusion Protocol 阻止 Claude 在 architectural decisions 上猜测。`/review` 捕捉 unnecessary complexity 和 drive-by edits。`/ship` 用 test-first execution 把 tasks 转成 verifiable goals。如果你已经使用 Karpathy-style CLAUDE.md rules，gstack 就是 workflow enforcement layer，让它们贯穿整个 sprints，而不只是单个 prompts。
 
-## Parallel sprints
+## Parallel sprints（并行 sprint）
 
-gstack works well with one sprint. It gets interesting with ten running at once.
+gstack 对一个 sprint 很有用。当十个 sprint 同时运行时，它会变得有趣。
 
-**Design is at the heart.** `/design-consultation` builds your design system from scratch, researches what's out there, proposes creative risks, and writes `DESIGN.md`. But the real magic is the shotgun-to-HTML pipeline.
+**Design 是核心。**`/design-consultation` 从零构建你的 design system，研究已有方案，提出 creative risks，并写入 `DESIGN.md`。但真正的魔法是 shotgun-to-HTML pipeline。
 
-**`/design-shotgun` is how you explore.** You describe what you want. It generates 4-6 AI mockup variants using GPT Image. Then it opens a comparison board in your browser with all variants side by side. You pick favorites, leave feedback ("more whitespace", "bolder headline", "lose the gradient"), and it generates a new round. Repeat until you love something. Taste memory kicks in after a few rounds so it starts biasing toward what you actually like. No more describing your vision in words and hoping the AI gets it. You see options, pick the good ones, and iterate visually.
+**`/design-shotgun` 是探索方式。**你描述想要什么。它用 GPT Image 生成 4-6 个 AI mockup variants，然后在浏览器中打开 comparison board，把所有 variants 并排展示。你选择 favorites，留下反馈（“more whitespace”、“bolder headline”、“lose the gradient”），它再生成新一轮。重复直到你喜欢某个方案。几轮后 taste memory 生效，开始偏向你实际喜欢的东西。不再需要用文字描述愿景并祈祷 AI 理解；你会看到选项，挑出好的，并用视觉方式迭代。
 
-**`/design-html` makes it real.** Take that approved mockup (from `/design-shotgun`, a CEO plan, a design review, or just a description) and turn it into production-quality HTML/CSS. Not the kind of AI HTML that looks fine at one viewport width and breaks everywhere else. This uses Pretext for computed text layout: text actually reflows on resize, heights adjust to content, layouts are dynamic. 30KB overhead, zero dependencies. It detects your framework (React, Svelte, Vue) and outputs the right format. Smart API routing picks different Pretext patterns depending on whether it's a landing page, dashboard, form, or card layout. The output is something you'd actually ship, not a demo.
+**`/design-html` 让它变成现实。**把已批准的 mockup（来自 `/design-shotgun`、CEO plan、design review，或只是一段描述）转成 production-quality HTML/CSS。不是那种只在一个 viewport width 看起来正常、到处都会坏的 AI HTML。它使用 Pretext 做 computed text layout：文本真的会在 resize 时 reflow，高度随内容调整，布局是动态的。30KB overhead，zero dependencies。它检测你的 framework（React、Svelte、Vue），并输出正确格式。Smart API routing 会根据 landing page、dashboard、form 或 card layout 选择不同 Pretext patterns。输出是你真的会 ship 的东西，不是 demo。
 
-**`/qa` was a massive unlock.** It let me go from 6 to 12 parallel workers. Claude Code saying *"I SEE THE ISSUE"* and then actually fixing it, generating a regression test, and verifying the fix — that changed how I work. The agent has eyes now.
+**`/qa` 是巨大 unlock。**它让我从 6 个 parallel workers 提升到 12 个。Claude Code 说 *"I SEE THE ISSUE"*，然后真的修复它、生成 regression test、验证 fix，这改变了我的工作方式。现在 agent 有眼睛了。
 
-**Smart review routing.** Just like at a well-run startup: CEO doesn't have to look at infra bug fixes, design review isn't needed for backend changes. gstack tracks what reviews are run, figures out what's appropriate, and just does the smart thing. The Review Readiness Dashboard tells you where you stand before you ship.
+**Smart review routing。**就像运营良好的 startup：CEO 不必看 infra bug fixes，backend changes 不需要 design review。gstack 跟踪已运行的 reviews，判断什么适用，然后做聪明的事。Review Readiness Dashboard 会在 ship 前告诉你当前位置。
 
-**Test everything.** `/ship` bootstraps test frameworks from scratch if your project doesn't have one. Every `/ship` run produces a coverage audit. Every `/qa` bug fix generates a regression test. 100% test coverage is the goal — tests make vibe coding safe instead of yolo coding.
+**测试一切。**如果你的项目没有 test framework，`/ship` 会从零 bootstrap。每次 `/ship` run 都会生成 coverage audit。每个 `/qa` bug fix 都会生成 regression test。目标是 100% test coverage；tests 让 vibe coding 变得安全，而不是 yolo coding。
 
-**`/document-release` is the engineer you never had.** It reads every doc file in your project, cross-references the diff, and updates everything that drifted. README, ARCHITECTURE, CONTRIBUTING, CLAUDE.md, TODOS — all kept current automatically. And now `/ship` auto-invokes it — docs stay current without an extra command.
+**`/document-release` 是你从未拥有过的 engineer。**它读取项目中的每个 doc file，对照 diff，并更新所有 drifted 内容。README、ARCHITECTURE、CONTRIBUTING、CLAUDE.md、TODOS 都会自动保持最新。现在 `/ship` 会 auto-invoke 它，docs 无需额外命令也能保持 current。
 
-**Real browser mode.** `/open-gstack-browser` launches GStack Browser, an AI-controlled Chromium with anti-bot stealth, custom branding, and the sidebar extension baked in. Sites like Google and NYTimes work without captchas. The menu bar says "GStack Browser" instead of "Chrome for Testing." Your regular Chrome stays untouched. All existing browse commands work unchanged. `$B disconnect` returns to headless. The browser stays alive as long as the window is open... no idle timeout killing it while you're working.
+**Real browser mode。**`/open-gstack-browser` 启动 GStack Browser，一个 AI-controlled Chromium，内置 anti-bot stealth、custom branding 和 sidebar extension。Google、NYTimes 这类站点无需 captcha 即可工作。菜单栏显示 “GStack Browser”，而不是 “Chrome for Testing”。你的常规 Chrome 不受影响。所有现有 browse commands 保持不变。`$B disconnect` 返回 headless。只要窗口打开，浏览器就保持 alive，不会有 idle timeout 在你工作时杀掉它。
 
-**Sidebar agent — your AI browser assistant.** Type natural language in the Chrome side panel and a child Claude instance executes it. "Navigate to the settings page and screenshot it." "Fill out this form with test data." "Go through every item in this list and extract the prices." The sidebar auto-routes to the right model: Sonnet for fast actions (click, navigate, screenshot) and Opus for reading and analysis. Each task gets up to 5 minutes. The sidebar agent runs in an isolated session, so it won't interfere with your main Claude Code window. One-click cookie import right from the sidebar footer.
+**Sidebar agent — 你的 AI browser assistant。**在 Chrome side panel 中输入自然语言，一个 child Claude instance 会执行它。“Navigate to the settings page and screenshot it.” “Fill out this form with test data.” “Go through every item in this list and extract the prices.” sidebar 会 auto-route 到正确 model：Sonnet 做快速 actions（click、navigate、screenshot），Opus 做 reading 和 analysis。每个 task 最多 5 分钟。sidebar agent 在 isolated session 中运行，不会干扰你的主 Claude Code window。sidebar footer 可 one-click cookie import。
 
-**Personal automation.** The sidebar agent isn't just for dev workflows. Example: "Browse my kid's school parent portal and add all the other parents' names, phone numbers, and photos to my Google Contacts." Two ways to get authenticated: (1) log in once in the headed browser, your session persists, or (2) click the "cookies" button in the sidebar footer to import cookies from your real Chrome. Once authenticated, Claude navigates the directory, extracts the data, and creates the contacts.
+**Personal automation。**sidebar agent 不只服务 dev workflows。例如：“Browse my kid's school parent portal and add all the other parents' names, phone numbers, and photos to my Google Contacts.” 有两种 authenticated 方式：（1）在 headed browser 中登录一次，session 会持久化；（2）点击 sidebar footer 的 “cookies” 按钮，从真实 Chrome 导入 cookies。Authenticated 后，Claude 会浏览 directory、抽取数据并创建 contacts。
 
-**Prompt injection defense.** Hostile web pages try to hijack your sidebar agent. gstack ships a layered defense: a 22MB ML classifier bundled with the browser scans every page and tool output locally, a Claude Haiku transcript check votes on the full conversation shape, a random canary token in the system prompt catches session exfil attempts across text, tool args, URLs, and file writes, and a verdict combiner requires two classifiers to agree before blocking (prevents single-model false positives on Stack Overflow-style instruction pages). A shield icon in the sidebar header shows status (green/amber/red). Opt in to a 721MB DeBERTa-v3 ensemble via `GSTACK_SECURITY_ENSEMBLE=deberta` for 2-of-3 agreement. Emergency kill switch: `GSTACK_SECURITY_OFF=1`. See [ARCHITECTURE.md](ARCHITECTURE.md#prompt-injection-defense-sidebar-agent) for the full stack.
+**Prompt injection defense。**恶意网页会试图劫持你的 sidebar agent。gstack 提供 layered defense：随浏览器捆绑的 22MB ML classifier 会本地扫描每个 page 和 tool output；Claude Haiku transcript check 会对完整 conversation shape 投票；system prompt 中的随机 canary token 会跨 text、tool args、URLs、file writes 捕捉 session exfil attempts；verdict combiner 要求两个 classifiers 同意才 block（避免 Stack Overflow-style instruction pages 上的 single-model false positives）。sidebar header 的 shield icon 显示状态（green/amber/red）。通过 `GSTACK_SECURITY_ENSEMBLE=deberta` opt in 721MB DeBERTa-v3 ensemble，获得 2-of-3 agreement。Emergency kill switch：`GSTACK_SECURITY_OFF=1`。完整 stack 见 [ARCHITECTURE.md](ARCHITECTURE.md#prompt-injection-defense-sidebar-agent)。
 
-**Browser handoff when the AI gets stuck.** Hit a CAPTCHA, auth wall, or MFA prompt? `$B handoff` opens a visible Chrome at the exact same page with all your cookies and tabs intact. Solve the problem, tell Claude you're done, `$B resume` picks up right where it left off. The agent even suggests it automatically after 3 consecutive failures.
+**AI 卡住时的 browser handoff。**遇到 CAPTCHA、auth wall 或 MFA prompt？`$B handoff` 会在完全相同页面打开一个可见 Chrome，并保留所有 cookies 和 tabs。你解决问题，告诉 Claude 完成，然后 `$B resume` 从中断处继续。连续 3 次失败后，agent 甚至会自动建议这样做。
 
-**`/pair-agent` is cross-agent coordination.** You're in Claude Code. You also have OpenClaw running. Or Hermes. Or Codex. You want them both looking at the same website. Type `/pair-agent`, pick your agent, and a GStack Browser window opens so you can watch. The skill prints a block of instructions. Paste that block into the other agent's chat. It exchanges a one-time setup key for a session token, creates its own tab, and starts browsing. You see both agents working in the same browser, each in their own tab, neither able to interfere with the other. If ngrok is installed, the tunnel starts automatically so the other agent can be on a completely different machine. Same-machine agents get a zero-friction shortcut that writes credentials directly. This is the first time AI agents from different vendors can coordinate through a shared browser with real security: scoped tokens, tab isolation, rate limiting, domain restrictions, and activity attribution.
+**`/pair-agent` 是 cross-agent coordination。**你在 Claude Code 中，同时也运行着 OpenClaw，或者 Hermes，或者 Codex。你想让它们都看同一个网站。输入 `/pair-agent`，选择你的 agent，一个 GStack Browser window 会打开供你观看。skill 会打印一段 instructions。把那段粘贴到另一个 agent 的 chat 中。它用 one-time setup key 交换 session token，创建自己的 tab 并开始 browsing。你会看到两个 agents 在同一浏览器中工作，各自拥有自己的 tab，彼此无法干扰。如果安装了 ngrok，tunnel 会自动启动，让另一个 agent 可以在完全不同的机器上。Same-machine agents 有零摩擦 shortcut，可直接写入 credentials。这是第一次来自不同 vendors 的 AI agents 能通过共享浏览器安全协作：scoped tokens、tab isolation、rate limiting、domain restrictions、activity attribution。
 
-**Multi-AI second opinion.** `/codex` gets an independent review from OpenAI's Codex CLI — a completely different AI looking at the same diff. Three modes: code review with a pass/fail gate, adversarial challenge that actively tries to break your code, and open consultation with session continuity. When both `/review` (Claude) and `/codex` (OpenAI) have reviewed the same branch, you get a cross-model analysis showing which findings overlap and which are unique to each.
+**Multi-AI second opinion。**`/codex` 从 OpenAI 的 Codex CLI 获取独立 review，也就是让完全不同的 AI 看同一个 diff。三种模式：带 pass/fail gate 的 code review、主动尝试破坏代码的 adversarial challenge、带 session continuity 的 open consultation。当 `/review`（Claude）和 `/codex`（OpenAI）都 review 过同一 branch 时，你会得到 cross-model analysis，展示哪些 findings 重叠，哪些是各自独有。
 
-**Safety guardrails on demand.** Say "be careful" and `/careful` warns before any destructive command — rm -rf, DROP TABLE, force-push, git reset --hard. `/freeze` locks edits to one directory while debugging so Claude can't accidentally "fix" unrelated code. `/guard` activates both. `/investigate` auto-freezes to the module being investigated.
+**按需 safety guardrails。**说 “be careful”，`/careful` 就会在任何破坏性命令前警告：rm -rf、DROP TABLE、force-push、git reset --hard。`/freeze` 在调试时把 edits 锁到一个目录，避免 Claude 意外“修复”无关代码。`/guard` 同时激活两者。`/investigate` 会自动 freeze 到正在调查的 module。
 
-**Proactive skill suggestions.** gstack notices what stage you're in — brainstorming, reviewing, debugging, testing — and suggests the right skill. Don't like it? Say "stop suggesting" and it remembers across sessions.
+**Proactive skill suggestions。**gstack 会注意你处于什么阶段：brainstorming、reviewing、debugging、testing，然后建议正确 skill。不喜欢？说 “stop suggesting”，它会跨 sessions 记住。
 
 ## 10-15 parallel sprints
 
-gstack is powerful with one sprint. It is transformative with ten running at once.
+gstack 对一个 sprint 已经很强。当十个同时运行时，它会产生质变。
 
-[Conductor](https://conductor.build) runs multiple Claude Code sessions in parallel — each in its own isolated workspace. One session running `/office-hours` on a new idea, another doing `/review` on a PR, a third implementing a feature, a fourth running `/qa` on staging, and six more on other branches. All at the same time. I regularly run 10-15 parallel sprints — that's the practical max right now.
+[Conductor](https://conductor.build) 并行运行多个 Claude Code sessions，每个都有自己的 isolated workspace。一个 session 对新想法运行 `/office-hours`，另一个对 PR 做 `/review`，第三个实现 feature，第四个在 staging 上跑 `/qa`，还有六个在其他 branches 上工作。全部同时发生。我经常运行 10-15 个 parallel sprints，这是目前的实际上限。
 
-The sprint structure is what makes parallelism work. Without a process, ten agents is ten sources of chaos. With a process — think, plan, build, review, test, ship — each agent knows exactly what to do and when to stop. You manage them the way a CEO manages a team: check in on the decisions that matter, let the rest run.
+sprint structure 让 parallelism 能工作。没有 process，十个 agents 就是十个混乱源。有了 process：think、plan、build、review、test、ship，每个 agent 都知道该做什么、何时停止。你像 CEO 管理团队一样管理它们：检查重要决策，其余让它们运行。
 
-### Voice input (AquaVoice, Whisper, etc.)
+### Voice input（AquaVoice、Whisper 等）
 
-gstack skills have voice-friendly trigger phrases. Say what you want naturally —
-"run a security check", "test the website", "do an engineering review" — and the
-right skill activates. You don't need to remember slash command names or acronyms.
+gstack skills 有 voice-friendly trigger phrases。自然地说你想要什么：“run a security check”、“test the website”、“do an engineering review”，正确 skill 就会激活。你不需要记住 slash command names 或 acronyms。
 
-## Uninstall
+## 卸载
 
-### Option 1: Run the uninstall script
+### Option 1：运行 uninstall script
 
-If gstack is installed on your machine:
+如果你的机器已安装 gstack：
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-uninstall
 ```
 
-This handles skills, symlinks, global state (`~/.gstack/`), project-local state, browse daemons, and temp files. Use `--keep-state` to preserve config and analytics. Use `--force` to skip confirmation.
+它会处理 skills、symlinks、global state（`~/.gstack/`）、project-local state、browse daemons 和 temp files。使用 `--keep-state` 保留 config 和 analytics。使用 `--force` 跳过确认。
 
-### Option 2: Manual removal (no local repo)
+### Option 2：手动移除（没有 local repo）
 
-If you don't have the repo cloned (e.g. you installed via a Claude Code paste and later deleted the clone):
+如果你没有 clone repo（例如通过 Claude Code paste 安装，后来删除了 clone）：
 
 ```bash
 # 1. Stop browse daemons
@@ -347,132 +338,132 @@ while IFS= read -r dir; do
   esac
 done
 
-# 3. Remove gstack
+# 3. 移除 gstack
 rm -rf ~/.claude/skills/gstack
 
-# 4. Remove global state
+# 4. 移除 global state
 rm -rf ~/.gstack
 
-# 5. Remove integrations (skip any you never installed)
+# 5. 移除 integrations（跳过从未安装的项）
 rm -rf ~/.codex/skills/gstack* 2>/dev/null
 rm -rf ~/.factory/skills/gstack* 2>/dev/null
 rm -rf ~/.kiro/skills/gstack* 2>/dev/null
 rm -rf ~/.openclaw/skills/gstack* 2>/dev/null
 
-# 6. Remove temp files
+# 6. 移除 temp files
 rm -f /tmp/gstack-* 2>/dev/null
 
-# 7. Per-project cleanup (run from each project root)
+# 7. Per-project cleanup（在每个 project root 中运行）
 rm -rf .gstack .gstack-worktrees .claude/skills/gstack 2>/dev/null
 rm -rf .agents/skills/gstack* .factory/skills/gstack* 2>/dev/null
 ```
 
-### Clean up CLAUDE.md
+### 清理 CLAUDE.md
 
-The uninstall script does not edit CLAUDE.md. In each project where gstack was added, remove the `## gstack` and `## Skill routing` sections.
+uninstall script 不会编辑 CLAUDE.md。在每个添加过 gstack 的项目中，移除 `## gstack` 和 `## Skill routing` sections。
 
-### Playwright
+### Playwright（Playwright 说明）
 
-`~/Library/Caches/ms-playwright/` (macOS) is left in place because other tools may share it. Remove it if nothing else needs it.
+`~/Library/Caches/ms-playwright/`（macOS）会保留，因为其他工具可能共享它。如果没有其他工具需要，可以删除。
 
 ---
 
-Free, MIT licensed, open source. No premium tier, no waitlist.
+免费，MIT licensed，open source。没有 premium tier，没有 waitlist。
 
-I open sourced how I build software. You can fork it and make it your own.
+我 open sourced 了我构建软件的方式。你可以 fork 它，让它成为自己的东西。
 
-> **We're hiring.** Want to ship real products at AI-coding speed and help harden gstack?
-> Come work at YC — [ycombinator.com/software](https://ycombinator.com/software)
-> Extremely competitive salary and equity. San Francisco, Dogpatch District.
+> **We're hiring.** 想以 AI-coding speed ship 真实产品，并帮助 harden gstack？
+> 来 YC 工作：[ycombinator.com/software](https://ycombinator.com/software)
+> 极具竞争力的 salary 和 equity。San Francisco，Dogpatch District。
 
-## GBrain — persistent knowledge for your coding agent
+## GBrain — 给 coding agent 的 persistent knowledge
 
-[GBrain](https://github.com/garrytan/gbrain) is a persistent knowledge base for AI agents — think of it as the memory your agent actually keeps between sessions. GStack gives you a one-command path from zero to "it's running, my agent can call it."
+[GBrain](https://github.com/garrytan/gbrain) 是 AI agents 的 persistent knowledge base，可以把它理解成 agent 在 sessions 之间真正保留下来的 memory。GStack 提供一个命令，让你从零走到“它已经运行，我的 agent 可以调用它”。
 
 ```bash
 /setup-gbrain
 ```
 
-Four paths, pick one:
+四条路径，选一条：
 
-- **Supabase, existing URL** — your cloud agent already provisioned a brain; paste the Session Pooler URL, now this laptop uses the same data.
-- **Supabase, auto-provision** — paste a Supabase Personal Access Token; the skill creates a new project, polls to healthy, fetches the pooler URL, hands it to `gbrain init`. ~90 seconds end-to-end.
-- **PGLite local** — zero accounts, zero network, ~30 seconds. Isolated brain on this Mac only. Great for try-first; migrate to Supabase later with `/setup-gbrain --switch`.
-- **Remote gbrain MCP** — your brain runs on another machine (Tailscale, ngrok, internal LAN) or a teammate's server; paste an MCP URL and bearer token. Optionally pair with a local PGLite for symbol-aware code search in split-engine mode. Best for cross-machine memory without standing up a local DB.
+- **Supabase, existing URL** — 你的 cloud agent 已经 provisioned 一个 brain；粘贴 Session Pooler URL，这台 laptop 就会使用同一份数据。
+- **Supabase, auto-provision** — 粘贴 Supabase Personal Access Token；skill 创建新 project，轮询到 healthy，获取 pooler URL，并交给 `gbrain init`。端到端约 90 秒。
+- **PGLite local** — 零账号、零网络，约 30 秒。只在这台 Mac 上隔离使用的 brain。适合先试用；之后可用 `/setup-gbrain --switch` 迁移到 Supabase。
+- **Remote gbrain MCP** — 你的 brain 运行在另一台机器（Tailscale、ngrok、internal LAN）或 teammate 的 server 上；粘贴 MCP URL 和 bearer token。可选搭配 local PGLite，在 split-engine mode 中做 symbol-aware code search。最适合不搭本地 DB 的 cross-machine memory。
 
-After init, the skill offers to register gbrain as an MCP server for Claude Code (`claude mcp add gbrain -- gbrain serve`) so `gbrain search`, `gbrain put`, etc. show up as first-class typed tools — not bash shell-outs.
+init 后，skill 会提示把 gbrain 注册为 Claude Code 的 MCP server（`claude mcp add gbrain -- gbrain serve`），这样 `gbrain search`、`gbrain put` 等会作为 first-class typed tools 出现，而不是 bash shell-outs。
 
-**Keeping the brain current.** Run `/sync-gbrain` from any repo to re-index its code into gbrain (incremental by default, `--full` for a full reindex, `--dry-run` to preview). The skill registers the cwd as a federated source via `gbrain sources add`, runs `gbrain sync --strategy code`, and writes a `## GBrain Search Guidance` block to your project's CLAUDE.md so the agent prefers `gbrain search`/`code-def`/`code-refs` over Grep. The block is removed automatically if the capability check fails — no stale guidance pointing at tools that aren't installed.
+**保持 brain current。**在任意 repo 中运行 `/sync-gbrain`，即可将代码重新索引进 gbrain（默认 incremental，`--full` 做 full reindex，`--dry-run` 预览）。该 skill 通过 `gbrain sources add` 将 cwd 注册为 federated source，运行 `gbrain sync --strategy code`，并向项目 CLAUDE.md 写入 `## GBrain Search Guidance` block，让 agent 优先使用 `gbrain search`/`code-def`/`code-refs` 而不是 Grep。如果 capability check 失败，该 block 会自动移除，避免 stale guidance 指向未安装工具。
 
-**Per-remote trust policy.** Each repo on your machine gets one of three tiers:
+**Per-remote trust policy。**你机器上的每个 repo 都会获得三种 tier 之一：
 
-- `read-write` — agent can search the brain AND write new pages back from this repo
-- `read-only` — agent can search but never writes (best for multi-client consultants: search the shared brain, don't contaminate it with Client A's work while in Client B's repo)
-- `deny` — no gbrain interaction at all
+- `read-write` — agent 可以搜索 brain，也可以从这个 repo 写入新 pages。
+- `read-only` — agent 可以搜索但永不写入（适合 multi-client consultants：搜索 shared brain，但在 Client B repo 中工作时不要用 Client A 的内容污染它）。
+- `deny` — 完全不与 gbrain 交互。
 
-The skill asks once per repo. The decision is sticky across worktrees and branches of the same remote.
+skill 对每个 repo 只问一次。决策会在同一 remote 的 worktrees 和 branches 间保持 sticky。
 
-**GStack memory sync (different feature, same private-repo infra).** Optionally pushes your gstack state (learnings, CEO plans, design docs, retros, developer profile) to a private git repo so your memory follows you across machines, with a one-time privacy prompt (everything allowlisted / artifacts only / off) and a defense-in-depth secret scanner that blocks AWS keys, tokens, PEM blocks, and JWTs before they leave your machine.
+**GStack memory sync（另一个 feature，但使用同一套 private-repo infra）。**可选把你的 gstack state（learnings、CEO plans、design docs、retros、developer profile）push 到 private git repo，让 memory 跨机器跟随你。它带一次性 privacy prompt（everything allowlisted / artifacts only / off），以及 defense-in-depth secret scanner，在内容离开机器前阻止 AWS keys、tokens、PEM blocks 和 JWTs。
 
 ```bash
 gstack-brain-init
 ```
 
-**Running gstack in Conductor?** Conductor explicitly strips `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` from every workspace's process env, so paid evals and gbrain embeddings won't work out of the box. Set `GSTACK_ANTHROPIC_API_KEY` and `GSTACK_OPENAI_API_KEY` in Conductor's workspace env config instead — gstack's TS entry points promote them to canonical names at runtime. Full details and the contributor checklist for adding the import to new entry points: [Conductor + GSTACK_* env vars](USING_GBRAIN_WITH_GSTACK.md#conductor--gstack_-env-vars).
+**在 Conductor 中运行 gstack？**Conductor 会显式从每个 workspace 的 process env 中剥离 `ANTHROPIC_API_KEY` 和 `OPENAI_API_KEY`，因此 paid evals 和 gbrain embeddings 默认无法工作。请改在 Conductor 的 workspace env config 中设置 `GSTACK_ANTHROPIC_API_KEY` 和 `GSTACK_OPENAI_API_KEY`；gstack 的 TS entry points 会在 runtime 将它们提升为 canonical names。完整细节和给新 entry points 添加 import 的 contributor checklist 见：[Conductor + GSTACK_* env vars](USING_GBRAIN_WITH_GSTACK.md#conductor--gstack_-env-vars)。
 
-**Full monty — every scenario, every flag, every bin helper, every troubleshooting step:** [USING_GBRAIN_WITH_GSTACK.md](USING_GBRAIN_WITH_GSTACK.md)
+**完整版：每个 scenario、每个 flag、每个 bin helper、每个 troubleshooting step：**[USING_GBRAIN_WITH_GSTACK.md](USING_GBRAIN_WITH_GSTACK.md)
 
-Other references: [docs/gbrain-sync.md](docs/gbrain-sync.md) (sync-specific guide) • [docs/gbrain-sync-errors.md](docs/gbrain-sync-errors.md) (error index)
+其他 reference：[docs/gbrain-sync.md](docs/gbrain-sync.md)（sync-specific guide）• [docs/gbrain-sync-errors.md](docs/gbrain-sync-errors.md)（error index）
 
-## Docs
+## 文档
 
-| Doc | What it covers |
+| Doc | 覆盖内容 |
 |-----|---------------|
-| [Skill Deep Dives](docs/skills.md) | Philosophy, examples, and workflow for every skill (includes Greptile integration) |
-| [Builder Ethos](ETHOS.md) | Builder philosophy: Boil the Lake, Search Before Building, three layers of knowledge |
-| [Using GBrain with GStack](USING_GBRAIN_WITH_GSTACK.md) | Every path, flag, bin helper, and troubleshooting step for `/setup-gbrain` |
-| [GBrain Sync](docs/gbrain-sync.md) | Cross-machine memory setup, privacy modes, troubleshooting |
-| [Architecture](ARCHITECTURE.md) | Design decisions and system internals |
-| [Browser Reference](BROWSER.md) | Full command reference for `/browse` |
-| [Contributing](CONTRIBUTING.md) | Dev setup, testing, contributor mode, and dev mode |
-| [Changelog](CHANGELOG.md) | What's new in every version |
+| [Skill Deep Dives](docs/skills.md) | 每个 skill 的理念、示例和工作流（包含 Greptile integration） |
+| [Builder Ethos](ETHOS.md) | Builder philosophy：Boil the Lake、Search Before Building、三层知识 |
+| [Using GBrain with GStack](USING_GBRAIN_WITH_GSTACK.md) | `/setup-gbrain` 的所有 path、flag、bin helper 和 troubleshooting step |
+| [GBrain Sync](docs/gbrain-sync.md) | 跨机器 memory setup、privacy modes 和 troubleshooting |
+| [Architecture](ARCHITECTURE.md) | 设计决策和系统内部机制 |
+| [Browser Reference](BROWSER.md) | `/browse` 的完整 command reference |
+| [Contributing](CONTRIBUTING.md) | Dev setup、testing、contributor mode 和 dev mode |
+| [Changelog](CHANGELOG.md) | 每个版本的新内容 |
 
-## Privacy & Telemetry
+## Privacy & Telemetry（隐私与遥测）
 
-gstack includes **opt-in** usage telemetry to help improve the project. Here's exactly what happens:
+gstack 包含 **opt-in** usage telemetry，用于帮助改进项目。具体如下：
 
-- **Default is off.** Nothing is sent anywhere unless you explicitly say yes.
-- **On first run,** gstack asks if you want to share anonymous usage data. You can say no.
-- **What's sent (if you opt in):** skill name, duration, success/fail, gstack version, OS. That's it.
-- **What's never sent:** code, file paths, repo names, branch names, prompts, or any user-generated content.
-- **Change anytime:** `gstack-config set telemetry off` disables everything instantly.
+- **默认关闭。**除非你明确同意，否则不会向任何地方发送任何内容。
+- **首次运行时，**gstack 会询问你是否愿意分享 anonymous usage data。你可以拒绝。
+- **会发送什么（如果 opt in）：**skill name、duration、success/fail、gstack version、OS。仅此而已。
+- **永远不会发送什么：**代码、file paths、repo names、branch names、prompts，或任何 user-generated content。
+- **随时更改：**`gstack-config set telemetry off` 会立即禁用全部 telemetry。
 
-Data is stored in [Supabase](https://supabase.com) (open source Firebase alternative). The schema is in [`supabase/migrations/`](supabase/migrations/) — you can verify exactly what's collected. The Supabase publishable key in the repo is a public key (like a Firebase API key) — row-level security policies deny all direct access. Telemetry flows through validated edge functions that enforce schema checks, event type allowlists, and field length limits.
+数据存储在 [Supabase](https://supabase.com)（open source Firebase alternative）。schema 位于 [`supabase/migrations/`](supabase/migrations/)，你可以精确验证收集了什么。Repo 中的 Supabase publishable key 是 public key（类似 Firebase API key）；row-level security policies 会拒绝所有直接访问。Telemetry 通过 validated edge functions 流转，强制执行 schema checks、event type allowlists 和 field length limits。
 
-**Local analytics are always available.** Run `gstack-analytics` to see your personal usage dashboard from the local JSONL file — no remote data needed.
+**Local analytics 始终可用。**运行 `gstack-analytics` 可从本地 JSONL file 查看个人 usage dashboard，无需 remote data。
 
-## Troubleshooting
+## 故障排查
 
-**Skill not showing up?** `cd ~/.claude/skills/gstack && ./setup`
+**Skill 没出现？** `cd ~/.claude/skills/gstack && ./setup`
 
-**`/browse` fails?** `cd ~/.claude/skills/gstack && bun install && bun run build`
+**`/browse` 失败？** `cd ~/.claude/skills/gstack && bun install && bun run build`
 
-**Stale install?** Run `/gstack-upgrade` — or set `auto_upgrade: true` in `~/.gstack/config.yaml`
+**Install 过旧？**运行 `/gstack-upgrade`，或在 `~/.gstack/config.yaml` 中设置 `auto_upgrade: true`。
 
-**Want shorter commands?** `cd ~/.claude/skills/gstack && ./setup --no-prefix` — switches from `/gstack-qa` to `/qa`. Your choice is remembered for future upgrades.
+**想要更短命令？** `cd ~/.claude/skills/gstack && ./setup --no-prefix`，会从 `/gstack-qa` 切到 `/qa`。你的选择会在未来 upgrades 中记住。
 
-**Want namespaced commands?** `cd ~/.claude/skills/gstack && ./setup --prefix` — switches from `/qa` to `/gstack-qa`. Useful if you run other skill packs alongside gstack.
+**想要 namespaced commands？** `cd ~/.claude/skills/gstack && ./setup --prefix`，会从 `/qa` 切到 `/gstack-qa`。如果你同时运行其他 skill packs，这很有用。
 
-**Codex says "Skipped loading skill(s) due to invalid SKILL.md"?** Your Codex skill descriptions are stale. Fix: `cd ~/.codex/skills/gstack && git pull && ./setup --host codex` — or for repo-local installs: `cd "$(readlink -f .agents/skills/gstack)" && git pull && ./setup --host codex`
+**Codex 说 “Skipped loading skill(s) due to invalid SKILL.md”？**你的 Codex skill descriptions 过旧。修复：`cd ~/.codex/skills/gstack && git pull && ./setup --host codex`；repo-local installs 则用：`cd "$(readlink -f .agents/skills/gstack)" && git pull && ./setup --host codex`。
 
-**Windows users:** gstack works on Windows 11 via Git Bash or WSL. Node.js is required in addition to Bun — Bun has a known bug with Playwright's pipe transport on Windows ([bun#4253](https://github.com/oven-sh/bun/issues/4253)). The browse server automatically falls back to Node.js. Make sure both `bun` and `node` are on your PATH.
+**Windows users：**gstack 可通过 Git Bash 或 WSL 在 Windows 11 上工作。除了 Bun 还需要 Node.js，因为 Bun 在 Windows 上的 Playwright pipe transport 有已知 bug（[bun#4253](https://github.com/oven-sh/bun/issues/4253)）。browse server 会自动 fallback 到 Node.js。请确认 `bun` 和 `node` 都在 PATH 中。
 
-On Windows without Developer Mode (MSYS2 / Git Bash), `setup` falls back to file copies instead of symlinks because `ln -snf` produces frozen copies that don't refresh on `git pull`. **Re-run `cd ~/.claude/skills/gstack && ./setup` after every `git pull`** so your skill files match the repo. `setup` prints a one-line note reminding you. Unix and WSL keep symlinks and don't need the re-run.
+在没有 Developer Mode 的 Windows（MSYS2 / Git Bash）上，`setup` 会 fallback 到 file copies 而不是 symlinks，因为 `ln -snf` 会产生不会随 `git pull` 刷新的 frozen copies。**每次 `git pull` 后重新运行 `cd ~/.claude/skills/gstack && ./setup`**，确保 skill files 匹配 repo。`setup` 会打印一行 note 提醒你。Unix 和 WSL 保持 symlinks，不需要重新运行。
 
-**Claude says it can't see the skills?** Make sure your project's `CLAUDE.md` has a gstack section. Add this:
+**Claude 说看不到 skills？**确认项目的 `CLAUDE.md` 有 gstack section。添加：
 
 ```
-## gstack
+## gstack（项目说明）
 Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__* tools.
 Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review,
 /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy,
@@ -482,6 +473,6 @@ Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-desig
 /guard, /unfreeze, /gstack-upgrade, /learn.
 ```
 
-## License
+## License（许可证）
 
-MIT. Free forever. Go build something.
+MIT。永久免费。去构建点什么。

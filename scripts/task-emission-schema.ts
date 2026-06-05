@@ -1,56 +1,56 @@
 /**
- * Schema reference for the per-skill Implementation Tasks JSONL artifact (#1454).
+ * per-skill Implementation Tasks JSONL artifact（#1454）的 schema reference。
  *
- * Each review skill (plan-ceo-review, plan-design-review, plan-eng-review,
- * plan-devex-review) writes one JSONL line per task during its synthesis step
- * to `~/.gstack/projects/$SLUG/tasks-{phase}-{datetime}.jsonl`.
+ * 每个 review skill（plan-ceo-review、plan-design-review、plan-eng-review、
+ * plan-devex-review）都会在 synthesis step 中为每个 task 写一行 JSONL 到
+ * `~/.gstack/projects/$SLUG/tasks-{phase}-{datetime}.jsonl`。
  *
- * `/autoplan`'s Phase 4 aggregator reads ALL phase JSONL files, scopes them
- * by branch + commit window, dedupes by exact (component, sorted(files), title),
- * and renders an `## Implementation Tasks (aggregated across phases)` section
- * inside the Final Approval Gate output.
+ * `/autoplan` 的 Phase 4 aggregator 读取所有 phase JSONL files，按 branch +
+ * commit window 限定范围，用 exact (component, sorted(files), title) 去重，
+ * 并在 Final Approval Gate output 内渲染
+ * `## Implementation Tasks (aggregated across phases)` section。
  *
- * Wire format: one JSON object per line. Build via `jq -nc` from bash — never
- * by hand-rolled echo/printf, because task titles and source findings may
- * contain quotes, newlines, and backslashes.
+ * Wire format：每行一个 JSON object。必须通过 bash 中的 `jq -nc` 构建，绝不要
+ * hand-roll echo/printf，因为 task titles 和 source findings 可能包含 quotes、
+ * newlines 和 backslashes。
  */
 
 export type TaskPhase = 'ceo-review' | 'design-review' | 'eng-review' | 'devex-review';
 export type TaskPriority = 'P1' | 'P2' | 'P3';
 
 /**
- * One row in tasks-{phase}-{datetime}.jsonl. All fields required unless noted.
+ * tasks-{phase}-{datetime}.jsonl 中的一行。除非另有说明，所有 fields 必填。
  */
 export interface ImplementationTask {
-  /** Which review phase produced this task. */
+  /** 产生此 task 的 review phase。 */
   phase: TaskPhase;
-  /** Unique run identifier for this phase invocation (timestamp + pid suffix). */
+  /** 此 phase invocation 的唯一 run identifier（timestamp + pid suffix）。 */
   run_id: string;
-  /** Branch the review ran on. Aggregator filters by this. */
+  /** review 运行所在 branch。Aggregator 会用它过滤。 */
   branch: string;
-  /** HEAD commit at review time. Aggregator filters by commit-window proximity. */
+  /** review 时的 HEAD commit。Aggregator 会用 commit-window proximity 过滤。 */
   commit: string;
-  /** Short task id, unique within a single run_id (T1, T2, ...). */
+  /** 短 task id，在单个 run_id 内唯一（T1、T2、...）。 */
   id: string;
   priority: TaskPriority;
-  /** Coarse component label (e.g., `browse/sanitizer`, `auth/login`). */
+  /** 粗粒度 component label（例如 `browse/sanitizer`、`auth/login`）。 */
   component: string;
-  /** Files the task touches. Aggregator sorts this and uses it in the dedup key. */
+  /** task 触及的 files。Aggregator 会排序并用于 dedup key。 */
   files: string[];
-  /** Human-team effort estimate (e.g., "2h", "1 day"). */
+  /** Human-team effort estimate（例如 "2h"、"1 day"）。 */
   effort_human: string;
-  /** CC+gstack effort estimate (e.g., "15min"). */
+  /** CC+gstack effort estimate（例如 "15min"）。 */
   effort_cc: string;
-  /** Action-oriented title in imperative form ("Add commandResult-level sanitization"). */
+  /** imperative form 的 action-oriented title（"Add commandResult-level sanitization"）。 */
   title: string;
-  /** Free-text reference to the finding that motivated this task. */
+  /** 指向触发此 task 的 finding 的 free-text reference。 */
   source_finding: string;
 }
 
 /**
- * Dedup key for the aggregator. Two tasks collapse into one ONLY when this
- * tuple is identical (per `D13 finding 9`). Near-duplicates surface as
- * separate tasks with a `possible-duplicate-of: <id>` note.
+ * aggregator 使用的 dedup key。仅当这个 tuple 完全相同（按 `D13 finding 9`）
+ * 时，两个 tasks 才会合并为一个。Near-duplicates 会作为 separate tasks 显示，
+ * 并附 `possible-duplicate-of: <id>` note。
  */
 export function dedupKey(t: Pick<ImplementationTask, 'component' | 'files' | 'title'>): string {
   return JSON.stringify({

@@ -1,147 +1,110 @@
-# Browser — Complete Reference
+# Browser — 完整参考
 
-gstack's browser surface in one document. Headless Chromium daemon, ~70+
-commands, ref-based element selection, codifiable browser-skills, real-browser
-mode with a Chrome side panel, an in-sidebar Claude PTY, an ngrok pair-agent
-flow, and a layered prompt-injection defense — all behind a compiled CLI that
-prints plain text to stdout. ~100-200ms per call. Zero context-token overhead.
+gstack 的 browser surface 集中在这一份文档中：headless Chromium daemon、70+ commands、基于 ref 的 element selection、可固化的 browser-skills、带 Chrome side panel 的真实浏览器模式、sidebar 中的 Claude PTY、ngrok pair-agent flow，以及分层 prompt-injection defense。这一切都藏在一个 compiled CLI 后面，输出 plain text 到 stdout。每次调用约 100-200ms。零 context-token overhead。
 
-If you've used gstack in the last release or two, the productivity loop is the
-new headline: `/scrape <intent>` drives a page once, `/skillify` codifies the
-flow into a deterministic Playwright script, and the next `/scrape` on the
-same intent runs in ~200ms instead of ~30 seconds of agent re-exploration.
+如果你在最近一两个 release 中用过 gstack，新的 headline 是 productivity loop：`/scrape <intent>` 先驱动页面一次，`/skillify` 把 flow 固化成 deterministic Playwright script，下一次相同 intent 的 `/scrape` 就不再需要 agent 重新探索 30 秒，而是约 200ms 完成。
 
 ---
 
-## Quick start
+## 快速开始
 
 ```bash
-# One-time: build the binary (browse/dist/browse, ~58MB)
+# 一次性：构建 binary（browse/dist/browse，约 58MB）
 bun install && bun run build
 
-# Set $B once and forget about it
-B=./browse/dist/browse           # or ~/.claude/skills/gstack/browse/dist/browse
+# 设置一次 $B，之后直接使用
+B=./browse/dist/browse           # 或 ~/.claude/skills/gstack/browse/dist/browse
 
-# Drive a page
+# 驱动页面
 $B goto https://news.ycombinator.com
-$B snapshot -i                   # @e refs you can click/fill/inspect later
-$B click @e30                    # click ref 30 from the snapshot
-$B text                          # get clean page text
+$B snapshot -i                   # 生成之后可 click/fill/inspect 的 @e refs
+$B click @e30                    # 点击 snapshot 中的 ref 30
+$B text                          # 获取干净 page text
 $B screenshot /tmp/hn.png
 
-# Codify a repeated flow
+# 将重复 flow codify
 /scrape latest hacker news stories
-/skillify                        # writes ~/.gstack/browser-skills/hn-front/...
-/scrape hacker news front page   # second call: 200ms via the codified skill
+/skillify                        # 写入 ~/.gstack/browser-skills/hn-front/...
+/scrape hacker news front page   # 第二次调用：通过已固化 skill 约 200ms 完成
 
-# Watch Claude work in real time
+# 实时观看 Claude 工作
 $B connect                       # headed Chromium + Side Panel extension
 ```
 
 ---
 
-## Table of contents
+## 目录
 
-1. [What it is](#what-it-is)
-2. [The productivity loop — `/scrape` + `/skillify`](#the-productivity-loop)
-3. [Architecture](#architecture)
-4. [Command reference](#command-reference)
-5. [Snapshot system + ref-based selection](#snapshot-system)
-6. [Browser-skills runtime](#browser-skills-runtime)
-7. [Domain-skills (per-site agent notes)](#domain-skills)
-8. [Real-browser mode (`$B connect`)](#real-browser-mode) — including [`--headed` + `--proxy` + `--navigate` (v1.28.0.0)](#headed-mode--proxy--browser-native-downloads-v12800)
-9. [Side Panel + sidebar agent](#side-panel--sidebar-agent)
-10. [Pair-agent — remote agents over an ngrok tunnel](#pair-agent)
-11. [Authentication + tokens](#authentication)
-12. [Prompt-injection security stack (L1–L6)](#security-stack)
-13. [Screenshots, PDFs, visual inspection](#screenshots-pdfs-visual)
-14. [Local HTML — `goto file://` vs `load-html`](#local-html)
-15. [Batch endpoint](#batch-endpoint)
-16. [Console, network, dialog capture](#capture)
-17. [JS execution — `js` + `eval`](#js-execution)
-18. [Tabs, frames, state, watch, inbox](#tabs-frames-state)
-19. [CDP escape hatch + CSS inspector](#cdp)
-20. [Performance + scale](#performance)
-21. [Multi-workspace isolation](#multi-workspace)
-22. [Environment variables](#environment-variables)
-23. [Source map](#source-map)
-24. [Development + testing](#development)
-25. [Cross-references](#cross-references)
-26. [Acknowledgments](#acknowledgments)
-
----
-
-## What it is
-
-A compiled CLI binary that talks to a persistent local Chromium daemon over
-HTTP. The CLI is a thin client — it reads a state file, sends a command,
-prints the response to stdout. The daemon does the real work via
-[Playwright](https://playwright.dev/).
-
-Everything that was a Chrome MCP server in the early days now happens through
-plain stdout. No JSON-schema framing, no protocol negotiation, no persistent
-WebSocket — Claude's Bash tool already exists, so we use it.
-
-Three escalating modes:
-
-- **Headless** (default). Daemon runs Chromium with no visible window. Fastest,
-  cheapest, what skills like `/qa`, `/design-review`, `/benchmark` use by
-  default.
-- **Headed via `$B connect`**. Same daemon, but Chromium is visible (rebranded
-  as "GStack Browser") with the Side Panel extension auto-loaded. You watch
-  every command tick through in real time.
-- **Pair-agent over a tunnel**. Daemon binds a second listener that ngrok
-  forwards. A remote agent (Codex, OpenClaw, Hermes, anything that can speak
-  HTTP) drives your local browser through a 26-command allowlist with a
-  scoped, single-use token.
+1. [它是什么](#它是什么)
+2. [Productivity loop（生产力循环）— `/scrape` + `/skillify`](#productivity-loop)
+3. [Architecture（架构）](#architecture)
+4. [命令参考](#命令参考)
+5. [Snapshot system + ref-based selection（快照系统与基于 ref 的选择）](#snapshot-system)
+6. [Browser-skills runtime（browser-skills 运行时）](#browser-skills-runtime)
+7. [Domain-skills（每个站点的 agent notes）](#domain-skills)
+8. [Real-browser mode（真实浏览器模式，`$B connect`）](#real-browser-mode) — 包含 [`--headed` + `--proxy` + `--navigate` (v1.28.0.0)](#headed-mode--proxy--browser-native-downloads-v12800)
+9. [Side Panel + sidebar agent（侧边栏与 sidebar agent）](#side-panel--sidebar-agent)
+10. [Pair-agent（通过 ngrok tunnel 的 remote agents）](#pair-agent)
+11. [Authentication + tokens（认证与 tokens）](#authentication)
+12. [Prompt-injection security stack（L1–L6）](#security-stack)
+13. [Screenshots、PDFs、visual inspection（截图、PDF 与视觉检查）](#screenshots-pdfs-visual)
+14. [Local HTML（`goto file://` vs `load-html`）](#local-html)
+15. [Batch endpoint（批量 endpoint）](#batch-endpoint)
+16. [Console、network、dialog capture（console、network、dialog 捕获）](#capture)
+17. [JS execution（`js` + `eval`）](#js-execution)
+18. [Tabs、frames、state、watch、inbox](#tabs-frames-state)
+19. [CDP escape hatch + CSS inspector（CDP 逃生口与 CSS 检查器）](#cdp)
+20. [Performance + scale（性能与规模）](#performance)
+21. [Multi-workspace isolation（多 workspace 隔离）](#multi-workspace)
+22. [Environment variables（环境变量）](#environment-variables)
+23. [Source map（源码索引）](#source-map)
+24. [Development + testing（开发与测试）](#development)
+25. [Cross-references（交叉引用）](#cross-references)
+26. [致谢](#致谢)
 
 ---
 
-## The productivity loop
+## 它是什么
 
-The shipped headline of v1.19.0.0. Two gstack skills wrap the browser-skills
-runtime so the second time you ask Claude to scrape a page, it runs in ~200ms.
+一个 compiled CLI binary，通过 HTTP 与 persistent local Chromium daemon 通信。CLI 是 thin client：读取 state file，发送 command，把 response 打印到 stdout。真正工作由 daemon 通过 [Playwright](https://playwright.dev/) 完成。
+
+早期作为 Chrome MCP server 的所有事情，现在都通过 plain stdout 完成。没有 JSON-schema framing，没有 protocol negotiation，没有 persistent WebSocket。Claude 的 Bash tool 已经存在，所以直接用它。
+
+三种逐级增强的模式：
+
+- **Headless**（默认）。Daemon 运行无可见窗口的 Chromium。最快、最便宜，`/qa`、`/design-review`、`/benchmark` 等 skills 默认使用。
+- **Headed via `$B connect`**。同一个 daemon，但 Chromium 可见（rebranded as “GStack Browser”），并 auto-load Side Panel extension。你可以实时看到每个 command 发生。
+- **Pair-agent over a tunnel**。Daemon 绑定第二个 listener，由 ngrok 转发。Remote agent（Codex、OpenClaw、Hermes，任何能 speak HTTP 的 agent）通过 26-command allowlist 和 scoped single-use token 驱动你的 local browser。
+
+---
+
+## Productivity loop（生产力循环）
+
+v1.19.0.0 的 shipped headline。两个 gstack skills 包装 browser-skills runtime，所以第二次让 Claude scrape 同一个页面时，约 200ms 完成。
 
 ### `/scrape <intent>`
 
-One entry point for pulling page data. Three paths under the hood:
+提取 page data 的统一入口。底层有三条路径：
 
-1. **Match path (~200ms)** — agent runs `$B skill list`, semantically matches
-   the intent against each skill's `triggers:` array + `description` + `host`,
-   and runs `$B skill run <name>` if a confident match exists.
-2. **Prototype path (~30s)** — no match, agent drives the page with `$B goto`,
-   `$B text`, `$B html`, `$B links`, etc., returns the JSON, and appends a
-   one-line "say `/skillify`" suggestion.
-3. **Mutating-intent refusal** — verbs like *submit*, *click*, *fill* route
-   to `/automate` (Phase 2b, P0 in `TODOS.md`). `/scrape` is read-only by
-   contract.
+1. **Match path (~200ms)** — agent 运行 `$B skill list`，把 intent 与每个 skill 的 `triggers:` array + `description` + `host` 做 semantic match；如果存在 confident match，就运行 `$B skill run <name>`。
+2. **Prototype path (~30s)** — 没有 match 时，agent 用 `$B goto`、`$B text`、`$B html`、`$B links` 等驱动页面，返回 JSON，并追加一行 “say `/skillify`” suggestion。
+3. **Mutating-intent refusal** — *submit*、*click*、*fill* 等动词路由到 `/automate`（Phase 2b，`TODOS.md` 中的 P0）。`/scrape` 按 contract 是 read-only。
 
 ### `/skillify`
 
-Codifies the most recent successful `/scrape` prototype into a permanent
-browser-skill on disk. Eleven steps, three locked contracts:
+把最近一次成功的 `/scrape` prototype 固化成磁盘上的永久 browser-skill。十一步，三个 locked contracts：
 
-- **D1 — Provenance guard.** Walks back ≤10 agent turns for a clearly-bounded
-  `/scrape` result. Refuses with one specific message if cold. No silent
-  synthesis from chat fragments.
-- **D2 — Synthesis input slice.** Extracts ONLY the final-attempt `$B` calls
-  that produced the JSON the user accepted, plus the user's intent string.
-  Drops failed selectors, drops chat, drops earlier-session content.
-- **D3 — Atomic write.** Stages everything to `~/.gstack/.tmp/skillify-<spawnId>/`,
-  runs `$B skill test` against the temp dir, and only renames into the final
-  tier path on test pass + user approval. Test fail or rejection: `rm -rf` the
-  temp dir entirely. No half-written skill ever appears in `$B skill list`.
+- **D1 — Provenance guard.** 回溯 ≤10 个 agent turns，寻找 clearly-bounded 的 `/scrape` result。冷启动时用一条具体 message 拒绝。绝不从 chat fragments 静默 synthesis。
+- **D2 — Synthesis input slice.** 只提取产生用户接受 JSON 的 final-attempt `$B` calls，加上用户 intent string。丢弃 failed selectors、chat 和 earlier-session content。
+- **D3 — Atomic write.** 先把所有内容 stage 到 `~/.gstack/.tmp/skillify-<spawnId>/`，针对 temp dir 运行 `$B skill test`，只有 test pass + user approval 后才 rename 到 final tier path。Test fail 或 rejection：完整 `rm -rf` temp dir。`$B skill list` 中永远不会出现 half-written skill。
 
-Mutating-flow sibling `/automate` is split out as P0 in `TODOS.md` and ships
-on the next branch — same skillify machinery, per-mutating-step confirmation
-gate when running non-codified.
+Mutating-flow sibling `/automate` 被拆成 `TODOS.md` 中的 P0，下一分支发布。它复用同一套 skillify machinery，但运行未固化的 mutating steps 时会对每一步做 confirmation gate。
 
-See [`docs/designs/BROWSER_SKILLS_V1.md`](docs/designs/BROWSER_SKILLS_V1.md)
-for the full design + decision trail.
+完整设计和 decision trail 见 [`docs/designs/BROWSER_SKILLS_V1.md`](docs/designs/BROWSER_SKILLS_V1.md)。
 
 ---
 
-## Architecture
+## Architecture（架构）
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -163,243 +126,215 @@ for the full design + decision trail.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Daemon lifecycle
+### Daemon lifecycle（daemon 生命周期）
 
-1. **First call.** CLI checks `<project>/.gstack/browse.json` for a running
-   server. None found — it spawns `bun run browse/src/server.ts` in the
-   background. Daemon launches headless Chromium via Playwright, picks a
-   random port (10000–60000), generates a bearer token, writes the state
-   file (chmod 600), starts accepting requests. ~3 seconds.
-2. **Subsequent calls.** CLI reads the state file, sends an HTTP POST with
-   the bearer token, prints the response. ~100-200ms round trip.
-3. **Idle shutdown.** After 30 minutes of no commands, daemon shuts down and
-   cleans up the state file. Next call restarts it.
-4. **Crash recovery.** If Chromium crashes, the daemon exits immediately —
-   no self-healing, don't hide failure. CLI detects the dead daemon on the
-   next call and starts a fresh one.
+1. **First call.** CLI 检查 `<project>/.gstack/browse.json` 是否有 running server。没有则在 background spawn `bun run browse/src/server.ts`。Daemon 通过 Playwright 启动 headless Chromium，选择 random port（10000-60000），生成 bearer token，写 state file（chmod 600），开始接收 requests。约 3 秒。
+2. **Subsequent calls.** CLI 读取 state file，带 bearer token 发送 HTTP POST，并打印 response。Round trip 约 100-200ms。
+3. **Idle shutdown.** 30 分钟没有 commands 后，daemon shutdown 并清理 state file。下一次 call 会重启。
+4. **Crash recovery.** 如果 Chromium crash，daemon 立刻退出。没有 self-healing，不隐藏 failure。CLI 在下一次 call 检测 dead daemon，并启动 fresh one。
 
-### Multi-workspace isolation
+### Multi-workspace isolation（多 workspace 隔离）
 
-Each project root (detected via `git rev-parse --show-toplevel`) gets its
-own daemon, port, state file, cookies, and logs. No cross-workspace
-collisions. State at `<project>/.gstack/browse.json`.
+每个 project root（通过 `git rev-parse --show-toplevel` 检测）都有自己的 daemon、port、state file、cookies 和 logs。不会 cross-workspace collisions。State 位于 `<project>/.gstack/browse.json`。
 
 | Workspace | State file | Port |
 |-----------|-----------|------|
-| `/code/project-a` | `/code/project-a/.gstack/browse.json` | random (10000–60000) |
-| `/code/project-b` | `/code/project-b/.gstack/browse.json` | random (10000–60000) |
+| `/code/project-a` | `/code/project-a/.gstack/browse.json` | random (10000-60000) |
+| `/code/project-b` | `/code/project-b/.gstack/browse.json` | random (10000-60000) |
 
 ---
 
-## Command reference
+## 命令参考
 
-~70 commands across read, write, and meta. Selectors accept CSS, `@e` refs
-from `snapshot`, or `@c` refs from `snapshot -C`. Full table:
+约 70 个 commands，覆盖 read、write 和 meta。Selectors 接受 CSS、来自 `snapshot` 的 `@e` refs，或来自 `snapshot -C` 的 `@c` refs。完整表：
 
-### Reading
-
-| Command | Description |
-|---------|-------------|
-| `text [sel]` | Clean page text (or scoped to a selector) |
-| `html [sel]` | innerHTML, or full page HTML if no selector |
-| `links` | All links as `text → href` |
-| `forms` | Form fields as JSON |
-| `accessibility` | Full ARIA tree |
-| `media [--images\|--videos\|--audio] [sel]` | Media elements with URLs, dimensions, types |
-| `data [--jsonld\|--og\|--meta\|--twitter]` | Structured data: JSON-LD, OG, Twitter Cards, meta tags |
-
-### Inspection
+### Reading（读取）
 
 | Command | Description |
 |---------|-------------|
-| `js <expr>` | Run inline JavaScript expression in page context, return as string |
-| `eval <file>` | Run JS from a file (path under /tmp or cwd; same sandbox as `js`) |
+| `text [sel]` | 干净 page text（或限定到 selector） |
+| `html [sel]` | innerHTML；无 selector 时为 full page HTML |
+| `links` | 所有 links，格式为 `text → href` |
+| `forms` | Form fields，输出为 JSON |
+| `accessibility` | 完整 ARIA tree |
+| `media [--images\|--videos\|--audio] [sel]` | Media elements，包含 URLs、dimensions、types |
+| `data [--jsonld\|--og\|--meta\|--twitter]` | Structured data：JSON-LD、OG、Twitter Cards、meta tags |
+
+### Inspection（检查）
+
+| Command | Description |
+|---------|-------------|
+| `js <expr>` | 在 page context 运行 inline JavaScript expression，并以 string 返回 |
+| `eval <file>` | 从 file 运行 JS（path under /tmp or cwd；与 `js` 相同 sandbox） |
 | `css <sel> <prop>` | Computed CSS value |
-| `attrs <sel\|@ref>` | Element attributes as JSON |
-| `is <prop> <sel\|@ref>` | State check: visible, hidden, enabled, disabled, checked, editable, focused |
+| `attrs <sel\|@ref>` | Element attributes，输出为 JSON |
+| `is <prop> <sel\|@ref>` | State check：visible、hidden、enabled、disabled、checked、editable、focused |
 | `console [--clear\|--errors]` | Captured console messages |
 | `network [--clear]` | Captured network requests |
 | `dialog [--clear]` | Captured dialog messages |
-| `cookies` | All cookies as JSON |
-| `storage` / `storage set <key> <val>` | Read both localStorage + sessionStorage; set localStorage |
+| `cookies` | All cookies，输出为 JSON |
+| `storage` / `storage set <key> <val>` | 读取 localStorage + sessionStorage；设置 localStorage |
 | `perf` | Page load timings |
-| `inspect [sel] [--all] [--history]` | Deep CSS via CDP — full rule cascade, box model, computed styles |
-| `ux-audit` | Page structure for behavioral analysis: site ID, nav, headings, text blocks, interactive elements |
-| `cdp <Domain.method> [json-params]` | Raw CDP method dispatch (deny-default; allowlist in `cdp-allowlist.ts`) |
+| `inspect [sel] [--all] [--history]` | Deep CSS via CDP：full rule cascade、box model、computed styles |
+| `ux-audit` | 用于 behavioral analysis 的 page structure：site ID、nav、headings、text blocks、interactive elements |
+| `cdp <Domain.method> [json-params]` | Raw CDP method dispatch（deny-default；allowlist in `cdp-allowlist.ts`） |
 
-### Navigation
+### Navigation（导航）
 
 | Command | Description |
 |---------|-------------|
-| `goto <url>` | Navigate to URL (`http://`, `https://`, `file://`) |
-| `load-html <file>` | Load local HTML in memory (no `file://` URL; survives viewport scale changes) |
+| `goto <url>` | Navigate to URL（`http://`、`https://`、`file://`） |
+| `load-html <file>` | 在 memory 中加载 local HTML（没有 `file://` URL；viewport scale changes 后仍保留） |
 | `back`, `forward`, `reload` | Standard nav |
 | `url` | Current page URL |
-| `wait <sel\|--networkidle\|--load>` | Wait for element, network idle, or page load (15s timeout) |
+| `wait <sel\|--networkidle\|--load>` | 等待 element、network idle 或 page load（15s timeout） |
 
-### Interaction
+### Interaction（交互）
 
 | Command | Description |
 |---------|-------------|
 | `click <sel\|@ref>` | Click element |
 | `fill <sel> <val>` | Fill input |
-| `select <sel> <val>` | Select dropdown option (value, label, or visible text) |
+| `select <sel> <val>` | Select dropdown option（value、label 或 visible text） |
 | `hover <sel>` | Hover element |
 | `type <text>` | Type into focused element |
-| `press <key>` | Playwright keyboard key (case-sensitive: Enter, Tab, ArrowUp, Shift+Enter, Control+A, ...) |
-| `scroll [sel\|@ref]` | Scroll element into view, or jump to page bottom if no selector |
-| `viewport [<WxH>] [--scale <n>]` | Set viewport size + optional `deviceScaleFactor` 1-3 (retina screenshots) |
+| `press <key>` | Playwright keyboard key（case-sensitive: Enter, Tab, ArrowUp, Shift+Enter, Control+A, ...） |
+| `scroll [sel\|@ref]` | Scroll element into view；无 selector 时跳到 page bottom |
+| `viewport [<WxH>] [--scale <n>]` | 设置 viewport size + optional `deviceScaleFactor` 1-3（retina screenshots） |
 | `upload <sel> <file> [...]` | Upload file(s) |
-| `dialog-accept [text]` | Auto-accept next alert/confirm/prompt; text is sent for prompts |
+| `dialog-accept [text]` | Auto-accept next alert/confirm/prompt；text 用于 prompts |
 | `dialog-dismiss` | Auto-dismiss next dialog |
 
-### Style + cleanup
+### Style + cleanup（样式与清理）
 
 | Command | Description |
 |---------|-------------|
-| `style <sel> <prop> <val>` | Modify CSS property (with undo support) |
+| `style <sel> <prop> <val>` | 修改 CSS property（支持 undo） |
 | `style --undo [N]` | Undo last N style changes |
 | `cleanup [--ads\|--cookies\|--sticky\|--social\|--all]` | Remove page clutter |
-| `prettyscreenshot [--scroll-to <sel\|text>] [--cleanup] [--hide <sel>...] [path]` | Clean screenshot with optional cleanup, scroll, hide |
+| `prettyscreenshot [--scroll-to <sel\|text>] [--cleanup] [--hide <sel>...] [path]` | Clean screenshot，支持 cleanup、scroll、hide |
 
-### Visual
-
-| Command | Description |
-|---------|-------------|
-| `screenshot [--selector <css>] [--viewport] [--clip x,y,w,h] [--base64] [sel\|@ref] [path]` | Five modes: full page, viewport, element crop, region clip, base64 |
-| `pdf [path] [--format letter\|a4\|legal] [...]` | PDF with full layout: format, width/height, margins, header/footer templates, page numbers, --tagged for accessibility, --toc waits for Paged.js |
-| `responsive [prefix]` | Three screenshots: mobile (375x812), tablet (768x1024), desktop (1280x720) |
-| `diff <url1> <url2>` | Text diff between two URLs |
-
-### Cookies + headers
+### Visual（视觉输出）
 
 | Command | Description |
 |---------|-------------|
-| `cookie <name>=<value>` | Set cookie on current page domain |
-| `cookie-import <json>` | Import cookies from JSON file |
-| `cookie-import-browser [browser] [--domain d]` | Import from installed Chromium browsers (interactive picker, or `--domain` for direct import) |
-| `header <name>:<value>` | Set custom request header (sensitive values auto-redacted) |
-| `useragent <string>` | Set user agent (triggers context recreation, invalidates refs) |
+| `screenshot [--selector <css>] [--viewport] [--clip x,y,w,h] [--base64] [sel\|@ref] [path]` | 五种模式：full page、viewport、element crop、region clip、base64 |
+| `pdf [path] [--format letter\|a4\|legal] [...]` | 带 full layout 的 PDF：format、width/height、margins、header/footer templates、page numbers，`--tagged` 用于 accessibility，`--toc` waits for Paged.js |
+| `responsive [prefix]` | 三张 screenshots：mobile (375x812)、tablet (768x1024)、desktop (1280x720) |
+| `diff <url1> <url2>` | 两个 URLs 之间的 text diff |
 
-### Tabs + frames
-
-| Command | Description |
-|---------|-------------|
-| `tabs` | List open tabs |
-| `tab <id>` | Switch to tab |
-| `newtab [url] [--json]` | Open new tab; `--json` returns `{tabId, url}` for programmatic use |
-| `closetab [id]` | Close tab |
-| `tab-each <command> [args...]` | Fan out a command across every open tab; returns JSON |
-| `frame <sel\|@ref\|--name n\|--url pattern\|main>` | Switch to iframe context (or back to main); clears refs |
-
-### Extraction
+### Cookies + headers（cookies 与 headers）
 
 | Command | Description |
 |---------|-------------|
-| `download <url\|@ref> [path] [--base64]` | Download URL or media element using browser cookies |
-| `scrape <images\|videos\|media> [--selector] [--dir] [--limit]` | Bulk download all media from page; writes `manifest.json` |
-| `archive [path]` | Save complete page as MHTML via CDP |
+| `cookie <name>=<value>` | 在 current page domain 设置 cookie |
+| `cookie-import <json>` | 从 JSON file 导入 cookies |
+| `cookie-import-browser [browser] [--domain d]` | 从已安装 Chromium browsers 导入（interactive picker，或 `--domain` direct import） |
+| `header <name>:<value>` | 设置 custom request header（sensitive values auto-redacted） |
+| `useragent <string>` | 设置 user agent（触发 context recreation，invalidates refs） |
 
-### Snapshot
-
-| Command | Description |
-|---------|-------------|
-| `snapshot [-i] [-c] [-d N] [-s sel] [-D] [-a] [-o path] [-C]` | Accessibility tree with `@e` refs; `-i` interactive only, `-c` compact, `-d N` depth, `-s` scope, `-D` diff vs previous, `-a` annotated screenshot, `-C` cursor-interactive `@c` refs |
-
-### Server lifecycle
+### Tabs + frames（tabs 与 frames）
 
 | Command | Description |
 |---------|-------------|
-| `status` | Daemon health + mode (headless / headed / cdp) |
-| `stop` | Shut down daemon |
-| `restart` | Restart daemon |
-| `connect` | Launch headed GStack Browser with Side Panel extension |
-| `disconnect` | Close headed Chrome, return to headless |
-| `focus [@ref]` | Bring headed Chrome to foreground (macOS); `@ref` also scrolls into view |
-| `state save\|load <name>` | Save or load browser state (cookies + URLs) |
-| `memory [--json]` | Snapshot Bun heap + per-tab JS heap + Chromium process tree + bounded buffer sizes. Use `--json` for programmatic consumers; text mode renders sorted top-10 tabs with "and N more" tail. |
+| `tabs` | 列出 open tabs |
+| `tab <id>` | 切换到指定 tab |
+| `newtab [url] [--json]` | 打开新 tab；`--json` 返回 `{tabId, url}` 供 programmatic use |
+| `closetab [id]` | 关闭 tab |
+| `tab-each <command> [args...]` | 在每个 open tab 上 fan out command；返回 JSON |
+| `frame <sel\|@ref\|--name n\|--url pattern\|main>` | 切换到 iframe context（或回 main）；清除 refs |
 
-### Handoff
+### Extraction（提取）
 
 | Command | Description |
 |---------|-------------|
-| `handoff [reason]` | Open visible Chrome at current page for user takeover (CAPTCHA, MFA, complex auth) |
-| `resume` | Re-snapshot after user takeover, return control to AI |
+| `download <url\|@ref> [path] [--base64]` | 使用 browser cookies 下载 URL 或 media element |
+| `scrape <images\|videos\|media> [--selector] [--dir] [--limit]` | 从 page bulk download 所有 media；写入 `manifest.json` |
+| `archive [path]` | 通过 CDP 保存 complete page as MHTML |
 
-### Meta + chains
-
-| Command | Description |
-|---------|-------------|
-| `chain` (JSON via stdin) | Run a sequence of commands. Pipe `[["cmd","arg1",...],...]` to `$B chain`. Stops at first error. |
-| `inbox [--clear]` | List messages from sidebar scout inbox |
-| `watch [stop]` | Passive observation — periodic snapshots while user browses; `stop` returns summary |
-
-### Browser-skills runtime
+### Snapshot（快照）
 
 | Command | Description |
 |---------|-------------|
-| `skill list` | List all browser-skills with resolved tier (project > global > bundled) |
-| `skill show <name>` | Print SKILL.md |
-| `skill run <name> [--arg k=v...] [--timeout=Ns]` | Spawn the skill script with a per-spawn scoped token |
-| `skill test <name>` | Run the skill's `script.test.ts` against bundled fixtures |
-| `skill rm <name> [--global]` | Tombstone a user-tier skill |
+| `snapshot [-i] [-c] [-d N] [-s sel] [-D] [-a] [-o path] [-C]` | 带 `@e` refs 的 accessibility tree；`-i` 仅 interactive，`-c` compact，`-d N` depth，`-s` scope，`-D` 与上次 diff，`-a` annotated screenshot，`-C` cursor-interactive `@c` refs |
 
-### Domain-skills
+### Server lifecycle（server 生命周期）
 
 | Command | Description |
 |---------|-------------|
-| `domain-skill save\|list\|show\|edit\|promote-to-global\|rollback\|rm <host?>` | Per-site agent notes (host derived from active tab). Lifecycle: quarantined → active (after N=3 successful uses without classifier flag) → global (explicit promote) |
+| `status` | Daemon health + mode（headless / headed / cdp） |
+| `stop` | 关闭 daemon |
+| `restart` | 重启 daemon |
+| `connect` | 启动带 Side Panel extension 的 headed GStack Browser |
+| `disconnect` | 关闭 headed Chrome，回到 headless |
+| `focus [@ref]` | 将 headed Chrome 带到前台（macOS）；`@ref` 同时 scroll into view |
+| `state save\|load <name>` | 保存或加载 browser state（cookies + URLs） |
+| `memory [--json]` | Snapshot Bun heap + per-tab JS heap + Chromium process tree + bounded buffer sizes。`--json` 用于 programmatic consumers；text mode 渲染 sorted top-10 tabs，并显示 “and N more” tail。 |
 
-Aliases: `setcontent`, `set-content`, `setContent` → `load-html` (canonicalized
-before scope checks, so a read-scoped token can't use the alias to run a
-write command).
+### Handoff（人工接管）
+
+| Command | Description |
+|---------|-------------|
+| `handoff [reason]` | 在当前 page 打开 visible Chrome 让用户接管（CAPTCHA、MFA、complex auth） |
+| `resume` | 用户接管后重新 snapshot，并把控制权交回 AI |
+
+### Meta + chains（元命令与链式执行）
+
+| Command | Description |
+|---------|-------------|
+| `chain` (JSON via stdin) | 运行 commands sequence。把 `[["cmd","arg1",...],...]` pipe 给 `$B chain`。遇到第一个 error 停止。 |
+| `inbox [--clear]` | 列出 sidebar scout inbox 中的 messages |
+| `watch [stop]` | Passive observation：用户浏览时 periodic snapshots；`stop` 返回 summary |
+
+### Browser-skills runtime（browser-skills 运行时）
+
+| Command | Description |
+|---------|-------------|
+| `skill list` | 列出所有 browser-skills，带 resolved tier（project > global > bundled） |
+| `skill show <name>` | 打印 SKILL.md |
+| `skill run <name> [--arg k=v...] [--timeout=Ns]` | 用 per-spawn scoped token spawn skill script |
+| `skill test <name>` | 针对 bundled fixtures 运行 skill 的 `script.test.ts` |
+| `skill rm <name> [--global]` | Tombstone user-tier skill |
+
+### Domain-skills（domain notes）
+
+| Command | Description |
+|---------|-------------|
+| `domain-skill save\|list\|show\|edit\|promote-to-global\|rollback\|rm <host?>` | Per-site agent notes（host derived from active tab）。Lifecycle: quarantined → active（N=3 successful uses without classifier flag 后）→ global（explicit promote） |
+
+Aliases: `setcontent`, `set-content`, `setContent` → `load-html`（scope checks 前 canonicalized，所以 read-scoped token 不能用 alias 运行 write command）。
 
 ---
 
-## Snapshot system
+## Snapshot system（快照系统）
 
-The browser's key innovation is **ref-based element selection** built on
-Playwright's accessibility tree API. No DOM mutation. No injected scripts.
-Just Playwright's native AX API.
+Browser 的关键创新是基于 Playwright accessibility tree API 的 **ref-based element selection**。不修改 DOM。不注入 scripts。只用 Playwright 原生 AX API。
 
-### How `@ref` works
+### `@ref` 如何工作
 
-1. `page.locator(scope).ariaSnapshot()` returns a YAML-like accessibility tree.
-2. The snapshot parser assigns refs (`@e1`, `@e2`, ...) to each element.
-3. For each ref, it builds a Playwright `Locator` (using `getByRole` + nth-child).
-4. The ref→Locator map is stored on `BrowserManager`.
-5. Later commands like `click @e3` look up the Locator and call `locator.click()`.
+1. `page.locator(scope).ariaSnapshot()` 返回 YAML-like accessibility tree。
+2. Snapshot parser 为每个 element 分配 refs（`@e1`、`@e2` ...）。
+3. 对每个 ref，构建 Playwright `Locator`（使用 `getByRole` + nth-child）。
+4. ref→Locator map 存在 `BrowserManager` 上。
+5. 之后 `click @e3` 这样的 commands 会查 Locator 并调用 `locator.click()`。
 
-### Ref staleness detection
+### Ref staleness detection（ref 过期检测）
 
-SPAs can mutate the DOM without navigation (React router, tab switches,
-modals). When this happens, refs collected from a previous `snapshot` may
-point to elements that no longer exist. `resolveRef()` runs an async
-`count()` check before using any ref — if the element count is 0, it throws
-immediately with a message telling the agent to re-run `snapshot`. Fails fast
-(~5ms) instead of waiting for Playwright's 30-second action timeout.
+SPAs 可以在不 navigation 的情况下 mutate DOM（React router、tab switches、modals）。发生这种情况时，之前 `snapshot` 收集的 refs 可能指向已不存在的 elements。`resolveRef()` 在使用任何 ref 前运行 async `count()` check；如果 element count 为 0，立刻抛出错误并提示 agent 重新运行 `snapshot`。这样快速失败（约 5ms），而不是等待 Playwright 30 秒 action timeout。
 
-### Extended snapshot features
+### Extended snapshot features（扩展快照能力）
 
-- **`--diff` (`-D`).** Stores each snapshot as a baseline. On the next `-D`
-  call, returns a unified diff showing what changed. Use this to verify that
-  an action (click, fill, etc.) actually worked.
-- **`--annotate` (`-a`).** Injects temporary overlay divs at each ref's
-  bounding box, takes a screenshot with ref labels visible, then removes the
-  overlays. Use `-o <path>` to control the output.
-- **`--cursor-interactive` (`-C`).** Scans for non-ARIA interactive elements
-  (divs with `cursor:pointer`, `onclick`, `tabindex>=0`) using `page.evaluate`.
-  Assigns `@c1`, `@c2`... refs with deterministic `nth-child` CSS selectors.
-  These are elements the ARIA tree misses but users can still click.
+- **`--diff` (`-D`).** 每次 snapshot 存为 baseline。下一次 `-D` call 返回 unified diff，显示变化。用它验证 action（click、fill 等）是否真的生效。
+- **`--annotate` (`-a`).** 在每个 ref bounding box 注入临时 overlay div，拍一张带 ref labels 的 screenshot，然后移除 overlays。用 `-o <path>` 控制 output。
+- **`--cursor-interactive` (`-C`).** 用 `page.evaluate` 扫描 non-ARIA interactive elements（`cursor:pointer`、`onclick`、`tabindex>=0` 的 divs）。分配 `@c1`、`@c2`... refs，使用 deterministic `nth-child` CSS selectors。这些是 ARIA tree 漏掉但用户仍可 click 的 elements。
 
 ---
 
-## Browser-skills runtime
+## Browser-skills runtime（browser-skills 运行时）
 
-Per-task directories that codify a repeated browser flow into a deterministic
-Playwright script. The compounding layer.
+把重复 browser flow 固化成 deterministic Playwright script 的 per-task directories。这是 compounding layer。
 
-### Anatomy of a browser-skill
+### Browser-skill anatomy（browser-skill 结构）
 
 ```
 browser-skills/<name>/
@@ -410,240 +345,169 @@ browser-skills/<name>/
 └── script.test.ts                  # parser tests against the fixture (no daemon required)
 ```
 
-The bundled reference is `browser-skills/hackernews-frontpage/`: scrapes the
-HN front page, returns 30 stories as JSON. Try it:
+Bundled reference 是 `browser-skills/hackernews-frontpage/`：scrape HN front page，并以 JSON 返回 30 条 stories。试试：
 
 ```bash
-$B skill list                            # shows hackernews-frontpage (bundled)
+$B skill list                            # 显示 hackernews-frontpage (bundled)
 $B skill show hackernews-frontpage
 $B skill run hackernews-frontpage        # JSON of 30 stories in ~200ms
-$B skill test hackernews-frontpage       # runs script.test.ts against fixture
+$B skill test hackernews-frontpage       # 针对 fixture 运行 script.test.ts
 ```
 
-### Three-tier storage
+### Three-tier storage（三层存储）
 
-`$B skill list` walks all three in priority order; first hit wins. Resolved
-tier is printed inline next to each skill name:
+`$B skill list` 按 priority 遍历三层；first hit wins。Resolved tier 会 inline 打印在每个 skill name 旁边：
 
 | Tier | Path | When |
 |------|------|------|
-| **Project** | `<project>/.gstack/browser-skills/<name>/` | Project-specific skills (committed or gitignored) |
-| **Global** | `~/.gstack/browser-skills/<name>/` | Per-user skills, all projects |
-| **Bundled** | `<gstack-install>/browser-skills/<name>/` | Ships with gstack, read-only |
+| **Project** | `<project>/.gstack/browser-skills/<name>/` | Project-specific skills（committed or gitignored） |
+| **Global** | `~/.gstack/browser-skills/<name>/` | Per-user skills，适用于所有 projects |
+| **Bundled** | `<gstack-install>/browser-skills/<name>/` | 随 gstack ship，read-only |
 
-### Trust model
+### Trust model（信任模型）
 
-Two orthogonal axes — daemon-side capability and process-side env — independently
-configured.
+两个正交轴：daemon-side capability 和 process-side env，彼此独立配置。
 
 | Axis | Mechanism | Default |
 |------|-----------|---------|
-| **Daemon-side capability** | Per-spawn scoped token bound to read+write scope (browser-driving commands minus admin: `eval`, `js`, `cookies`, `storage`). Single-use clientId encodes skill name + spawn id. Revoked when spawn exits. | Always scoped — never the daemon root token |
-| **Process-side env** | `trusted: true` frontmatter passes `process.env` minus `GSTACK_TOKEN`. `trusted: false` (default) drops everything except a minimal allowlist (LANG, LC_ALL, TERM, TZ) and pattern-strips secrets (TOKEN/KEY/SECRET/PASSWORD, AWS_*, ANTHROPIC_*, OPENAI_*, GITHUB_*, etc.) | Untrusted (must opt in) |
+| **Daemon-side capability** | Per-spawn scoped token，绑定 read+write scope（browser-driving commands minus admin: `eval`, `js`, `cookies`, `storage`）。Single-use clientId 编码 skill name + spawn id。Spawn 退出时 revoked。 | 始终 scoped，绝不使用 daemon root token |
+| **Process-side env** | `trusted: true` frontmatter 传递 `process.env` minus `GSTACK_TOKEN`。`trusted: false`（默认）丢弃除 minimal allowlist（LANG、LC_ALL、TERM、TZ）外所有 env，并按 pattern stripping secrets（TOKEN/KEY/SECRET/PASSWORD、AWS_*、ANTHROPIC_*、OPENAI_*、GITHUB_* 等）。 | Untrusted（必须 opt in） |
 
-`GSTACK_PORT` and `GSTACK_SKILL_TOKEN` are injected last, so a parent process
-can't override them.
+`GSTACK_PORT` 和 `GSTACK_SKILL_TOKEN` 最后注入，所以 parent process 不能 override 它们。
 
-### Output protocol
+### Output protocol（输出协议）
 
-stdout = JSON. stderr = streaming logs. Exit 0 / non-zero. Default 60s
-timeout, override via `--timeout=Ns`. Max stdout 1MB (truncate + non-zero
-exit if exceeded). Matches `gh` / `kubectl` / `docker` conventions.
+stdout = JSON。stderr = streaming logs。Exit 0 / non-zero。默认 60s timeout，可用 `--timeout=Ns` override。Max stdout 1MB（超出则 truncate + non-zero exit）。匹配 `gh` / `kubectl` / `docker` conventions。
 
-### How the SDK distribution works
+### SDK distribution 工作方式
 
-Each skill ships its own copy of `browse-client.ts` at `_lib/browse-client.ts`,
-byte-identical to the canonical `browse/src/browse-client.ts`. `/skillify`
-copies the canonical SDK alongside every generated script. Each skill is
-fully self-contained: copy the directory anywhere, it runs. Version drift
-impossible — the SDK is frozen at the version the skill was authored against.
+每个 skill 都自带一份 `_lib/browse-client.ts`，与 canonical `browse/src/browse-client.ts` byte-identical。`/skillify` 会把 canonical SDK 与每个 generated script 一起复制。每个 skill 完全 self-contained：目录复制到哪里都能运行。Version drift 不可能，因为 SDK frozen 在 skill authoring 时的版本。
 
-### Atomic write discipline (`/skillify` D3)
+### Atomic write discipline（`/skillify` D3）
 
-`browse/src/browser-skill-write.ts` provides three primitives:
+`browse/src/browser-skill-write.ts` 提供三个 primitives：
 
-- `stageSkill(opts)` — writes files to `~/.gstack/.tmp/skillify-<spawnId>/<name>/`
-  with restrictive perms.
-- `commitSkill(opts)` — atomic `fs.renameSync` into the final tier path.
-  Refuses to follow symlinked staging dirs (`lstat` check), refuses to
-  clobber existing skills, runs `realpath` discipline on the tier root.
-- `discardStaged(stagedDir)` — `rm -rf` the staged dir + per-spawn wrapper.
-  Idempotent. Called on test failure or approval rejection.
+- `stageSkill(opts)` — 把 files 写到 `~/.gstack/.tmp/skillify-<spawnId>/<name>/`，使用 restrictive perms。
+- `commitSkill(opts)` — atomic `fs.renameSync` 到 final tier path。拒绝 follow symlinked staging dirs（`lstat` check），拒绝 clobber existing skills，对 tier root 使用 `realpath` discipline。
+- `discardStaged(stagedDir)` — `rm -rf` staged dir + per-spawn wrapper。Idempotent。Test failure 或 approval rejection 时调用。
 
-There is no "almost shipped" state. Tests pass + user approves = atomic
-rename. Tests fail or user rejects = staging vanishes.
+没有 “almost shipped” 状态。Tests pass + user approves = atomic rename。Tests fail 或 user rejects = staging 消失。
 
-See [`docs/designs/BROWSER_SKILLS_V1.md`](docs/designs/BROWSER_SKILLS_V1.md)
-for the full design rationale.
+完整设计 rationale 见 [`docs/designs/BROWSER_SKILLS_V1.md`](docs/designs/BROWSER_SKILLS_V1.md)。
 
 ---
 
-## Domain-skills
+## Domain-skills（domain notes）
 
-Different mental model from browser-skills: agent-authored *notes* about a
-site (not deterministic scripts). One per hostname. Lifecycle:
+与 browser-skills 不同的 mental model：agent-authored 的 site *notes*（不是 deterministic scripts）。每个 hostname 一个。Lifecycle：
 
-1. `domain-skill save <host>` — agent writes a note about the site (e.g.,
-   "GitHub: PR creation needs `--draft` flag for non-staff", "X.com: timeline
-   uses cursor pagination, not page numbers"). Default state: **quarantined**.
-2. After **N=3** successful uses without the L4 prompt-injection classifier
-   flagging the note, it auto-promotes to **active**.
-3. `domain-skill promote-to-global <host>` lifts it to the global tier
-   (machine-wide, all projects).
-4. `domain-skill rollback <host>` demotes; `domain-skill rm <host>` tombstones.
+1. `domain-skill save <host>` — agent 写一条关于 site 的 note（例如 “GitHub: PR creation needs `--draft` flag for non-staff”，“X.com: timeline uses cursor pagination, not page numbers”）。默认状态：**quarantined**。
+2. 连续 **N=3** 次 successful uses 且 L4 prompt-injection classifier 没有 flag 这条 note 后，auto-promotes to **active**。
+3. `domain-skill promote-to-global <host>` 把它提升到 global tier（machine-wide，all projects）。
+4. `domain-skill rollback <host>` demotes；`domain-skill rm <host>` tombstones。
 
-The classifier flag is set automatically by the L4 prompt-injection scan;
-agents do not set it manually.
+Classifier flag 由 L4 prompt-injection scan 自动设置；agents 不手动设置。
 
-Storage:
+Storage（存储位置）:
+
 - Per-project: `<project>/.gstack/domain-skills/<host>.md`
 - Global: `~/.gstack/domain-skills/<host>.md`
 
-Source: `browse/src/domain-skills.ts`, `domain-skill-commands.ts`.
+Source（源码）: `browse/src/domain-skills.ts`, `domain-skill-commands.ts`。
 
 ---
 
-## Real-browser mode
+## Real-browser mode（真实浏览器模式）
 
-`$B connect` launches **GStack Browser** — a rebranded Chromium controlled by
-Playwright with the Side Panel extension auto-loaded and anti-bot stealth
-patches applied. You watch every command tick through a visible window in
-real time.
+`$B connect` 启动 **GStack Browser**：一个由 Playwright 控制、auto-load Side Panel extension、应用 anti-bot stealth patches 的 rebranded Chromium。你可以在 visible window 中实时观看每个 command。
 
 ```bash
-$B connect              # launches GStack Browser, headed
-$B goto https://app.com # navigates in the visible window
-$B snapshot -i          # refs from the real page
-$B click @e3            # clicks in the real window
-$B focus                # bring window to foreground (macOS)
-$B status               # shows Mode: cdp
-$B disconnect           # back to headless mode
+$B connect              # 启动 headed GStack Browser
+$B goto https://app.com # 在 visible window 中导航
+$B snapshot -i          # 来自 real page 的 refs
+$B click @e3            # 在 real window 中点击
+$B focus                # 将 window 带到前台（macOS）
+$B status               # 显示 Mode: cdp
+$B disconnect           # 回到 headless mode
 ```
 
-The window has a subtle golden shimmer line at the top and a floating
-"gstack" pill in the bottom-right corner so you always know which Chrome
-window is being controlled.
+Window 顶部有一条 subtle golden shimmer line，右下角有 floating “gstack” pill，让你总能知道哪个 Chrome window 正被控制。
 
-### What "GStack Browser" means
+### "GStack Browser" 是什么意思
 
-Not your daily Chrome — a Playwright-managed Chromium with custom branding
-in the Dock and menu bar, anti-bot stealth (sites like Google and NYTimes
-work without captchas), a custom user agent, and the gstack extension
-pre-loaded via `launchPersistentContext`. Your regular Chrome with your tabs
-and bookmarks stays untouched.
+它不是你的日常 Chrome，而是 Playwright-managed Chromium，带 Dock 和 menu bar custom branding、anti-bot stealth（Google 和 NYTimes 等 sites 无 captchas）、custom user agent，并通过 `launchPersistentContext` preload gstack extension。你的常规 Chrome、tabs 和 bookmarks 不受影响。
 
-### When to use headed mode
+### 何时使用 headed mode
 
-- **QA testing** where you want to watch Claude click through your app
-- **Design review** where you need to see exactly what Claude sees
-- **Debugging** where headless behavior differs from real Chrome
-- **Demos** where you're sharing your screen
-- **Pair-agent** sessions (the remote agent drives your local browser)
+- **QA testing**：你想观看 Claude click through your app
+- **Design review**：你需要看到 Claude 看到的 exact 内容
+- **Debugging**：headless behavior 与 real Chrome 不同时
+- **Demos**：你正在 share screen
+- **Pair-agent** sessions（remote agent drives your local browser）
 
-### CDP-aware skills
+### CDP-aware skills（CDP 感知 skills）
 
-When in real-browser mode, `/qa` and `/design-review` automatically skip
-cookie import prompts and headless workarounds — the headed browser already
-has whatever session you logged into.
+在 real-browser mode 中，`/qa` 和 `/design-review` 会自动跳过 cookie import prompts 和 headless workarounds，因为 headed browser 已经带有你登录的 session。
 
-### Headed mode + proxy + browser-native downloads (v1.28.0.0)
+### Headed mode + proxy + browser-native downloads（v1.28.0.0）
 
-Three coordinated flags for sites that block headless browsers, fingerprint
-Playwright defaults, or sit behind authenticated upstream proxies:
+三个协调 flags，面向 block headless browsers、fingerprint Playwright defaults，或位于 authenticated upstream proxies 后的网站：
 
 ```bash
-# Visible Chromium. Auto-spawns Xvfb on Linux containers without DISPLAY.
+# 可见 Chromium。在没有 DISPLAY 的 Linux containers 中自动 spawn Xvfb。
 $B --headed goto https://example.com
 
-# SOCKS5 with auth — Chromium can't prompt for SOCKS5 creds, so $B runs a
-# local 127.0.0.1 bridge that handles the auth handshake.
+# 带 auth 的 SOCKS5。Chromium 无法提示输入 SOCKS5 creds，因此 $B 会运行一个
+# local 127.0.0.1 bridge 来处理 auth handshake。
 $B --proxy socks5://user:pass@residential.proxy.host:1080 goto https://example.com
 
-# HTTP/HTTPS proxy passes through to Chromium directly.
+# HTTP/HTTPS proxy 会直接透传给 Chromium。
 $B --proxy http://corp-proxy:3128 goto https://example.com
 
-# Browser-native download for Content-Disposition, redirect chains, anti-bot
-# CDNs where page.request.fetch() falls over.
+# Browser-native download，用于 Content-Disposition、redirect chains，以及
+# page.request.fetch() 失效的 anti-bot CDNs。
 $B download "https://protected.example.com/file" /tmp/file.bin --navigate
 
-# Combined.
+# 组合使用。
 $B --headed --proxy socks5://user:pass@host:1080 \
    download "https://protected.example.com/file" /tmp/file.bin --navigate
 ```
 
-**Credential policy.** Pass creds via the URL (`socks5://user:pass@host`) OR
-the env vars `BROWSE_PROXY_USER` / `BROWSE_PROXY_PASS` — never both. `$B`
-refuses with a clear hint when both are set; silent override created
-"works on my machine" debugging traps.
+**Credential policy（凭据策略）。** Creds 通过 URL（`socks5://user:pass@host`）或 env vars `BROWSE_PROXY_USER` / `BROWSE_PROXY_PASS` 传入，二选一，不能同时设置。两者都存在时，`$B` 会拒绝并给出明确 hint；silent override 会制造 “works on my machine” debugging traps。
 
-**Daemon discipline.** `--proxy` and `--headed` are daemon-startup config.
-A running daemon with config A meeting a new invocation with config B exits
-1 with a `browse disconnect` hint instead of silently restarting and dropping
-tab state, cookies, or sessions.
+**Daemon discipline（daemon 纪律）。** `--proxy` 和 `--headed` 是 daemon-startup config。运行中的 daemon 若以 config A 启动，而新 invocation 带 config B，会 exit 1 并提示 `browse disconnect`，而不是 silent restart 导致 tab state、cookies 或 sessions 丢失。
 
-**Stealth scope.** When `--headed` or `--proxy` are set, `$B` masks
-`navigator.webdriver` only — via Chromium's
-`--disable-blink-features=AutomationControlled` plus a small init script.
-We do NOT fake `navigator.plugins`, `navigator.languages`, or `window.chrome`
-— modern fingerprinters check those for consistency, and synthesizing fixed
-values can flag MORE bot-like, not less. ChromeDriver's `cdc_` runtime
-artifacts and the Permissions API patch are still cleaned up.
+**Stealth scope（隐身范围）。** 设置 `--headed` 或 `--proxy` 时，`$B` 只 mask `navigator.webdriver`：通过 Chromium 的 `--disable-blink-features=AutomationControlled` 加一个小 init script。我们**不**伪造 `navigator.plugins`、`navigator.languages` 或 `window.chrome`。Modern fingerprinters 会检查一致性，合成 fixed values 反而可能更像 bot。ChromeDriver 的 `cdc_` runtime artifacts 和 Permissions API patch 仍会清理。
 
-**Container support.** `--headed` on Linux without `DISPLAY` walks the
-display range (`:99`, `:100`, ...) until `xdpyinfo` reports a free slot,
-then spawns Xvfb. Cleanup-on-disconnect validates the recorded PID's
-`/proc/<pid>/cmdline` matches `Xvfb` AND start-time matches before sending
-any signal — no PID-reuse footguns. Skips spawn entirely when
-`WAYLAND_DISPLAY` is set (Chromium uses Wayland natively). Standard
-Debian/Ubuntu containers work out of the box; minimal images (alpine,
-distroless) may need fonts/dbus/gtk libs for headed Chromium to render.
+**Container support（容器支持）。** Linux 上 `--headed` 且没有 `DISPLAY` 时，会遍历 display range（`:99`、`:100` 等），直到 `xdpyinfo` 报告空闲 slot，然后 spawn Xvfb。Cleanup-on-disconnect 在发送任何 signal 前，会验证 recorded PID 的 `/proc/<pid>/cmdline` 匹配 `Xvfb` 且 start-time 匹配，避免 PID-reuse footguns。如果设置了 `WAYLAND_DISPLAY`，跳过 spawn（Chromium 原生使用 Wayland）。标准 Debian/Ubuntu containers 开箱即用；minimal images（alpine、distroless）可能需要 fonts/dbus/gtk libs 才能 render headed Chromium。
 
-**Failure modes.** SOCKS5 upstream rejected or unreachable — fail-fast at
-startup with a redacted error after 3 retries (5s budget). Mid-stream
-upstream drop — bridge kills the affected client connection only; no
-transport retries that could corrupt browser traffic.
+**Failure modes（失败模式）。** SOCKS5 upstream rejected 或 unreachable：startup 阶段在 3 retries（5s budget）后 fail-fast，并 redacted error。Mid-stream upstream drop：bridge 只 kill affected client connection；不做可能 corrupt browser traffic 的 transport retries。
 
 ---
 
-## Side Panel + sidebar agent
+## Side Panel + sidebar agent（侧边栏 agent）
 
-The Chrome extension that ships baked into GStack Browser shows a live
-activity feed of every browse command in a Side Panel, plus `@ref` overlays
-on the page, plus an interactive Claude PTY inside the sidebar.
+内置于 GStack Browser 的 Chrome extension 会在 Side Panel 中展示 browse command 的 live activity feed、页面上的 `@ref` overlays，以及 sidebar 内的 interactive Claude PTY。
 
-### The Terminal pane (the headline)
+### Terminal pane（核心入口）
 
-The Side Panel's primary surface is the **Terminal pane** — a live `claude -p`
-PTY you can type into directly from the sidebar. Activity / Refs / Inspector
-are debug overlays behind the footer's `debug` toggle. WebSocket auth uses
-`Sec-WebSocket-Protocol` (browsers can't set `Authorization` on a WebSocket
-upgrade), and the PTY session token is a 30-minute HttpOnly cookie minted
-via `POST /pty-session`.
+Side Panel 的 primary surface 是 **Terminal pane**：一个 live `claude -p` PTY，你可以直接从 sidebar 输入。Activity / Refs / Inspector 是 footer `debug` toggle 后的 debug overlays。WebSocket auth 使用 `Sec-WebSocket-Protocol`（browsers 不能在 WebSocket upgrade 上设置 `Authorization`），PTY session token 是通过 `POST /pty-session` minted 的 30-minute HttpOnly cookie。
 
-The toolbar's Cleanup button and the Inspector's "Send to Code" action both
-pipe text into the live Claude PTY via `window.gstackInjectToTerminal(text)`,
-exposed by `sidepanel-terminal.js`. There's no separate `/sidebar-command`
-POST — the live REPL is the only execution surface.
+Toolbar 的 Cleanup button 和 Inspector 的 “Send to Code” action 都会通过 `window.gstackInjectToTerminal(text)` 把 text pipe 进 live Claude PTY；该函数由 `sidepanel-terminal.js` 暴露。没有单独的 `/sidebar-command` POST，live REPL 是唯一 execution surface。
 
-### Activity feed
+### Activity feed（活动流）
 
-A scrolling feed of every browse command — name, args, duration, status,
-errors. Shows up in real time as Claude works. Backed by SSE (`/activity/stream`)
-that accepts the Bearer token OR the HttpOnly `gstack_sse` session cookie
-(30-minute stream-scope cookie minted via `POST /sse-session`).
+滚动 feed，显示每个 browse command 的 name、args、duration、status、errors。Claude 工作时实时出现。底层是 SSE（`/activity/stream`），接受 Bearer token 或 HttpOnly `gstack_sse` session cookie（通过 `POST /sse-session` minted 的 30-minute stream-scope cookie）。
 
-### Refs tab
+### Refs tab（Refs 标签页）
 
-After `$B snapshot`, shows the current `@ref` list (role + name) so you can
-see what Claude is targeting.
+`$B snapshot` 后显示当前 `@ref` list（role + name），让你看到 Claude 正在 target 什么。
 
-### CSS Inspector
+### CSS Inspector（CSS 检查器）
 
-Powered by `$B inspect` (CDP-based). Click any element on the page to see the
-full CSS rule cascade, computed styles, box model, and modification history.
-The "Send to Code" button injects a description into the Claude PTY.
+由 `$B inspect` 驱动（CDP-based）。点击 page 上任意 element，可看到 full CSS rule cascade、computed styles、box model 和 modification history。“Send to Code” button 会把 description 注入 Claude PTY。
 
-### Sidebar architecture
+### Sidebar architecture（sidebar 架构）
 
 | Component | Where it lives | Notes |
 |-----------|----------------|-------|
@@ -653,59 +517,46 @@ The "Send to Code" button injects a description into the Claude PTY.
 | Terminal agent | `browse/src/terminal-agent.ts` | PTY spawn, lifecycle, auth |
 | Sidebar utilities | `browse/src/sidebar-utils.ts` | URL sanitization, helpers |
 
-Before modifying any of these, read the comment block in `CLAUDE.md` under
-"Sidebar architecture" — silent failures here usually trace to not understanding
-the cross-component flow.
+修改这些文件前，先读 `CLAUDE.md` 中 “Sidebar architecture” 下的 comment block。这里的 silent failures 通常来自不理解 cross-component flow。
 
-### Manual install (for your regular Chrome)
+### Manual install（用于你的日常 Chrome）
 
-If you want the extension in your everyday Chrome (not the Playwright-controlled
-one):
+如果你想在日常 Chrome（不是 Playwright-controlled one）中使用 extension：
 
 ```bash
 bin/gstack-extension    # opens chrome://extensions, copies path to clipboard
 ```
 
-Or do it manually: `chrome://extensions` → toggle Developer mode → Load
-unpacked → navigate to `~/.claude/skills/gstack/extension` → pin the
-extension → enter the port from `$B status`.
+也可以手动：`chrome://extensions` → toggle Developer mode → Load unpacked → navigate to `~/.claude/skills/gstack/extension` → pin extension → 输入 `$B status` 中的 port。
 
 ---
 
-## Pair-agent
+## Pair-agent（远程 agent 配对）
 
-Remote AI agents (Codex, OpenClaw, Hermes, anything that speaks HTTP) can
-drive your local browser through an ngrok tunnel. The whole flow is gated
-by a 26-command allowlist, scoped tokens, and a denial log.
+Remote AI agents（Codex、OpenClaw、Hermes，任何 speak HTTP 的 agent）可以通过 ngrok tunnel 驱动你的 local browser。整个 flow 由 26-command allowlist、scoped tokens 和 denial log 保护。
 
-### How it works
+### 工作方式
 
 ```bash
 /pair-agent                     # generates a setup key, prints connection instructions
-# Copy the instructions to the remote agent
-# Remote agent runs:
+# 将 instructions 复制给 remote agent
+# Remote agent 运行：
 #   POST <tunnel-url>/connect with setup key → gets a scoped token (24h, single client)
 #   POST <tunnel-url>/command with token → runs allowed commands
 ```
 
-### Dual-listener architecture (v1.6.0.0+)
+### Dual-listener architecture（v1.6.0.0+）
 
-When `pair-agent` activates, the daemon binds **two HTTP listeners**:
+当 `pair-agent` 激活时，daemon 绑定**两个 HTTP listeners**：
 
-- **Local listener** (`127.0.0.1:LOCAL_PORT`). Full command surface. Never
-  forwarded by ngrok. Used by your Claude Code, the Side Panel, anything
-  on your machine.
-- **Tunnel listener** (`127.0.0.1:TUNNEL_PORT`). Locked allowlist —
-  `/connect`, `/command` (scoped tokens + 26-command browser-driving
-  allowlist), `/sidebar-chat`. ngrok forwards only this port.
+- **Local listener**（`127.0.0.1:LOCAL_PORT`）。Full command surface。绝不由 ngrok 转发。供你的 Claude Code、Side Panel 和本机任何工具使用。
+- **Tunnel listener**（`127.0.0.1:TUNNEL_PORT`）。Locked allowlist：`/connect`、`/command`（scoped tokens + 26-command browser-driving allowlist）、`/sidebar-chat`。ngrok 只转发这个 port。
 
-Root tokens sent over the tunnel return 403. SSE endpoints use a 30-minute
-HttpOnly `gstack_sse` cookie (never valid against `/command`).
+通过 tunnel 发送 root tokens 会返回 403。SSE endpoints 使用 30-minute HttpOnly `gstack_sse` cookie（对 `/command` 永远无效）。
 
-### The 26-command tunnel allowlist
+### 26-command tunnel allowlist
 
-Defined in `browse/src/server.ts` as `TUNNEL_COMMANDS`. Pure gate function
-`canDispatchOverTunnel(command)` is exported for unit testing. Set:
+在 `browse/src/server.ts` 中定义为 `TUNNEL_COMMANDS`。Pure gate function `canDispatchOverTunnel(command)` 已导出用于 unit testing。集合：
 
 ```
 goto, click, text, screenshot, html, links, forms, accessibility,
@@ -713,72 +564,49 @@ attrs, media, data, scroll, press, type, select, wait, eval,
 newtab, tabs, back, forward, reload, snapshot, fill, url, closetab
 ```
 
-Notably absent: `pair`, `unpair`, `cookies`, `setup`, `launch`, `restart`,
-`stop`, `tunnel-start`, `token-mint`, `state`, `connect`, `disconnect`. A
-remote agent that tries them gets a 403 plus a fresh entry in the denial log.
+刻意缺席：`pair`、`unpair`、`cookies`、`setup`、`launch`、`restart`、`stop`、`tunnel-start`、`token-mint`、`state`、`connect`、`disconnect`。Remote agent 尝试它们时会得到 403，并在 denial log 中写入新 entry。
 
-### Tunnel denial log
+### Tunnel denial log（tunnel 拒绝日志）
 
-`~/.gstack/security/attempts.jsonl` — append-only, salted SHA-256 of source
-+ domain only (no raw IP, no full request body), rotates at 10MB with 5
-generations. Per-device salt at `~/.gstack/security/device-salt` (mode 0600).
+`~/.gstack/security/attempts.jsonl`：append-only，只记录 source + domain 的 salted SHA-256（无 raw IP、无 full request body），10MB 轮转，保留 5 generations。Per-device salt 位于 `~/.gstack/security/device-salt`（mode 0600）。
 
-See [`docs/REMOTE_BROWSER_ACCESS.md`](docs/REMOTE_BROWSER_ACCESS.md) for the
-full operator guide.
+完整 operator guide 见 [`docs/REMOTE_BROWSER_ACCESS.md`](docs/REMOTE_BROWSER_ACCESS.md)。
 
-### Tab ownership
+### Tab ownership（tab 所有权）
 
-Scoped tokens default to `tabPolicy: 'own-only'`. A paired agent can `newtab`
-to create its own tab and drive that tab freely, but it can't `goto`, `fill`,
-or `click` on tabs another caller owns. `tabs` lists ALL tab metadata (an
-accepted tradeoff — see ARCHITECTURE.md), but `text`/`html`/`snapshot` content
-of unowned tabs is blocked by ownership checks.
+Scoped tokens 默认 `tabPolicy: 'own-only'`。Paired agent 可以 `newtab` 创建自己的 tab 并自由驱动该 tab，但不能在其他 caller 拥有的 tabs 上 `goto`、`fill` 或 `click`。`tabs` 会列出所有 tab metadata（这是 accepted tradeoff，见 ARCHITECTURE.md），但 unowned tabs 的 `text`/`html`/`snapshot` content 会被 ownership checks 阻止。
 
 ---
 
-## Authentication
+## Authentication（认证）
 
-Three token types, three lifetimes, three scopes.
+三种 token types，三种 lifetimes，三种 scopes。
 
 | Token | Generated by | Lifetime | Scope |
 |-------|--------------|----------|-------|
-| **Root token** | Daemon startup (random UUID) | Daemon process lifetime | Full command surface, local listener only — 403 over tunnel |
-| **Setup key** | `POST /pair` | 5 minutes, one-time use | Single redemption: present at `/connect`, get a scoped token |
-| **Scoped token** | `POST /connect` (with setup key) | 24 hours | Per-client, allowlist-bound, optionally tab-scoped |
+| **Root token** | Daemon startup（random UUID） | Daemon process lifetime | Full command surface，仅 local listener；tunnel 上 403 |
+| **Setup key** | `POST /pair` | 5 minutes, one-time use | Single redemption：在 `/connect` present，换取 scoped token |
+| **Scoped token** | `POST /connect`（with setup key） | 24 hours | Per-client、allowlist-bound、可选 tab-scoped |
 
-The root token is written to `<project>/.gstack/browse.json` with chmod 600.
-Every command that mutates browser state must include
-`Authorization: Bearer <token>`.
+Root token 以 chmod 600 写到 `<project>/.gstack/browse.json`。每个 mutates browser state 的 command 都必须带 `Authorization: Bearer <token>`。
 
-### SSE session cookie (v1.6.0.0+)
+### SSE session cookie（v1.6.0.0+）
 
-SSE endpoints (`/activity/stream`, `/inspector/events`) accept the Bearer
-token OR a 30-minute HttpOnly `gstack_sse` cookie minted via
-`POST /sse-session`. The `?token=<ROOT>` query-param auth is no longer
-supported. This is what lets the Chrome extension subscribe to the activity
-feed without putting the root token in extension storage.
+SSE endpoints（`/activity/stream`、`/inspector/events`）接受 Bearer token 或通过 `POST /sse-session` minted 的 30-minute HttpOnly `gstack_sse` cookie。不再支持 `?token=<ROOT>` query-param auth。这让 Chrome extension 可以 subscribe activity feed，而不把 root token 放进 extension storage。
 
-### PTY session cookie
+### PTY session cookie（PTY session cookie）
 
-The Terminal pane uses a separate session cookie, `gstack_pty`, minted via
-`POST /pty-session`. Different scope — can spawn / drive the live `claude`
-PTY, can't dispatch arbitrary `/command` calls. `/health` endpoint MUST NOT
-surface this token.
+Terminal pane 使用单独 session cookie：`gstack_pty`，由 `POST /pty-session` minted。Scope 不同：可以 spawn / drive live `claude` PTY，不能 dispatch arbitrary `/command` calls。`/health` endpoint 绝不能暴露此 token。
 
-### Token registry
+### Token registry（token 注册表）
 
-`browse/src/token-registry.ts` handles mint/validate/revoke for all three
-types, plus per-token rate limiting. Setup keys are single-use; scoped
-tokens have a sliding 24h window; the root token is rotated on each daemon
-startup.
+`browse/src/token-registry.ts` 负责 mint/validate/revoke 三种 token，并做 per-token rate limiting。Setup keys 是 single-use；scoped tokens 有 sliding 24h window；root token 在每次 daemon startup 轮换。
 
 ---
 
-## Security stack
+## Security stack（安全栈）
 
-Layered defense against prompt injection. Every layer runs synchronously on
-every user message and every tool output that could carry untrusted content
-(Read, Glob, Grep, WebFetch, page text from `$B`).
+针对 prompt injection 的 layered defense。每一层都同步运行在每条 user message 以及每个可能携带 untrusted content 的 tool output 上（Read、Glob、Grep、WebFetch、来自 `$B` 的 page text）。
 
 | Layer | Module | Lives in |
 |-------|--------|----------|
@@ -790,50 +618,35 @@ every user message and every tool output that could carry untrusted content
 | **L5** Canary token (session-exfil detection) | `security.ts` | both — inject in compiled, check in agent |
 | **L6** `combineVerdict` ensemble | `security.ts` | both |
 
-\* `security-classifier.ts` cannot be imported from the compiled browse
-binary — `@huggingface/transformers` v4 requires `onnxruntime-node` which
-fails to `dlopen` from Bun compile's temp extract dir. The compiled binary
-runs L1–L3, L5, L6 only.
+\* `security-classifier.ts` 不能从 compiled browse binary import：`@huggingface/transformers` v4 需要 `onnxruntime-node`，而它在 Bun compile temp extract dir 中 `dlopen` 失败。Compiled binary 只运行 L1-L3、L5、L6。
 
-### Thresholds
+### Thresholds（阈值）
 
-- `BLOCK: 0.85` — single-layer score that would cause BLOCK if cross-confirmed
-- `WARN: 0.75` — cross-confirm threshold. When L4 AND L4b both >= 0.75 → BLOCK
-- `LOG_ONLY: 0.40` — gates transcript classifier (skip Haiku when all layers < 0.40)
-- `SOLO_CONTENT_BLOCK: 0.92` — single-layer threshold for label-less content classifiers
+- `BLOCK: 0.85` — 如果 cross-confirmed，会导致 BLOCK 的 single-layer score
+- `WARN: 0.75` — cross-confirm threshold。当 L4 和 L4b 都 >= 0.75 → BLOCK
+- `LOG_ONLY: 0.40` — gates transcript classifier（所有 layers < 0.40 时跳过 Haiku）
+- `SOLO_CONTENT_BLOCK: 0.92` — label-less content classifiers 的 single-layer threshold
 
-### Ensemble rule
+### Ensemble rule（ensemble 规则）
 
-BLOCK only when the ML content classifier AND the transcript classifier both
-report >= WARN. Single-layer high confidence degrades to WARN — this is the
-Stack Overflow instruction-writing FP mitigation. **Canary leak always
-BLOCKs (deterministic).**
+只有当 ML content classifier 和 transcript classifier 都 report >= WARN 时才 BLOCK。Single-layer high confidence 降级为 WARN，这是 Stack Overflow instruction-writing FP mitigation。**Canary leak 永远 BLOCK（deterministic）。**
 
-### Env knobs
+### Env knobs（环境变量开关）
 
-- `GSTACK_SECURITY_OFF=1` — emergency kill switch. Classifier stays off
-  even if warmed. Canary is still injected; just the ML scan is skipped.
-- `GSTACK_SECURITY_ENSEMBLE=deberta` — opt-in DeBERTa-v3 ensemble. Adds
-  ProtectAI DeBERTa-v3-base-injection-onnx as L4c classifier. 721MB
-  first-run download. With ensemble enabled, BLOCK requires 2-of-3 ML
-  classifiers agreeing at >= WARN.
-- Classifier model cache: `~/.gstack/models/testsavant-small/` (112MB, first
-  run only) plus `~/.gstack/models/deberta-v3-injection/` (721MB, only when
-  ensemble enabled).
-- Attack log: `~/.gstack/security/attempts.jsonl` (salted SHA-256 + domain
-  only, rotates at 10MB, 5 generations).
-- Per-device salt: `~/.gstack/security/device-salt` (0600).
-- Session state: `~/.gstack/security/session-state.json` (cross-process,
-  atomic).
+- `GSTACK_SECURITY_OFF=1` — emergency kill switch。Classifier 即使 warmed 也保持 off。Canary 仍然注入；只是跳过 ML scan。
+- `GSTACK_SECURITY_ENSEMBLE=deberta` — opt-in DeBERTa-v3 ensemble。把 ProtectAI DeBERTa-v3-base-injection-onnx 加为 L4c classifier。首次运行下载 721MB。开启 ensemble 后，BLOCK 需要 3 个 ML classifiers 中 2 个同意且 >= WARN。
+- Classifier model cache: `~/.gstack/models/testsavant-small/`（112MB，仅首次运行）加 `~/.gstack/models/deberta-v3-injection/`（721MB，仅 ensemble enabled 时）。
+- Attack log: `~/.gstack/security/attempts.jsonl`（salted SHA-256 + domain only，10MB 轮转，5 generations）。
+- Per-device salt: `~/.gstack/security/device-salt`（0600）。
+- Session state: `~/.gstack/security/session-state.json`（cross-process，atomic）。
 
-A shield icon in the sidebar header shows the live status. See
-ARCHITECTURE.md § "Prompt injection defense" for the full threat model.
+Sidebar header 中的 shield icon 显示 live status。完整 threat model 见 ARCHITECTURE.md § “Prompt injection defense”。
 
 ---
 
-## Screenshots, PDFs, visual
+## Screenshots、PDFs 与视觉检查
 
-### Screenshot modes
+### Screenshot modes（截图模式）
 
 | Mode | Syntax | Playwright API |
 |------|--------|----------------|
@@ -843,20 +656,15 @@ ARCHITECTURE.md § "Prompt injection defense" for the full threat model.
 | Element crop (positional) | `screenshot "#sel" [path]` or `screenshot @e3 [path]` | `locator.screenshot()` |
 | Region clip | `screenshot --clip x,y,w,h [path]` | `page.screenshot({ clip })` |
 
-Element crop accepts CSS selectors (`.class`, `#id`, `[attr]`) or `@e`/`@c`
-refs. **Tag selectors like `button` aren't caught by the positional
-heuristic** — use the `--selector` flag form.
+Element crop 接受 CSS selectors（`.class`、`#id`、`[attr]`）或 `@e`/`@c` refs。**像 `button` 这样的 tag selectors 不会被 positional heuristic 捕获**，请使用 `--selector` flag form。
 
-`--base64` returns `data:image/png;base64,...` instead of writing to disk —
-composes with `--selector`, `--clip`, `--viewport`.
+`--base64` 返回 `data:image/png;base64,...`，而不是写到磁盘；可与 `--selector`、`--clip`、`--viewport` 组合。
 
-Mutual exclusion: `--clip` + selector, `--viewport` + `--clip`, and
-`--selector` + positional selector all throw.
+Mutual exclusion：`--clip` + selector、`--viewport` + `--clip`、`--selector` + positional selector 都会 throw。
 
-### Retina screenshots — `viewport --scale`
+### Retina screenshots（Retina 截图）— `viewport --scale`
 
-`viewport --scale <n>` sets Playwright's `deviceScaleFactor` (context-level,
-1–3 cap):
+`viewport --scale <n>` 设置 Playwright 的 `deviceScaleFactor`（context-level，cap 1-3）：
 
 ```bash
 $B viewport 480x600 --scale 2
@@ -865,33 +673,25 @@ $B screenshot /tmp/card.png --selector .card
 # .card at 400x200 CSS pixels → card.png is 800x400 pixels
 ```
 
-`--scale N` alone (no `WxH`) keeps the current viewport size. Scale changes
-trigger a context recreation, which invalidates `@e`/`@c` refs — rerun
-`snapshot` after. HTML loaded via `load-html` survives the recreation via
-in-memory replay. Rejected in headed mode (real browser controls scale).
+单独 `--scale N`（无 `WxH`）会保留当前 viewport size。Scale changes 会触发 context recreation，从而 invalidates `@e`/`@c` refs；之后需要重跑 `snapshot`。通过 `load-html` 加载的 HTML 会通过 in-memory replay 保留。Headed mode 中拒绝（real browser controls scale）。
 
-### PDF generation
+### PDF generation（PDF 生成）
 
-`pdf` accepts the full Playwright surface plus a few additions:
+`pdf` 接受完整 Playwright surface，并增加少量能力：
 
-- **Layout:** `--format letter|a4|legal`, `--width <dim>`, `--height <dim>`,
-  `--margins <dim>`, `--margin-top/right/bottom/left <dim>`
-- **Structure:** `--toc` (waits for Paged.js if loaded), `--outline`,
-  `--tagged` (PDF/A accessibility), `--print-background`,
-  `--prefer-css-page-size`
-- **Branding:** `--header-template <html>`, `--footer-template <html>`,
-  `--page-numbers`
-- **Tabs:** `--tab-id <N>` to render a specific tab
-- **Large payloads:** `--from-file <payload.json>` (avoids shell argv limits)
+- **Layout:** `--format letter|a4|legal`、`--width <dim>`、`--height <dim>`、`--margins <dim>`、`--margin-top/right/bottom/left <dim>`
+- **Structure:** `--toc`（如果 loaded 则等待 Paged.js）、`--outline`、`--tagged`（PDF/A accessibility）、`--print-background`、`--prefer-css-page-size`
+- **Branding:** `--header-template <html>`、`--footer-template <html>`、`--page-numbers`
+- **Tabs:** `--tab-id <N>` 渲染指定 tab
+- **Large payloads:** `--from-file <payload.json>`（避免 shell argv limits）
 
-### Responsive screenshots
+### Responsive screenshots（响应式截图）
 
-`responsive [prefix]` — three screenshots in one call: mobile (375x812),
-tablet (768x1024), desktop (1280x720). Saves as `{prefix}-mobile.png` etc.
+`responsive [prefix]`：一次调用三张 screenshots，mobile（375x812）、tablet（768x1024）、desktop（1280x720）。保存为 `{prefix}-mobile.png` 等。
 
 ### `prettyscreenshot`
 
-Combines cleanup + scroll + element hide in one call:
+把 cleanup + scroll + element hide 组合成一次调用：
 
 ```bash
 $B prettyscreenshot --cleanup --scroll-to "hero section" --hide ".cookie-banner" /tmp/clean.png
@@ -899,36 +699,27 @@ $B prettyscreenshot --cleanup --scroll-to "hero section" --hide ".cookie-banner"
 
 ---
 
-## Local HTML
+## Local HTML（本地 HTML）
 
-Two ways to render HTML that isn't on a web server:
+两种渲染非 web server HTML 的方式：
 
 | Approach | When | URL after | Relative assets |
 |----------|------|-----------|-----------------|
 | `goto file://<abs-path>` | File already on disk | `file:///...` | Resolve against file's directory |
 | `goto file://./<rel>`, `goto file://~/<rel>` | Smart-parsed to absolute | `file:///...` | Same |
-| `load-html <file>` | HTML generated in memory, no parent-dir context needed | `about:blank` | Broken (self-contained HTML only) |
+| `load-html <file>` | 在 memory 中生成 HTML，不需要 parent-dir context | `about:blank` | Broken（仅 self-contained HTML） |
 
-Both are scoped to files under cwd or `$TMPDIR` via the same safe-dirs
-policy as `eval`. `file://` URLs preserve query strings and fragments (SPA
-routes work).
+两者都通过与 `eval` 相同的 safe-dirs policy 限制在 cwd 或 `$TMPDIR` 下。`file://` URLs 保留 query strings 和 fragments（SPA routes 可用）。
 
-`load-html` has an extension allowlist (`.html`, `.htm`, `.xhtml`, `.svg`) and
-a magic-byte sniff to reject binary files mis-renamed as HTML. 50MB size cap
-(override via `GSTACK_BROWSE_MAX_HTML_BYTES`).
+`load-html` 有 extension allowlist（`.html`、`.htm`、`.xhtml`、`.svg`）和 magic-byte sniff，用于拒绝被误改名为 HTML 的 binary files。50MB size cap（可通过 `GSTACK_BROWSE_MAX_HTML_BYTES` override）。
 
-`load-html` content survives later `viewport --scale` calls via in-memory
-replay (TabSession tracks the loaded HTML + waitUntil). The replay is
-purely in-memory — HTML is never persisted to disk via `state save` to
-avoid leaking secrets or customer data.
+`load-html` content 会通过 in-memory replay 保留在之后的 `viewport --scale` calls 中（TabSession 追踪 loaded HTML + waitUntil）。Replay 纯 in-memory；HTML 永远不会通过 `state save` 持久化到磁盘，以避免泄露 secrets 或 customer data。
 
 ---
 
-## Batch endpoint
+## Batch endpoint（批处理 endpoint）
 
-`POST /batch` sends multiple commands in a single HTTP request. Eliminates
-per-command round-trip latency — critical for remote agents over ngrok where
-each HTTP call costs 2-5s.
+`POST /batch` 在单个 HTTP request 中发送多个 commands。它消除 per-command round-trip latency，对 ngrok 上的 remote agents 很关键，因为每个 HTTP call 需要 2-5s。
 
 ```json
 POST /batch
@@ -944,41 +735,29 @@ Authorization: Bearer <token>
 }
 ```
 
-Each command routes through `handleCommandInternal` — full security pipeline
-(scope checks, domain validation, tab ownership, content wrapping) enforced
-per command. Per-command error isolation: one failure doesn't abort the
-batch. Max 50 commands per batch. Nested batches rejected. Rate limiting:
-1 batch = 1 request against the per-agent limit.
+每个 command 都通过 `handleCommandInternal` 路由，完整 security pipeline（scope checks、domain validation、tab ownership、content wrapping）按 command 强制。Per-command error isolation：一个 failure 不 abort 整个 batch。每个 batch 最多 50 commands。拒绝 nested batches。Rate limiting：1 batch = 1 request，计入 per-agent limit。
 
-Pattern: agent crawling 20 pages opens 20 tabs (individual `newtab` or
-batch), then `POST /batch` with 20 `text` commands → 20 page contents in
-~2-3 seconds total vs ~40-100 seconds serial.
+Pattern：agent crawl 20 pages，先打开 20 tabs（单独 `newtab` 或 batch），再 `POST /batch` 带 20 个 `text` commands → 约 2-3 秒拿到 20 个 page contents，而不是 serial 的 40-100 秒。
 
 ---
 
-## Capture
+## Capture（console/network/dialog 捕获）
 
-Console, network, and dialog events flow into O(1) circular buffers (50,000
-capacity each), flushed to disk asynchronously via `Bun.write()`:
+Console、network 和 dialog events 流入 O(1) circular buffers（各 50,000 capacity），并通过 `Bun.write()` async flushed to disk：
 
 - Console: `.gstack/browse-console.log`
 - Network: `.gstack/browse-network.log`
 - Dialog: `.gstack/browse-dialog.log`
 
-The `console`, `network`, and `dialog` commands read from the in-memory
-buffers (not disk) so capture is real-time even when disk is slow.
+`console`、`network`、`dialog` commands 从 in-memory buffers 读取（不是 disk），所以即便 disk 慢，capture 仍是 real-time。
 
-Dialogs (alert, confirm, prompt) are auto-accepted by default to prevent
-browser lockup. `dialog-accept <text>` controls prompt response text.
+Dialogs（alert、confirm、prompt）默认 auto-accepted，以防 browser lockup。`dialog-accept <text>` 控制 prompt response text。
 
 ---
 
-## JS execution
+## JS execution（JS 执行）
 
-`js` runs an inline expression. `eval` runs a JS file. Both run in the
-**same JS sandbox** — the only difference is inline-vs-file. Both support
-`await` — expressions containing `await` are auto-wrapped in an async
-context:
+`js` 运行 inline expression。`eval` 运行 JS file。两者运行在**同一 JS sandbox**，唯一差异是 inline-vs-file。两者都支持 `await`；包含 `await` 的 expressions 会 auto-wrapped 到 async context：
 
 ```bash
 $B js "await fetch('/api/data').then(r => r.json())"   # auto-wrapped
@@ -986,18 +765,15 @@ $B js "document.title"                                  # no wrap needed
 $B eval my-script.js                                    # file with await
 ```
 
-For `eval` files, single-line files return the expression value directly.
-Multi-line files need explicit `return` when using `await`. Comments
-containing the literal token "await" don't trigger wrapping.
+对 `eval` files，single-line files 直接返回 expression value。Multi-line files 使用 `await` 时需要显式 `return`。包含 literal token “await” 的 comments 不触发 wrapping。
 
-Path safety: `eval` rejects paths outside cwd or `/tmp`. `js` doesn't read
-files at all.
+Path safety：`eval` 拒绝 cwd 或 `/tmp` 外的 paths。`js` 完全不读 files。
 
 ---
 
-## Tabs, frames, state
+## Tabs、frames 与 state
 
-### Tabs
+### Tabs（标签页）
 
 ```bash
 $B tabs                          # list all open tabs
@@ -1009,10 +785,9 @@ $B closetab 2                    # close tab 2
 $B tab-each "text"               # run "text" on every tab, return JSON
 ```
 
-`tab-each <command>` fans out a command across every open tab and returns a
-JSON array — handy for "give me the text of every tab I have open."
+`tab-each <command>` 在每个 open tab 上 fan out command，并返回 JSON array，适合“给我所有 open tabs 的 text”。
 
-### Frames
+### Frames（frames）
 
 ```bash
 $B frame "#stripe-iframe"        # switch to iframe by selector
@@ -1022,50 +797,42 @@ $B frame --url "stripe.com"      # by URL pattern match
 $B frame main                    # back to top frame
 ```
 
-Refs are cleared on switch (the iframe has its own AX tree).
+Switch 时 refs 会清空（iframe 有自己的 AX tree）。
 
-### State save/load
+### State save/load（状态保存/加载）
 
 ```bash
 $B state save my-session         # save cookies + URLs to .gstack/browse-state-my-session.json
 $B state load my-session         # restore
 ```
 
-In-memory `load-html` content is intentionally NOT persisted (avoid leaking
-secrets to disk).
+In-memory `load-html` content 故意不持久化（避免 secrets 泄露到 disk）。
 
-### Watch
+### Watch（观察）
 
 ```bash
 $B watch                         # passive observation: snapshot every 5s while user browses
 $B watch stop                    # return summary of what changed
 ```
 
-Useful when you're driving the browser manually and want Claude to see what
-you did at the end without spamming `snapshot` calls.
+当你手动驱动 browser，又想让 Claude 在结束时看到你做了什么，但不想 spam `snapshot` calls 时很有用。
 
-### Inbox
+### Inbox（收件箱）
 
 ```bash
 $B inbox                         # list messages from sidebar scout
 $B inbox --clear                 # clear after reading
 ```
 
-The sidebar scout (a background process the Chrome extension can spawn) drops
-notes for Claude when the user surfaces something they want noticed. Stored
-in `.gstack/browser-scout.jsonl`.
+Sidebar scout（Chrome extension 可 spawn 的 background process）会在用户 surfaced 想让 Claude 注意的东西时留下 notes。存储在 `.gstack/browser-scout.jsonl`。
 
 ---
 
-## CDP
+## CDP（Chrome DevTools Protocol）
 
 ### `$B cdp` — raw Chrome DevTools Protocol dispatch
 
-Deny-default. Only methods enumerated in `browse/src/cdp-allowlist.ts`
-(`CDP_ALLOWLIST` const) are reachable; any other method returns 403. Each
-allowlist entry declares scope (tab vs browser) and output (trusted vs
-untrusted). Untrusted methods (data-exfil-shaped, e.g.
-`Network.getResponseBody`) get UNTRUSTED-envelope wrapped output.
+Deny-default。只有 `browse/src/cdp-allowlist.ts`（`CDP_ALLOWLIST` const）枚举的方法可访问；其他方法返回 403。每个 allowlist entry 声明 scope（tab vs browser）和 output（trusted vs untrusted）。Untrusted methods（data-exfil-shaped，例如 `Network.getResponseBody`）会得到 UNTRUSTED-envelope wrapped output。
 
 ```bash
 $B cdp Page.getLayoutMetrics
@@ -1073,7 +840,7 @@ $B cdp Network.enable
 $B cdp Accessibility.getFullAXTree --json '{"max_depth":5}'
 ```
 
-To discover allowed methods: read `browse/src/cdp-allowlist.ts`.
+要发现 allowed methods，请读 `browse/src/cdp-allowlist.ts`。
 
 ### `$B inspect` — CDP-based CSS inspector
 
@@ -1083,10 +850,7 @@ $B inspect ".header" --all          # include user-agent rules
 $B inspect ".header" --history      # show modification history
 ```
 
-Returns the matched rule cascade with specificity, computed styles, the box
-model, and (with `--history`) every CSS modification made via `$B style` since
-the page loaded. Powered by a persistent CDP session per page in
-`browse/src/cdp-inspector.ts`.
+返回 matched rule cascade（带 specificity）、computed styles、box model，以及（使用 `--history` 时）page loaded 后通过 `$B style` 做过的每个 CSS modification。由 `browse/src/cdp-inspector.ts` 中每个 page 的 persistent CDP session 驱动。
 
 ### `$B ux-audit`
 
@@ -1094,14 +858,11 @@ the page loaded. Powered by a persistent CDP session per page in
 $B ux-audit
 ```
 
-Returns JSON with site identity, navigation, headings (capped 50), text
-blocks, interactive elements (capped 200) — page structure for behavioral
-analysis without dumping the full HTML. Used by `/qa` and `/design-review`
-for cheap coverage maps.
+返回 JSON，包含 site identity、navigation、headings（cap 50）、text blocks、interactive elements（cap 200）。用于 behavioral analysis 的 page structure，不 dump full HTML。`/qa` 和 `/design-review` 用它做 cheap coverage maps。
 
 ---
 
-## Performance
+## Performance（性能）
 
 | Tool | First call | Subsequent calls | Context overhead per call |
 |------|-----------|------------------|---------------------------|
@@ -1110,64 +871,53 @@ for cheap coverage maps.
 | **gstack browse** | **~3s** | **~100-200ms** | **0 tokens** (plain text stdout) |
 | **gstack browse + codified skill** | **~3s** | **~200ms** | **0 tokens** (single skill invocation) |
 
-In a 20-command browser session, MCP tools burn 30,000–40,000 tokens on
-protocol framing alone. gstack burns zero. The codified-skill path takes a
-20-command session down to a single `$B skill run` call.
+一个 20-command browser session 中，MCP tools 光 protocol framing 就烧 30,000-40,000 tokens。gstack 为零。Codified-skill path 把 20-command session 降到单个 `$B skill run` call。
 
-### Why CLI over MCP
+### 为什么选择 CLI 而不是 MCP
 
-MCP works well for remote services. For local browser automation it adds
-pure overhead:
+MCP 很适合 remote services。对 local browser automation，它增加的是纯 overhead：
 
-- **Context bloat** — every MCP call includes full JSON schemas. A simple
-  "get the page text" costs 10x more context tokens than it should.
-- **Connection fragility** — persistent WebSocket/stdio connections drop
-  and fail to reconnect.
-- **Unnecessary abstraction** — Claude already has a Bash tool. A CLI that
-  prints to stdout is the simplest possible interface.
+- **Context bloat** — 每个 MCP call 都包含完整 JSON schemas。一个简单的 “get the page text” 消耗的 context tokens 是应有水平的 10 倍。
+- **Connection fragility** — persistent WebSocket/stdio connections 会 drop，且重连失败。
+- **Unnecessary abstraction** — Claude 已经有 Bash tool。打印 stdout 的 CLI 是最简单的 interface。
 
-gstack skips all of this. Compiled binary. Plain text in, plain text out.
-No protocol. No schema. No connection management.
+gstack 跳过这一切。Compiled binary。Plain text in，plain text out。无 protocol。无 schema。无 connection management。
 
 ---
 
-## Multi-workspace
+## Multi-workspace（多 workspace）
 
-Each project root (detected via `git rev-parse --show-toplevel`) gets its
-own daemon, port, state file, cookies, and logs. No cross-workspace
-collisions.
+每个 project root（通过 `git rev-parse --show-toplevel` 检测）获得自己的 daemon、port、state file、cookies 和 logs。没有 cross-workspace collisions。
 
 | Workspace | State file | Port |
 |-----------|-----------|------|
-| `/code/project-a` | `/code/project-a/.gstack/browse.json` | random (10000–60000) |
-| `/code/project-b` | `/code/project-b/.gstack/browse.json` | random (10000–60000) |
+| `/code/project-a` | `/code/project-a/.gstack/browse.json` | random (10000-60000) |
+| `/code/project-b` | `/code/project-b/.gstack/browse.json` | random (10000-60000) |
 
-Browser-skills three-tier lookup walks project → global → bundled, so a
-project-tier skill at `/code/project-a/.gstack/browser-skills/foo/` shadows
-the global `~/.gstack/browser-skills/foo/` only inside project-a.
+Browser-skills three-tier lookup 按 project → global → bundled 遍历，所以 `/code/project-a/.gstack/browser-skills/foo/` 中的 project-tier skill 只在 project-a 内 shadow global `~/.gstack/browser-skills/foo/`。
 
 ---
 
-## Environment variables
+## Environment variables（环境变量）
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BROWSE_PORT` | 0 (random 10000–60000) | Fixed port for the HTTP server (debug override) |
+| `BROWSE_PORT` | 0 (random 10000-60000) | HTTP server 固定 port（debug override） |
 | `BROWSE_IDLE_TIMEOUT` | 1800000 (30 min) | Idle shutdown timeout in ms |
 | `BROWSE_STATE_FILE` | `.gstack/browse.json` | Path to state file |
 | `BROWSE_SERVER_SCRIPT` | auto-detected | Path to `server.ts` |
 | `BROWSE_CDP_URL` | (none) | Set to `channel:chrome` for real-browser mode |
-| `BROWSE_CDP_PORT` | 0 | CDP port (used internally) |
-| `BROWSE_HEADLESS_SKIP` | 0 | Skip Chromium launch entirely (test harness only) |
-| `BROWSE_TUNNEL` | 0 | Activate the dual-listener tunnel architecture (requires `NGROK_AUTHTOKEN`) |
-| `BROWSE_TUNNEL_LOCAL_ONLY` | 0 | Test-only — bind both listeners locally without ngrok |
+| `BROWSE_CDP_PORT` | 0 | CDP port（used internally） |
+| `BROWSE_HEADLESS_SKIP` | 0 | 完全跳过 Chromium launch（test harness only） |
+| `BROWSE_TUNNEL` | 0 | 激活 dual-listener tunnel architecture（requires `NGROK_AUTHTOKEN`） |
+| `BROWSE_TUNNEL_LOCAL_ONLY` | 0 | Test-only：本地 bind both listeners without ngrok |
 | `GSTACK_BROWSE_MAX_HTML_BYTES` | 52428800 (50MB) | `load-html` size cap |
-| `GSTACK_SECURITY_OFF` | unset | Emergency kill switch — disable ML classifier |
-| `GSTACK_SECURITY_ENSEMBLE` | unset | Set to `deberta` for 3-classifier ensemble (721MB download) |
+| `GSTACK_SECURITY_OFF` | unset | Emergency kill switch：disable ML classifier |
+| `GSTACK_SECURITY_ENSEMBLE` | unset | Set to `deberta` for 3-classifier ensemble（721MB download） |
 
 ---
 
-## Source map
+## Source map（源码地图）
 
 ```
 browse/
@@ -1238,14 +988,14 @@ skillify/SKILL.md.tmpl           # /skillify gstack skill — codify last /scrap
 
 ---
 
-## Development
+## Development（开发）
 
-### Prerequisites
+### Prerequisites（前置条件）
 
 - [Bun](https://bun.sh/) v1.0+
-- Playwright's Chromium (installed automatically by `bun install`)
+- Playwright's Chromium（`bun install` 自动安装）
 
-### Quick start
+### 快速开始
 
 ```bash
 bun install                      # install deps + Playwright Chromium
@@ -1254,10 +1004,9 @@ bun run dev <cmd>                # run CLI from source (no compile)
 bun run build                    # compile to browse/dist/browse
 ```
 
-### Dev mode vs compiled binary
+### Dev mode vs compiled binary（开发模式与 compiled binary）
 
-During development, use `bun run dev` instead of the compiled binary. It runs
-`browse/src/cli.ts` directly with Bun, so you get instant feedback:
+开发期间使用 `bun run dev`，而不是 compiled binary。它直接用 Bun 运行 `browse/src/cli.ts`，所以能即时反馈：
 
 ```bash
 bun run dev goto https://example.com
@@ -1266,11 +1015,9 @@ bun run dev snapshot -i
 bun run dev click @e3
 ```
 
-The compiled binary (`bun run build`) is only needed for distribution. It
-produces a single ~58MB executable at `browse/dist/browse` using Bun's
-`--compile` flag.
+Compiled binary（`bun run build`）只在 distribution 时需要。它使用 Bun 的 `--compile` flag 在 `browse/dist/browse` 生成一个约 58MB executable。
 
-### Running tests
+### Running tests（运行测试）
 
 ```bash
 bun test                                    # all tests
@@ -1281,39 +1028,27 @@ bun test browse/test/browser-skill-write    # D3 atomic-write helper tests
 bun test browse/test/tunnel-gate-unit       # canDispatchOverTunnel pure tests
 ```
 
-Tests spin up a local HTTP server (`browse/test/test-server.ts`) serving HTML
-fixtures from `browse/test/fixtures/`, then exercise the CLI against those
-pages.
+Tests 会启动 local HTTP server（`browse/test/test-server.ts`），从 `browse/test/fixtures/` serve HTML fixtures，然后针对这些 pages exercise CLI。
 
-### Adding a new command
+### 添加新 command
 
-1. Add the handler in `read-commands.ts` (non-mutating) or `write-commands.ts`
-   (mutating), or `meta-commands.ts` (server / lifecycle).
-2. Register the route in `server.ts`.
-3. Add the entry to `COMMAND_DESCRIPTIONS` in `browse/src/commands.ts` (with
-   a clear `description` and `usage` — the `gen-skill-docs` validation
-   suite enforces no `|` characters in `description`).
-4. Add a test case in `browse/test/commands.test.ts` with an HTML fixture
-   if needed.
-5. Run `bun test` to verify.
-6. Run `bun run build` to compile.
-7. Run `bun run gen:skill-docs` to regenerate SKILL.md (the command appears
-   in the command-reference table downstream).
+1. 在 `read-commands.ts`（non-mutating）、`write-commands.ts`（mutating）或 `meta-commands.ts`（server / lifecycle）中添加 handler。
+2. 在 `server.ts` 中注册 route。
+3. 在 `browse/src/commands.ts` 的 `COMMAND_DESCRIPTIONS` 中添加 entry（带清晰 `description` 和 `usage`；`gen-skill-docs` validation suite 会强制 `description` 中不能有 `|` 字符）。
+4. 如有需要，在 `browse/test/commands.test.ts` 中添加 test case 和 HTML fixture。
+5. 运行 `bun test` 验证。
+6. 运行 `bun run build` 编译。
+7. 运行 `bun run gen:skill-docs` regenerate SKILL.md（command 会出现在下游 command-reference table）。
 
-### Adding a new browser-skill
+### 添加新 browser-skill
 
-For a hand-written skill: copy `browser-skills/hackernews-frontpage/`,
-update SKILL.md frontmatter, rewrite `script.ts` against your target site,
-re-capture the fixture, update the parser test. `bun test` validates the
-SKILL.md contract (sibling SDK byte-identity, frontmatter schema).
+手写 skill：复制 `browser-skills/hackernews-frontpage/`，更新 SKILL.md frontmatter，针对目标 site 重写 `script.ts`，重新 capture fixture，更新 parser test。`bun test` 会验证 SKILL.md contract（sibling SDK byte-identity、frontmatter schema）。
 
-For an agent-written skill: drive the page once with `/scrape <intent>`,
-say `/skillify`, accept the proposed name in the approval gate. The skill
-lands at `~/.gstack/browser-skills/<name>/` after the test passes.
+Agent-written skill：先用 `/scrape <intent>` 驱动页面一次，说 `/skillify`，在 approval gate 中接受 proposed name。Test pass 后，skill 会落到 `~/.gstack/browser-skills/<name>/`。
 
-### Deploying to the active skill
+### Deploying to the active skill（部署到 active skill）
 
-The active skill lives at `~/.claude/skills/gstack/`. After making changes:
+Active skill 位于 `~/.claude/skills/gstack/`。修改后：
 
 ```bash
 cd ~/.claude/skills/gstack
@@ -1321,7 +1056,7 @@ git fetch origin && git reset --hard origin/main
 bun run build
 ```
 
-Or copy the binary directly:
+或直接复制 binary：
 
 ```bash
 cp browse/dist/browse ~/.claude/skills/gstack/browse/dist/browse
@@ -1329,34 +1064,22 @@ cp browse/dist/browse ~/.claude/skills/gstack/browse/dist/browse
 
 ---
 
-## Cross-references
+## Cross-references（交叉引用）
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system-level architecture, dual-listener tunnel design, prompt-injection defense threat model
-- [`CLAUDE.md`](CLAUDE.md) — project-level instructions, sidebar architecture notes, security-stack constraints
-- [`docs/REMOTE_BROWSER_ACCESS.md`](docs/REMOTE_BROWSER_ACCESS.md) — operator guide for `/pair-agent` (setup keys, scoped tokens, denial log)
-- [`docs/designs/BROWSER_SKILLS_V1.md`](docs/designs/BROWSER_SKILLS_V1.md) — design doc for browser-skills runtime (Phase 1 + 2a + roadmap)
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system-level architecture、dual-listener tunnel design、prompt-injection defense threat model
+- [`CLAUDE.md`](CLAUDE.md) — project-level instructions、sidebar architecture notes、security-stack constraints
+- [`docs/REMOTE_BROWSER_ACCESS.md`](docs/REMOTE_BROWSER_ACCESS.md) — `/pair-agent` operator guide（setup keys、scoped tokens、denial log）
+- [`docs/designs/BROWSER_SKILLS_V1.md`](docs/designs/BROWSER_SKILLS_V1.md) — browser-skills runtime design doc（Phase 1 + 2a + roadmap）
 - [`scrape/SKILL.md`](scrape/SKILL.md) — `/scrape` skill: match-or-prototype data extraction
 - [`skillify/SKILL.md`](skillify/SKILL.md) — `/skillify` skill: codify last `/scrape` into permanent skill
-- [`TODOS.md`](TODOS.md) — `/automate` (Phase 2b P0), Phase 3 resolver injection, Phase 4 eval + sandbox
+- [`TODOS.md`](TODOS.md) — `/automate`（Phase 2b P0）、Phase 3 resolver injection、Phase 4 eval + sandbox
 
 ---
 
-## Acknowledgments
+## 致谢
 
-The browser automation layer is built on [Playwright](https://playwright.dev/)
-by Microsoft. Playwright's accessibility tree API, locator system, and
-headless Chromium management are what make ref-based interaction possible.
-The snapshot system — assigning `@ref` labels to AX tree nodes and mapping
-them back to Playwright Locators — is built entirely on top of Playwright's
-primitives. Thank you to the Playwright team for building such a solid
-foundation.
+Browser automation layer 构建在 Microsoft 的 [Playwright](https://playwright.dev/) 之上。Playwright 的 accessibility tree API、locator system 和 headless Chromium management 让 ref-based interaction 成为可能。Snapshot system：把 `@ref` labels 分配给 AX tree nodes，并把它们映射回 Playwright Locators，完全建立在 Playwright primitives 之上。感谢 Playwright team 构建了如此扎实的 foundation。
 
-The prompt-injection L4 layer uses
-[TestSavantAI/distilbert-v1.1-32](https://huggingface.co/TestSavantAI/distilbert-v1.1-32)
-(112MB ONNX), and the optional ensemble layer uses
-[ProtectAI/deberta-v3-base-prompt-injection-v2](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2)
-(721MB ONNX) — both run locally via `@huggingface/transformers`.
+Prompt-injection L4 layer 使用 [TestSavantAI/distilbert-v1.1-32](https://huggingface.co/TestSavantAI/distilbert-v1.1-32)（112MB ONNX），optional ensemble layer 使用 [ProtectAI/deberta-v3-base-prompt-injection-v2](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2)（721MB ONNX）。两者都通过 `@huggingface/transformers` 在本地运行。
 
-The CDP escape hatch is gated by an allowlist directly inspired by Codex's
-T2 outside-voice review during the v1.4 design pass: deny-default with an
-explicit allowlist, not allow-default with a denylist.
+CDP escape hatch 的 allowlist gate 直接受 v1.4 design pass 中 Codex T2 outside-voice review 启发：deny-default with explicit allowlist，而不是 allow-default with denylist。

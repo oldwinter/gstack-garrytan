@@ -2,9 +2,9 @@
 name: gstack-upgrade
 version: 1.1.0
 description: |
-  Upgrade gstack to the latest version. Detects global vs vendored install,
-  runs the upgrade, and shows what's new. Use when asked to "upgrade gstack",
-  "update gstack", or "get latest version".
+  将 gstack 升级到最新版本。检测 global vs vendored install，执行 upgrade，
+  并展示 what's new。当用户要求 "upgrade gstack"、"update gstack" 或
+  "get latest version" 时使用。
 voice-triggers:
   - "upgrade the tools"
   - "update the tools"
@@ -23,15 +23,15 @@ allowed-tools:
 
 # /gstack-upgrade
 
-Upgrade gstack to the latest version and show what's new.
+将 gstack 升级到最新版本，并展示 what's new。
 
-## Inline upgrade flow
+## Inline upgrade flow（内联升级流程）
 
-This section is referenced by all skill preambles when they detect `UPGRADE_AVAILABLE`.
+所有 skill preambles 在检测到 `UPGRADE_AVAILABLE` 时都会引用本 section。
 
-### Step 1: Ask the user (or auto-upgrade)
+### Step 1：询问用户（或 auto-upgrade）
 
-First, check if auto-upgrade is enabled:
+首先，检查 auto-upgrade 是否启用：
 ```bash
 _AUTO=""
 [ "${GSTACK_AUTO_UPGRADE:-}" = "1" ] && _AUTO="true"
@@ -39,21 +39,21 @@ _AUTO=""
 echo "AUTO_UPGRADE=$_AUTO"
 ```
 
-**If `AUTO_UPGRADE=true` or `AUTO_UPGRADE=1`:** Skip AskUserQuestion. Log "Auto-upgrading gstack v{old} → v{new}..." and proceed directly to Step 2. If `./setup` fails during auto-upgrade, restore from backup (`.bak` directory) and warn the user: "Auto-upgrade failed — restored previous version. Run `/gstack-upgrade` manually to retry."
+**如果 `AUTO_UPGRADE=true` 或 `AUTO_UPGRADE=1`：**跳过 AskUserQuestion。记录 "Auto-upgrading gstack v{old} -> v{new}..."，并直接进入 Step 2。如果 auto-upgrade 期间 `./setup` 失败，从 backup（`.bak` directory）恢复，并提醒用户："Auto-upgrade failed — restored previous version. Run `/gstack-upgrade` manually to retry."
 
-**Otherwise**, use AskUserQuestion:
-- Question: "gstack **v{new}** is available (you're on v{old}). Upgrade now?"
-- Options: ["Yes, upgrade now", "Always keep me up to date", "Not now", "Never ask again"]
+**否则**，使用 AskUserQuestion：
+- Question: "gstack **v{new}** 可用（你当前是 v{old}）。现在 upgrade 吗？"
+- Options: ["是，现在 upgrade", "始终让我保持最新", "暂不", "不要再询问"]
 
-**If "Yes, upgrade now":** Proceed to Step 2.
+**如果 "是，现在 upgrade"：**进入 Step 2。
 
-**If "Always keep me up to date":**
+**如果 "始终让我保持最新"：**
 ```bash
 ~/.claude/skills/gstack/bin/gstack-config set auto_upgrade true
 ```
-Tell user: "Auto-upgrade enabled. Future updates will install automatically." Then proceed to Step 2.
+告诉用户："Auto-upgrade 已启用。未来 updates 会自动 install。" 然后进入 Step 2。
 
-**If "Not now":** Write snooze state with escalating backoff (first snooze = 24h, second = 48h, third+ = 1 week), then continue with the current skill. Do not mention the upgrade again.
+**如果 "暂不"：**写入 snooze state，并使用递增 backoff（第一次 snooze = 24h，第二次 = 48h，第三次及以后 = 1 week），然后继续当前 skill。不要再次提及 upgrade。
 ```bash
 _SNOOZE_FILE="$HOME/.gstack/update-snoozed"
 _REMOTE_VER="{new}"
@@ -69,18 +69,18 @@ _NEW_LEVEL=$((_CUR_LEVEL + 1))
 [ "$_NEW_LEVEL" -gt 3 ] && _NEW_LEVEL=3
 echo "$_REMOTE_VER $_NEW_LEVEL $(date +%s)" > "$_SNOOZE_FILE"
 ```
-Note: `{new}` is the remote version from the `UPGRADE_AVAILABLE` output — substitute it from the update check result.
+注意：`{new}` 是 `UPGRADE_AVAILABLE` output 中的 remote version；从 update check result 中替换它。
 
-Tell user the snooze duration: "Next reminder in 24h" (or 48h or 1 week, depending on level). Tip: "Set `auto_upgrade: true` in `~/.gstack/config.yaml` for automatic upgrades."
+告诉用户 snooze duration："下次提醒在 24h 后"（或 48h / 1 week，取决于 level）。Tip："在 `~/.gstack/config.yaml` 中设置 `auto_upgrade: true` 可启用 automatic upgrades。"
 
-**If "Never ask again":**
+**如果 "不要再询问"：**
 ```bash
 ~/.claude/skills/gstack/bin/gstack-config set update_check false
 ```
-Tell user: "Update checks disabled. Run `~/.claude/skills/gstack/bin/gstack-config set update_check true` to re-enable."
-Continue with the current skill.
+告诉用户："Update checks 已禁用。运行 `~/.claude/skills/gstack/bin/gstack-config set update_check true` 可重新启用。"
+继续当前 skill。
 
-### Step 2: Detect install type
+### Step 2：检测 install type
 
 ```bash
 if [ -d "$HOME/.claude/skills/gstack/.git" ]; then
@@ -108,21 +108,21 @@ fi
 echo "Install type: $INSTALL_TYPE at $INSTALL_DIR"
 ```
 
-The install type and directory path printed above will be used in all subsequent steps.
+上面打印的 install type 和 directory path 会用于所有后续 steps。
 
-### Step 3: Save old version
+### Step 3：保存旧版本
 
-Use the install directory from Step 2's output below:
+使用 Step 2 output 中的 install directory：
 
 ```bash
 OLD_VERSION=$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo "unknown")
 ```
 
-### Step 4: Upgrade
+### Step 4：Upgrade
 
-Use the install type and directory detected in Step 2:
+使用 Step 2 检测到的 install type 和 directory：
 
-**For git installs** (global-git, local-git):
+**对于 git installs**（global-git、local-git）：
 ```bash
 cd "$INSTALL_DIR"
 STASH_OUTPUT=$(git stash 2>&1)
@@ -130,9 +130,9 @@ git fetch origin
 git reset --hard origin/main
 ./setup
 ```
-If `$STASH_OUTPUT` contains "Saved working directory", warn the user: "Note: local changes were stashed. Run `git stash pop` in the skill directory to restore them."
+如果 `$STASH_OUTPUT` 包含 "Saved working directory"，提醒用户："Note: local changes were stashed. Run `git stash pop` in the skill directory to restore them."
 
-**For vendored installs** (vendored, vendored-global):
+**对于 vendored installs**（vendored、vendored-global）：
 ```bash
 PARENT=$(dirname "$INSTALL_DIR")
 TMP_DIR=$(mktemp -d)
@@ -143,9 +143,9 @@ cd "$INSTALL_DIR" && ./setup
 rm -rf "$INSTALL_DIR.bak" "$TMP_DIR"
 ```
 
-### Step 4.5: Handle local vendored copy
+### Step 4.5：处理 local vendored copy
 
-Use the install directory from Step 2. Check if there's also a local vendored copy, and whether team mode is active:
+使用 Step 2 中的 install directory。检查是否还存在 local vendored copy，以及 team mode 是否 active：
 
 ```bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -162,7 +162,7 @@ echo "LOCAL_GSTACK=$LOCAL_GSTACK"
 echo "TEAM_MODE=$_TEAM_MODE"
 ```
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is `true`:** Remove the vendored copy. Team mode uses the global install as the single source of truth.
+**如果 `LOCAL_GSTACK` 非空且 `TEAM_MODE` 为 `true`：**移除 vendored copy。Team mode 使用 global install 作为 single source of truth。
 
 ```bash
 cd "$_ROOT"
@@ -172,9 +172,9 @@ if ! grep -qF '.claude/skills/gstack/' .gitignore 2>/dev/null; then
 fi
 rm -rf "$LOCAL_GSTACK"
 ```
-Tell user: "Removed vendored copy at `$LOCAL_GSTACK` (team mode active — global install is the source of truth). Commit the `.gitignore` change when ready."
+告诉用户："Removed vendored copy at `$LOCAL_GSTACK` (team mode active — global install is the source of truth). Commit the `.gitignore` change when ready."
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is NOT `true`:** Update it by copying from the freshly-upgraded primary install (same approach as README vendored install):
+**如果 `LOCAL_GSTACK` 非空且 `TEAM_MODE` 不是 `true`：**从刚升级过的 primary install 复制更新它（与 README vendored install 同一 approach）：
 ```bash
 mv "$LOCAL_GSTACK" "$LOCAL_GSTACK.bak"
 cp -Rf "$INSTALL_DIR" "$LOCAL_GSTACK"
@@ -182,20 +182,19 @@ rm -rf "$LOCAL_GSTACK/.git"
 cd "$LOCAL_GSTACK" && ./setup
 rm -rf "$LOCAL_GSTACK.bak"
 ```
-Tell user: "Also updated vendored copy at `$LOCAL_GSTACK` — commit `.claude/skills/gstack/` when you're ready."
+告诉用户："Also updated vendored copy at `$LOCAL_GSTACK` — commit `.claude/skills/gstack/` when you're ready."
 
-If `./setup` fails, restore from backup and warn the user:
+如果 `./setup` 失败，从 backup 恢复并提醒用户：
 ```bash
 rm -rf "$LOCAL_GSTACK"
 mv "$LOCAL_GSTACK.bak" "$LOCAL_GSTACK"
 ```
-Tell user: "Sync failed — restored previous version at `$LOCAL_GSTACK`. Run `/gstack-upgrade` manually to retry."
+告诉用户："Sync failed — restored previous version at `$LOCAL_GSTACK`. Run `/gstack-upgrade` manually to retry."
 
-### Step 4.75: Run version migrations
+### Step 4.75：运行 version migrations
 
-After `./setup` completes, run any migration scripts for versions between the old
-and new version. Migrations handle state fixes that `./setup` alone can't cover
-(stale config, orphaned files, directory structure changes).
+`./setup` 完成后，运行 old version 与 new version 之间的 migration scripts。Migrations 处理
+`./setup` 单独无法覆盖的 state fixes（stale config、orphaned files、directory structure changes）。
 
 ```bash
 MIGRATIONS_DIR="$INSTALL_DIR/gstack-upgrade/migrations"
@@ -213,11 +212,10 @@ if [ -d "$MIGRATIONS_DIR" ]; then
 fi
 ```
 
-Migrations are idempotent bash scripts in `gstack-upgrade/migrations/`. Each is named
-`v{VERSION}.sh` and runs only when upgrading from an older version. See CONTRIBUTING.md
-for how to add new migrations.
+Migrations 是 `gstack-upgrade/migrations/` 中的 idempotent bash scripts。每个都命名为
+`v{VERSION}.sh`，且只在从更旧版本升级时运行。如何添加 new migrations 见 CONTRIBUTING.md。
 
-### Step 5: Write marker + clear cache
+### Step 5：写入 marker + 清理 cache
 
 ```bash
 mkdir -p ~/.gstack
@@ -226,11 +224,12 @@ rm -f ~/.gstack/last-update-check
 rm -f ~/.gstack/update-snoozed
 ```
 
-### Step 6: Show What's New
+### Step 6：展示 What's New
 
-Read `$INSTALL_DIR/CHANGELOG.md`. Find all version entries between the old version and the new version. Summarize as 5-7 bullets grouped by theme. Don't overwhelm — focus on user-facing changes. Skip internal refactors unless they're significant.
+读取 `$INSTALL_DIR/CHANGELOG.md`。找到 old version 和 new version 之间的所有 version entries。
+按 theme 总结为 5-7 个 bullets。不要信息过载：聚焦 user-facing changes。除非 internal refactors 很重要，否则跳过。
 
-Format:
+格式：
 ```
 gstack v{new} — upgraded from v{old}!
 
@@ -242,40 +241,41 @@ What's new:
 Happy shipping!
 ```
 
-### Step 7: Continue
+### Step 7：继续
 
-After showing What's New, continue with whatever skill the user originally invoked. The upgrade is done — no further action needed.
+展示 What's New 后，继续用户最初调用的 skill。Upgrade 已完成，不需要进一步 action。
 
 ---
 
-## Standalone usage
+## Standalone usage（独立使用）
 
-When invoked directly as `/gstack-upgrade` (not from a preamble):
+当直接以 `/gstack-upgrade` 调用时（不是来自 preamble）：
 
-1. Force a fresh update check (bypass cache):
+1. 强制 fresh update check（bypass cache）：
 ```bash
 ~/.claude/skills/gstack/bin/gstack-update-check --force 2>/dev/null || \
 .claude/skills/gstack/bin/gstack-update-check --force 2>/dev/null || true
 ```
-Use the output to determine if an upgrade is available.
+使用 output 判断是否有 upgrade 可用。
 
-2. If `UPGRADE_AVAILABLE <old> <new>`: follow Steps 2-6 above.
+2. 如果 `UPGRADE_AVAILABLE <old> <new>`：遵循上面的 Steps 2-6。
 
-3. If no output (primary is up to date): check for a stale local vendored copy.
+3. 如果没有 output（primary 已是最新）：检查 stale local vendored copy。
 
-Run the Step 2 bash block above to detect the primary install type and directory (`INSTALL_TYPE` and `INSTALL_DIR`). Then run the Step 4.5 detection bash block above to check for a local vendored copy (`LOCAL_GSTACK`) and team mode status (`TEAM_MODE`).
+运行上面的 Step 2 bash block，检测 primary install type 和 directory（`INSTALL_TYPE` 和 `INSTALL_DIR`）。
+然后运行上面的 Step 4.5 detection bash block，检查 local vendored copy（`LOCAL_GSTACK`）和 team mode status（`TEAM_MODE`）。
 
-**If `LOCAL_GSTACK` is empty** (no local vendored copy): tell the user "You're already on the latest version (v{version})."
+**如果 `LOCAL_GSTACK` 为空**（没有 local vendored copy）：告诉用户 "You're already on the latest version (v{version})."
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is `true`:** Remove the vendored copy using the Step 4.5 team-mode removal bash block above. Tell user: "Global v{version} is up to date. Removed stale vendored copy (team mode active). Commit the `.gitignore` change when ready."
+**如果 `LOCAL_GSTACK` 非空且 `TEAM_MODE` 为 `true`：**使用上面的 Step 4.5 team-mode removal bash block 移除 vendored copy。告诉用户："Global v{version} is up to date. Removed stale vendored copy (team mode active). Commit the `.gitignore` change when ready."
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is NOT `true`**, compare versions:
+**如果 `LOCAL_GSTACK` 非空且 `TEAM_MODE` 不是 `true`**，比较 versions：
 ```bash
 PRIMARY_VER=$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo "unknown")
 LOCAL_VER=$(cat "$LOCAL_GSTACK/VERSION" 2>/dev/null || echo "unknown")
 echo "PRIMARY=$PRIMARY_VER LOCAL=$LOCAL_VER"
 ```
 
-**If versions differ:** follow the Step 4.5 sync bash block above to update the local copy from the primary. Tell user: "Global v{PRIMARY_VER} is up to date. Updated local vendored copy from v{LOCAL_VER} → v{PRIMARY_VER}. Commit `.claude/skills/gstack/` when you're ready."
+**如果 versions 不同：**遵循上面的 Step 4.5 sync bash block，从 primary 更新 local copy。告诉用户："Global v{PRIMARY_VER} is up to date. Updated local vendored copy from v{LOCAL_VER} -> v{PRIMARY_VER}. Commit `.claude/skills/gstack/` when you're ready."
 
-**If versions match:** tell the user "You're on the latest version (v{PRIMARY_VER}). Global and local vendored copy are both up to date."
+**如果 versions 相同：**告诉用户 "You're on the latest version (v{PRIMARY_VER}). Global and local vendored copy are both up to date."

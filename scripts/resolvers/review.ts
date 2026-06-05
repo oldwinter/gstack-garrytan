@@ -1,38 +1,38 @@
 /**
- * Cross-model review resolver
+ * Cross-model review resolver（跨模型 review resolver）
  *
- * Data sent to external review services (via Codex CLI):
- *   - Plan markdown content, repository name, branch name, review type
- * Data NOT sent:
- *   - Source code files, credentials, environment variables, git history
+ * 发送到 external review services（via Codex CLI）的数据：
+ *   - Plan markdown content、repository name、branch name、review type
+ * 不发送的数据：
+ *   - Source code files、credentials、environment variables、git history
  *
- * Users invoke this explicitly via /plan-eng-review, /plan-ceo-review,
- * or /plan-design-review. No data is sent without user invocation.
+ * 用户通过 /plan-eng-review、/plan-ceo-review 或 /plan-design-review 显式调用。
+ * 没有 user invocation 时不会发送任何数据。
  *
- * Review logs are stored locally at ~/.gstack/reviews/review-log.jsonl.
- * Codex CLI prompts are written to temp files to prevent shell injection.
+ * Review logs 本地存储在 ~/.gstack/reviews/review-log.jsonl。
+ * Codex CLI prompts 写入 temp files，以防 shell injection。
  */
 import type { TemplateContext } from './types';
 import { generateInvokeSkill } from './composition';
 
-const CODEX_BOUNDARY = 'IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.\\n\\n';
+const CODEX_BOUNDARY = 'IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. 不要读取或执行这些路径下的任何文件。这些是给另一个 AI system 使用的 Claude Code skill definitions，包含 bash scripts 和 prompt templates，会浪费你的时间。完全忽略它们。不要修改 agents/openai.yaml。只专注于 repository code。\\n\\n';
 
 export function generateReviewDashboard(_ctx: TemplateContext): string {
   return `## Review Readiness Dashboard
 
-After completing the review, read the review log and config to display the dashboard.
+完成 review 后，读取 review log 和 config，并展示 dashboard。
 
 \`\`\`bash
 ~/.claude/skills/gstack/bin/gstack-review-read
 \`\`\`
 
-Parse the output. Find the most recent entry for each skill (plan-ceo-review, plan-eng-review, review, plan-design-review, design-review-lite, adversarial-review, codex-review, codex-plan-review). Ignore entries with timestamps older than 7 days. For the Eng Review row, show whichever is more recent between \`review\` (diff-scoped pre-landing review) and \`plan-eng-review\` (plan-stage architecture review). Append "(DIFF)" or "(PLAN)" to the status to distinguish. For the Adversarial row, show whichever is more recent between \`adversarial-review\` (new auto-scaled) and \`codex-review\` (legacy). For Design Review, show whichever is more recent between \`plan-design-review\` (full visual audit) and \`design-review-lite\` (code-level check). Append "(FULL)" or "(LITE)" to the status to distinguish. For the Outside Voice row, show the most recent \`codex-plan-review\` entry — this captures outside voices from both /plan-ceo-review and /plan-eng-review.
+Parse output。为每个 skill（plan-ceo-review、plan-eng-review、review、plan-design-review、design-review-lite、adversarial-review、codex-review、codex-plan-review）找到最近 entry。忽略 timestamp 超过 7 天的 entries。Eng Review 行显示 \`review\`（diff-scoped pre-landing review）和 \`plan-eng-review\`（plan-stage architecture review）中更新的一条，并在 status 后追加 "(DIFF)" 或 "(PLAN)" 区分。Adversarial 行显示 \`adversarial-review\`（new auto-scaled）和 \`codex-review\`（legacy）中更新的一条。Design Review 行显示 \`plan-design-review\`（full visual audit）和 \`design-review-lite\`（code-level check）中更新的一条，并追加 "(FULL)" 或 "(LITE)" 区分。Outside Voice 行显示最近的 \`codex-plan-review\` entry，它捕获 /plan-ceo-review 和 /plan-eng-review 中的 outside voices。
 
-**Source attribution:** If the most recent entry for a skill has a \\\`"via"\\\` field, append it to the status label in parentheses. Examples: \`plan-eng-review\` with \`via:"autoplan"\` shows as "CLEAR (PLAN via /autoplan)". \`review\` with \`via:"ship"\` shows as "CLEAR (DIFF via /ship)". Entries without a \`via\` field show as "CLEAR (PLAN)" or "CLEAR (DIFF)" as before.
+**Source attribution（来源归因）：** 如果某个 skill 的最近 entry 有 \\\`"via"\\\` field，将其追加到 status label 的括号中。示例：\`plan-eng-review\` + \`via:"autoplan"\` 显示为 "CLEAR (PLAN via /autoplan)"；\`review\` + \`via:"ship"\` 显示为 "CLEAR (DIFF via /ship)"。没有 \`via\` field 的 entries 仍按之前显示为 "CLEAR (PLAN)" 或 "CLEAR (DIFF)"。
 
-Note: \`autoplan-voices\` and \`design-outside-voices\` entries are audit-trail-only (forensic data for cross-model consensus analysis). They do not appear in the dashboard and are not checked by any consumer.
+Note：\`autoplan-voices\` 和 \`design-outside-voices\` entries 只作为 audit trail（用于 cross-model consensus analysis 的 forensic data）。它们不显示在 dashboard 中，也不被任何 consumer 检查。
 
-Display:
+展示：
 
 \`\`\`
 +====================================================================+
@@ -50,42 +50,42 @@ Display:
 +====================================================================+
 \`\`\`
 
-**Review tiers:**
-- **Eng Review (required by default):** The only review that gates shipping. Covers architecture, code quality, tests, performance. Can be disabled globally with \\\`gstack-config set skip_eng_review true\\\` (the "don't bother me" setting).
-- **CEO Review (optional):** Use your judgment. Recommend it for big product/business changes, new user-facing features, or scope decisions. Skip for bug fixes, refactors, infra, and cleanup.
-- **Design Review (optional):** Use your judgment. Recommend it for UI/UX changes. Skip for backend-only, infra, or prompt-only changes.
-- **Adversarial Review (automatic):** Always-on for every review. Every diff gets both Claude adversarial subagent and Codex adversarial challenge. Large diffs (200+ lines) additionally get Codex structured review with P1 gate. No configuration needed.
-- **Outside Voice (optional):** Independent plan review from a different AI model. Offered after all review sections complete in /plan-ceo-review and /plan-eng-review. Falls back to Claude subagent if Codex is unavailable. Never gates shipping.
+**Review tiers（review 层级）：**
+- **Eng Review (required by default):** 唯一 gate shipping 的 review。覆盖 architecture、code quality、tests、performance。可用 \\\`gstack-config set skip_eng_review true\\\` 全局关闭（"don't bother me" setting）。
+- **CEO Review (optional):** 使用 judgment。建议用于重大 product/business changes、新 user-facing features 或 scope decisions。Bug fixes、refactors、infra 和 cleanup 可跳过。
+- **Design Review (optional):** 使用 judgment。建议用于 UI/UX changes。Backend-only、infra 或 prompt-only changes 可跳过。
+- **Adversarial Review (automatic):** 每个 review 都 always-on。每个 diff 都会获得 Claude adversarial subagent 和 Codex adversarial challenge。Large diffs（200+ lines）还会额外获得带 P1 gate 的 Codex structured review。无需配置。
+- **Outside Voice (optional):** 来自不同 AI model 的 independent plan review。在 /plan-ceo-review 和 /plan-eng-review 的所有 review sections 完成后提供。Codex 不可用时 fallback 到 Claude subagent。永不 gate shipping。
 
-**Verdict logic:**
-- **CLEARED**: Eng Review has >= 1 entry within 7 days from either \\\`review\\\` or \\\`plan-eng-review\\\` with status "clean" (or \\\`skip_eng_review\\\` is \\\`true\\\`)
-- **NOT CLEARED**: Eng Review missing, stale (>7 days), or has open issues
-- CEO, Design, and Codex reviews are shown for context but never block shipping
-- If \\\`skip_eng_review\\\` config is \\\`true\\\`, Eng Review shows "SKIPPED (global)" and verdict is CLEARED
+**Verdict logic（判定逻辑）：**
+- **CLEARED**: Eng Review 在 7 天内有 >= 1 条来自 \\\`review\\\` 或 \\\`plan-eng-review\\\` 且 status 为 "clean" 的 entry（或 \\\`skip_eng_review\\\` 为 \\\`true\\\`）
+- **NOT CLEARED**: Eng Review 缺失、stale（>7 天）或存在 open issues
+- CEO、Design 和 Codex reviews 只展示 context，永不 block shipping
+- 如果 \\\`skip_eng_review\\\` config 为 \\\`true\\\`，Eng Review 显示 "SKIPPED (global)"，verdict 为 CLEARED
 
-**Staleness detection:** After displaying the dashboard, check if any existing reviews may be stale:
-- Parse the \\\`---HEAD---\\\` section from the bash output to get the current HEAD commit hash
-- For each review entry that has a \\\`commit\\\` field: compare it against the current HEAD. If different, count elapsed commits: \\\`git rev-list --count STORED_COMMIT..HEAD\\\`. Display: "Note: {skill} review from {date} may be stale — {N} commits since review"
-- For entries without a \\\`commit\\\` field (legacy entries): display "Note: {skill} review from {date} has no commit tracking — consider re-running for accurate staleness detection"
-- If all reviews match the current HEAD, do not display any staleness notes`;
+**Staleness detection（过期检测）：** 展示 dashboard 后，检查现有 reviews 是否可能 stale：
+- 从 bash output 的 \\\`---HEAD---\\\` section parse 当前 HEAD commit hash
+- 对每个带 \\\`commit\\\` field 的 review entry：与当前 HEAD 比较。如果不同，计算 elapsed commits：\\\`git rev-list --count STORED_COMMIT..HEAD\\\`。显示："Note: {skill} review from {date} may be stale — {N} commits since review"（保留原文，便于 log/search 稳定）
+- 对没有 \\\`commit\\\` field 的 entries（legacy entries）：显示 "Note: {skill} review from {date} has no commit tracking — consider re-running for accurate staleness detection"（保留原文，便于 log/search 稳定）
+- 如果所有 reviews 都匹配当前 HEAD，不显示任何 staleness notes`;
 }
 
 export function generatePlanFileReviewReport(_ctx: TemplateContext): string {
   return `## Plan File Review Report
 
-After displaying the Review Readiness Dashboard in conversation output, also update the
-**plan file** itself so review status is visible to anyone reading the plan.
+在 conversation output 中展示 Review Readiness Dashboard 后，也要更新 **plan file** 本身，
+让任何阅读 plan 的人都能看到 review status。
 
-### Detect the plan file
+### Detect the plan file（检测 plan file）
 
-1. Check if there is an active plan file in this conversation (the host provides plan file
-   paths in system messages — look for plan file references in the conversation context).
-2. If not found, skip this section silently — not every review runs in plan mode.
+1. 检查当前 conversation 中是否有 active plan file（host 会在 system messages 中提供 plan file
+   paths；在 conversation context 中查找 plan file references）。
+2. 如果未找到，静默跳过此 section：不是每个 review 都在 plan mode 中运行。
 
-### Generate the report
+### Generate the report（生成报告）
 
-Read the review log output you already have from the Review Readiness Dashboard step above.
-Parse each JSONL entry. Each skill logs different fields:
+读取上方 Review Readiness Dashboard step 中已有的 review log output。Parse 每条 JSONL entry。
+不同 skill 会记录不同 fields：
 
 - **plan-ceo-review**: \\\`status\\\`, \\\`unresolved\\\`, \\\`critical_gaps\\\`, \\\`mode\\\`, \\\`scope_proposed\\\`, \\\`scope_accepted\\\`, \\\`scope_deferred\\\`, \\\`commit\\\`
   → Findings: "{scope_proposed} proposals, {scope_accepted} accepted, {scope_deferred} deferred"
@@ -101,11 +101,10 @@ Parse each JSONL entry. Each skill logs different fields:
 - **codex-review**: \\\`status\\\`, \\\`gate\\\`, \\\`findings\\\`, \\\`findings_fixed\\\`
   → Findings: "{findings} findings, {findings_fixed}/{findings} fixed"
 
-All fields needed for the Findings column are now present in the JSONL entries.
-For the review you just completed, you may use richer details from your own Completion
-Summary. For prior reviews, use the JSONL fields directly — they contain all required data.
+Findings column 所需的所有 fields 现在都存在于 JSONL entries 中。对刚完成的 review，可以使用你自己的
+Completion Summary 中更丰富的细节。对 prior reviews，直接使用 JSONL fields：它们包含所有 required data。
 
-Produce this markdown table:
+生成以下 markdown table：
 
 \\\`\\\`\\\`markdown
 ## GSTACK REVIEW REPORT
@@ -119,138 +118,121 @@ Produce this markdown table:
 | DX Review | \\\`/plan-devex-review\\\` | Developer experience gaps | {runs} | {status} | {findings} |
 \\\`\\\`\\\`
 
-Below the table, add these lines (omit any that are empty/not applicable):
+在 table 下方添加这些 lines（空值或不适用时省略）：
 
-- **CODEX:** (only if codex-review ran) — one-line summary of codex fixes
-- **CROSS-MODEL:** (only if both Claude and Codex reviews exist) — overlap analysis
-- **UNRESOLVED:** total unresolved decisions across all reviews
-- **VERDICT:** list reviews that are CLEAR (e.g., "CEO + ENG CLEARED — ready to implement").
-  If Eng Review is not CLEAR and not skipped globally, append "eng review required".
+- **CODEX:**（仅当 codex-review 运行过）codex fixes 的一行 summary
+- **CROSS-MODEL:**（仅当 Claude 和 Codex reviews 都存在）overlap analysis
+- **UNRESOLVED:** 所有 reviews 的 unresolved decisions 总数
+- **VERDICT：** 列出 CLEAR 的 reviews（例如 "CEO + ENG CLEARED — ready to implement"）。
+  如果 Eng Review 不是 CLEAR 且没有 global skip，追加 "eng review required"。
 
-### Write to the plan file
+### Write to the plan file（写入 plan file）
 
-**PLAN MODE EXCEPTION — ALWAYS RUN:** This writes to the plan file, which is the one
-file you are allowed to edit in plan mode. The plan file review report is part of the
-plan's living status.
+**PLAN MODE EXCEPTION — ALWAYS RUN:** 这会写入 plan file，而 plan file 是 plan mode 中你唯一允许编辑的文件。
+Plan file review report 是 plan living status 的一部分。
 
-The report must always be the LAST section of the plan file — never mid-file.
-Use a single delete-then-append flow:
+Report 必须始终是 plan file 的 LAST section，永远不要放在 mid-file。
+使用单一 delete-then-append flow：
 
-1. Read the plan file (Read tool) to see its full current content. Search the read
-   output for a \\\`## GSTACK REVIEW REPORT\\\` heading anywhere in the file.
-2. If found, use the Edit tool to DELETE the entire existing section. Match from
-   \\\`## GSTACK REVIEW REPORT\\\` through either the next \\\`## \\\` heading or end of
-   file, whichever comes first. Replace with the empty string. This applies
-   regardless of where the section currently lives — mid-file deletion is
-   intentional, not a special case. If the Edit fails (e.g., concurrent edit
-   changed the content), re-read the plan file and retry once.
-3. After the delete (or skipped, if no section existed), append the new
-   \\\`## GSTACK REVIEW REPORT\\\` section at the END of the file. Use the Edit
-   tool to match the file's current last paragraph and add the section after it,
-   or use Write to re-emit the whole file with the section at the end.
-4. Verify with the Read tool that \\\`## GSTACK REVIEW REPORT\\\` is the last
-   \\\`## \\\` heading in the file before continuing. If it isn't, repeat steps
-   2-3 once.
+1. Read plan file（Read tool），查看完整 current content。在 read output 中搜索文件任意位置是否存在
+   \\\`## GSTACK REVIEW REPORT\\\` heading。
+2. 如果找到，使用 Edit tool DELETE 整个 existing section。从
+   \\\`## GSTACK REVIEW REPORT\\\` match 到下一个 \\\`## \\\` heading 或文件末尾，以先出现者为准。
+   替换为空字符串。无论该 section 当前位于哪里都这样处理：mid-file deletion 是 intentional，
+   不是 special case。如果 Edit 失败（例如 concurrent edit 改变了 content），重新读取 plan file 并重试一次。
+3. Delete 后（或没有 existing section 而跳过 delete 后），在文件 END 追加新的
+   \\\`## GSTACK REVIEW REPORT\\\` section。使用 Edit tool 匹配文件当前最后一个 paragraph 并在其后添加 section，
+   或使用 Write 重新输出整个文件，并让 section 位于末尾。
+4. 继续前用 Read tool 验证 \\\`## GSTACK REVIEW REPORT\\\` 是文件中的最后一个
+   \\\`## \\\` heading。如果不是，重复 steps 2-3 一次。
 
-Do NOT replace the section in place. The "replace mid-file" path is what allowed
-prior versions to leave the report mid-file when an older report already lived
-there — the user then sees a plan whose review report is not at the bottom and
-(correctly) rejects it.`;
+不要 in-place replace 该 section。"replace mid-file" path 曾让旧版本在已有 older report 时把 report 留在 mid-file：
+用户会看到一个 review report 不在底部的 plan，并且会（正确地）拒绝它。`;
 }
 
 export function generateExitPlanModeGate(_ctx: TemplateContext): string {
   return `## EXIT PLAN MODE GATE (BLOCKING)
 
-Before calling ExitPlanMode, run this self-check. If any item fails, do the
-missing work — do NOT call ExitPlanMode:
+调用 ExitPlanMode 前，运行此 self-check。如果任何 item 失败，补齐 missing work，不要调用 ExitPlanMode：
 
-1. Read the plan file with the Read tool (after your most recent write to it).
-2. Confirm the LAST \`## \` heading in the file is \`## GSTACK REVIEW REPORT\`.
-   In-body prose that mentions "outside voice", "codex findings", or similar
-   does NOT count — only the structured \`## GSTACK REVIEW REPORT\` section
-   satisfies this check.
-3. Confirm the report contains: a Runs / Status / Findings table, a VERDICT
-   line, and absorbs CODEX / CROSS-MODEL / UNRESOLVED lines if applicable.
-4. If a plan file is in context for this skill invocation: confirm
-   \`gstack-review-log\` was called and \`gstack-review-read\` was run at least
-   once. If no plan file is in context (e.g. \`/codex consult\` against a
-   diff with no plan), this check short-circuits — checks 1-3 already
-   short-circuit when no plan file exists.
+1. 使用 Read tool 读取 plan file（在你最近一次写入之后）。
+2. 确认文件中的 LAST \`## \` heading 是 \`## GSTACK REVIEW REPORT\`。
+   Body prose 中提到 "outside voice"、"codex findings" 或类似内容不算：只有 structured
+   \`## GSTACK REVIEW REPORT\` section 满足此检查。
+3. 确认 report 包含：Runs / Status / Findings table、VERDICT line，并在适用时吸收
+   CODEX / CROSS-MODEL / UNRESOLVED lines。
+4. 如果此 skill invocation 的 context 中有 plan file：确认已调用 \`gstack-review-log\`，
+   且至少运行过一次 \`gstack-review-read\`。如果 context 中没有 plan file（例如针对无 plan diff 的
+   \`/codex consult\`），此 check short-circuit：当不存在 plan file 时，checks 1-3 也已 short-circuit。
 
-Failing this gate and calling ExitPlanMode anyway is a contract violation —
-the user will see a plan whose review report is missing or stale, and will
-(correctly) reject it. Self-deception failure mode to watch for: feeling
-"done" after writing review prose into the plan body. The body prose is not
-the report. The report is a separate, structured, table-bearing section that
-must be the file's terminal heading.`;
+未通过此 gate 却调用 ExitPlanMode 是 contract violation。用户会看到一个 review report missing 或 stale 的 plan，
+并会（正确地）拒绝它。需要警惕的 self-deception failure mode：把 review prose 写进 plan body 后就觉得
+"done"。Body prose 不是 report。Report 是独立、structured、带 table 的 section，且必须是文件的 terminal heading。`;
 }
 
 export function generateAntiShortcutClause(_ctx: TemplateContext): string {
-  return `**Anti-shortcut clause:** The plan file is the OUTPUT of the interactive review, not a substitute for it. Writing every finding into one plan write and calling ExitPlanMode without firing AskUserQuestion is the precise failure mode of the May 2026 transcript bug — the model explored, found issues, and dumped them into a deliverable rather than walking the user through them. If you have ANY non-trivial finding in any review section, the path from finding to ExitPlanMode goes THROUGH AskUserQuestion. Zero findings in every section is the only path to ExitPlanMode that bypasses AskUserQuestion. If you find yourself wanting to write a plan with findings before asking, stop and call AskUserQuestion now — that's the bug, recognize it.`;
+  return `**Anti-shortcut clause:** Plan file 是 interactive review 的 OUTPUT，不是替代品。把所有 finding 一次性写进 plan，然后不触发 AskUserQuestion 就调用 ExitPlanMode，正是 2026 年 5 月 transcript bug 的 failure mode：model 探索、发现问题，然后把它们倒进 deliverable，而不是带用户逐项走过。如果任何 review section 中有 ANY non-trivial finding，从 finding 到 ExitPlanMode 的路径必须经过 AskUserQuestion。只有每个 section 都 zero findings 时，才能绕过 AskUserQuestion 进入 ExitPlanMode。如果你发现自己想先写带 findings 的 plan 再问，停下来立刻调用 AskUserQuestion：这就是那个 bug，要识别出来。`;
 }
 
 export function generateSpecReviewLoop(_ctx: TemplateContext): string {
   return `## Spec Review Loop
 
-Before presenting the document to the user for approval, run an adversarial review.
+在把 document 呈现给用户 approval 前，运行一次 adversarial review。
 
 **Step 1: Dispatch reviewer subagent**
 
-Use the Agent tool to dispatch an independent reviewer. The reviewer has fresh context
-and cannot see the brainstorming conversation — only the document. This ensures genuine
-adversarial independence.
+使用 Agent tool dispatch 一个 independent reviewer。Reviewer 有 fresh context，
+看不到 brainstorming conversation，只能看到 document。这保证 genuine adversarial independence。
 
-Prompt the subagent with:
-- The file path of the document just written
-- "Read this document and review it on 5 dimensions. For each dimension, note PASS or
-  list specific issues with suggested fixes. At the end, output a quality score (1-10)
-  across all dimensions."
+给 subagent 的 prompt 包含：
+- 刚写入的 document file path
+- "读取这个 document，并按 5 个 dimensions review。对每个 dimension 标记 PASS，
+  或列出具体 issues 和 suggested fixes。最后输出一个跨全部 dimensions 的 quality score（1-10）。"
 
-**Dimensions:**
-1. **Completeness** — Are all requirements addressed? Missing edge cases?
-2. **Consistency** — Do parts of the document agree with each other? Contradictions?
-3. **Clarity** — Could an engineer implement this without asking questions? Ambiguous language?
-4. **Scope** — Does the document creep beyond the original problem? YAGNI violations?
-5. **Feasibility** — Can this actually be built with the stated approach? Hidden complexity?
+**Dimensions（维度）：**
+1. **Completeness**：所有 requirements 是否都已覆盖？是否缺 edge cases？
+2. **Consistency**：document 各部分是否彼此一致？是否有 contradictions？
+3. **Clarity**：engineer 是否能不提问就实现？是否有 ambiguous language？
+4. **Scope**：document 是否 creep beyond original problem？是否有 YAGNI violations？
+5. **Feasibility**：这个 stated approach 是否真的可构建？是否有 hidden complexity？
 
-The subagent should return:
-- A quality score (1-10)
-- PASS if no issues, or a numbered list of issues with dimension, description, and fix
+Subagent 应返回：
+- quality score（1-10）
+- 如果没有 issues，返回 PASS；否则返回 numbered list，每项包含 dimension、description 和 fix
 
-**Step 2: Fix and re-dispatch**
+**Step 2：Fix and re-dispatch（修复并重新派发）**
 
-If the reviewer returns issues:
-1. Fix each issue in the document on disk (use Edit tool)
-2. Re-dispatch the reviewer subagent with the updated document
-3. Maximum 3 iterations total
+如果 reviewer 返回 issues：
+1. 在 disk 上修复 document 中的每个 issue（使用 Edit tool）
+2. 用 updated document 重新 dispatch reviewer subagent
+3. 总共最多 3 次 iterations
 
-**Convergence guard:** If the reviewer returns the same issues on consecutive iterations
-(the fix didn't resolve them or the reviewer disagrees with the fix), stop the loop
-and persist those issues as "Reviewer Concerns" in the document rather than looping
-further.
+**Convergence guard（收敛保护）：** 如果 reviewer 在连续 iterations 返回同样 issues
+（fix 没解决它们，或 reviewer 不同意该 fix），停止 loop，并把这些 issues 作为
+"Reviewer Concerns" persist 到 document 中，不再继续 loop。
 
-If the subagent fails, times out, or is unavailable — skip the review loop entirely.
-Tell the user: "Spec review unavailable — presenting unreviewed doc." The document is
-already written to disk; the review is a quality bonus, not a gate.
+如果 subagent fails、times out 或 unavailable，完全跳过 review loop。告诉用户：
+"Spec review unavailable — presenting unreviewed doc."（保留原文提示）Document 已经写入 disk；review 是 quality bonus，
+不是 gate。
 
-**Step 3: Report and persist metrics**
+**Step 3：Report and persist metrics（报告并持久化 metrics）**
 
-After the loop completes (PASS, max iterations, or convergence guard):
+Loop 完成后（PASS、max iterations 或 convergence guard）：
 
-1. Tell the user the result — summary by default:
+1. 告诉用户结果，默认只给 summary：
    "Your doc survived N rounds of adversarial review. M issues caught and fixed.
-   Quality score: X/10."
-   If they ask "what did the reviewer find?", show the full reviewer output.
+   Quality score: X/10."（保留原文 summary 口径）
+   如果用户问 "what did the reviewer find?"，展示完整 reviewer output。
 
-2. If issues remain after max iterations or convergence, add a "## Reviewer Concerns"
-   section to the document listing each unresolved issue. Downstream skills will see this.
+2. 如果 max iterations 或 convergence 后仍有 issues，向 document 添加 "## Reviewer Concerns"
+   section，列出每个 unresolved issue。Downstream skills 会看到它。
 
-3. Append metrics:
+3. Append metrics：
 \`\`\`bash
 mkdir -p ~/.gstack/analytics
 echo '{"skill":"${_ctx.skillName}","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","iterations":ITERATIONS,"issues_found":FOUND,"issues_fixed":FIXED,"remaining":REMAINING,"quality_score":SCORE}' >> ~/.gstack/analytics/spec-review.jsonl 2>/dev/null || true
 \`\`\`
-Replace ITERATIONS, FOUND, FIXED, REMAINING, SCORE with actual values from the review.`;
+用 review 中的 actual values 替换 ITERATIONS、FOUND、FIXED、REMAINING、SCORE。`;
 }
 
 export function generateBenefitsFrom(ctx: TemplateContext): string {
@@ -259,36 +241,33 @@ export function generateBenefitsFrom(ctx: TemplateContext): string {
   const skillList = ctx.benefitsFrom.map(s => `\`/${s}\``).join(' or ');
   const first = ctx.benefitsFrom[0];
 
-  // Reuse the INVOKE_SKILL resolver for the actual loading instructions
+  // 复用 INVOKE_SKILL resolver 来生成实际 loading instructions
   const invokeBlock = generateInvokeSkill(ctx, [first]);
 
-  return `## Prerequisite Skill Offer
+  return `## Prerequisite Skill Offer（前置 skill 提议）
 
-When the design doc check above prints "No design doc found," offer the prerequisite
-skill before proceeding.
+当上方 design doc check 打印 "No design doc found" 时，在继续前提供 prerequisite skill。
 
-Say to the user via AskUserQuestion:
+通过 AskUserQuestion 对用户说：
 
-> "No design doc found for this branch. ${skillList} produces a structured problem
-> statement, premise challenge, and explored alternatives — it gives this review much
-> sharper input to work with. Takes about 10 minutes. The design doc is per-feature,
-> not per-product — it captures the thinking behind this specific change."
+> "这个 branch 没有找到 design doc。${skillList} 会产出 structured problem
+> statement、premise challenge 和 explored alternatives，让本次 review 有更 sharp 的 input。
+> 大约需要 10 分钟。Design doc 是 per-feature，不是 per-product：它记录这次 specific change 背后的思考。"
 
 Options:
-- A) Run /${first} now (we'll pick up the review right after)
+- A) Run /${first} now（之后继续本次 review）
 - B) Skip — proceed with standard review
 
-If they skip: "No worries — standard review. If you ever want sharper input, try
-/${first} first next time." Then proceed normally. Do not re-offer later in the session.
+如果用户 skip："No worries — 继续 standard review。以后如果想要更 sharp 的 input，
+下次先试 /${first}。" 然后正常继续。本 session 中不要再次提供。
 
-If they choose A:
+如果用户选择 A：
 
-Say: "Running /${first} inline. Once the design doc is ready, I'll pick up
-the review right where we left off."
+说："Running /${first} inline。Design doc ready 后，我会从刚才停下的位置继续 review。"
 
 ${invokeBlock}
 
-After /${first} completes, re-run the design doc check:
+/${first} 完成后，重新运行 design doc check：
 \`\`\`bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
 SLUG=$(~/.claude/skills/gstack/browse/bin/remote-slug 2>/dev/null || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
@@ -298,55 +277,55 @@ DESIGN=$(ls -t ~/.gstack/projects/$SLUG/*-$BRANCH-design-*.md 2>/dev/null | head
 [ -n "$DESIGN" ] && echo "Design doc found: $DESIGN" || echo "No design doc found"
 \`\`\`
 
-If a design doc is now found, read it and continue the review.
-If none was produced (user may have cancelled), proceed with standard review.`;
+如果现在找到 design doc，读取它并继续 review。
+如果没有生成（用户可能取消了），继续 standard review。`;
 }
 
 export function generateCodexSecondOpinion(ctx: TemplateContext): string {
-  // Codex host: strip entirely — Codex should never invoke itself
+  // Codex host: strip entirely — Codex 不应 invoke itself
   if (ctx.host === 'codex') return '';
 
-  return `## Phase 3.5: Cross-Model Second Opinion (optional)
+  return `## Phase 3.5: Cross-Model Second Opinion（可选）
 
-**Binary check first:**
+**Binary check first（先检查 binary）：**
 
 \`\`\`bash
 command -v codex >/dev/null 2>&1 && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
 \`\`\`
 
-Use AskUserQuestion (regardless of codex availability):
+使用 AskUserQuestion（无论 codex availability 如何）：
 
-> Want a second opinion from an independent AI perspective? It will review your problem statement, key answers, premises, and any landscape findings from this session without having seen this conversation — it gets a structured summary. Usually takes 2-5 minutes.
+> 要获得 second opinion from an independent AI perspective 吗？它会基于 structured summary 审查本 session 的 problem statement、key answers、premises 和任何 landscape findings，而不会看到这段 conversation。通常需要 2-5 分钟。
 > A) Yes, get a second opinion
 > B) No, proceed to alternatives
 
-If B: skip Phase 3.5 entirely. Remember that the second opinion did NOT run (affects design doc, founder signals, and Phase 4 below).
+如果选择 B：完全跳过 Phase 3.5。记住 second opinion 没有运行（会影响 design doc、founder signals 和下方 Phase 4）。
 
-**If A: Run the Codex cold read.**
+**如果选择 A：运行 Codex cold read。**
 
-1. Assemble a structured context block from Phases 1-3:
-   - Mode (Startup or Builder)
-   - Problem statement (from Phase 1)
-   - Key answers from Phase 2A/2B (summarize each Q&A in 1-2 sentences, include verbatim user quotes)
-   - Landscape findings (from Phase 2.75, if search was run)
-   - Agreed premises (from Phase 3)
-   - Codebase context (project name, languages, recent activity)
+1. 从 Phases 1-3 组装 structured context block：
+   - Mode（Startup 或 Builder）
+   - Problem statement（来自 Phase 1）
+   - Phase 2A/2B 的 key answers（每个 Q&A 用 1-2 句总结，包含用户原话）
+   - Landscape findings（来自 Phase 2.75，如果运行过 search）
+   - Agreed premises（来自 Phase 3）
+   - Codebase context（project name、languages、recent activity）
 
-2. **Write the assembled prompt to a temp file** (prevents shell injection from user-derived content):
+2. **将 assembled prompt 写入 temp file**（防止 user-derived content 造成 shell injection）：
 
 \`\`\`bash
 CODEX_PROMPT_FILE=$(mktemp /tmp/gstack-codex-oh-XXXXXXXX.txt)
 \`\`\`
 
-Write the full prompt to this file. **Always start with the filesystem boundary:**
+将 full prompt 写入此 file。**始终以 filesystem boundary 开头：**
 "${CODEX_BOUNDARY}"
-Then add the context block and mode-appropriate instructions:
+然后添加 context block 和 mode-appropriate instructions：
 
-**Startup mode instructions:** "You are an independent technical advisor reading a transcript of a startup brainstorming session. [CONTEXT BLOCK HERE]. Your job: 1) What is the STRONGEST version of what this person is trying to build? Steelman it in 2-3 sentences. 2) What is the ONE thing from their answers that reveals the most about what they should actually build? Quote it and explain why. 3) Name ONE agreed premise you think is wrong, and what evidence would prove you right. 4) If you had 48 hours and one engineer to build a prototype, what would you build? Be specific — tech stack, features, what you'd skip. Be direct. Be terse. No preamble."
+**Startup mode instructions:** "你是一位 independent technical advisor，正在阅读 startup brainstorming session 的 transcript。[CONTEXT BLOCK HERE]。你的任务：1) 这个人想 build 的东西，最强版本是什么？用 2-3 句 steelman。2) 他们的回答中，哪 ONE thing 最能揭示他们 actually should build 的东西？引用它并解释原因。3) 指出 ONE 个你认为错误的 agreed premise，以及什么 evidence 能证明你是对的。4) 如果你有 48 小时和一个 engineer 来 build prototype，你会 build 什么？要具体：tech stack、features、你会 skip 什么。Direct。Terse。No preamble。"
 
-**Builder mode instructions:** "You are an independent technical advisor reading a transcript of a builder brainstorming session. [CONTEXT BLOCK HERE]. Your job: 1) What is the COOLEST version of this they haven't considered? 2) What's the ONE thing from their answers that reveals what excites them most? Quote it. 3) What existing open source project or tool gets them 50% of the way there — and what's the 50% they'd need to build? 4) If you had a weekend to build this, what would you build first? Be specific. Be direct. No preamble."
+**Builder mode instructions:** "你是一位 independent technical advisor，正在阅读 builder brainstorming session 的 transcript。[CONTEXT BLOCK HERE]。你的任务：1) 他们还没考虑过的 COOLEST version 是什么？2) 他们的回答中，哪 ONE thing 最能揭示什么最让他们兴奋？引用它。3) 哪个 existing open source project 或 tool 能让他们走完 50% — 剩下需要 build 的 50% 是什么？4) 如果你有一个 weekend 来 build this，你会先 build 什么？Be specific。Be direct。No preamble。"
 
-3. Run Codex:
+3. 运行 Codex：
 
 \`\`\`bash
 TMPERR_OH=$(mktemp /tmp/codex-oh-err-XXXXXXXX)
@@ -354,32 +333,32 @@ _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo"
 codex exec "$(cat "$CODEX_PROMPT_FILE")" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR_OH"
 \`\`\`
 
-Use a 5-minute timeout (\`timeout: 300000\`). After the command completes, read stderr:
+使用 5-minute timeout（\`timeout: 300000\`）。Command 完成后读取 stderr：
 \`\`\`bash
 cat "$TMPERR_OH"
 rm -f "$TMPERR_OH" "$CODEX_PROMPT_FILE"
 \`\`\`
 
-**Error handling:** All errors are non-blocking — second opinion is a quality enhancement, not a prerequisite.
-- **Auth failure:** If stderr contains "auth", "login", "unauthorized", or "API key": "Codex authentication failed. Run \\\`codex login\\\` to authenticate." Fall back to Claude subagent.
-- **Timeout:** "Codex timed out after 5 minutes." Fall back to Claude subagent.
-- **Empty response:** "Codex returned no response." Fall back to Claude subagent.
+**Error handling（错误处理）：** 所有 errors 都是 non-blocking：second opinion 是 quality enhancement，不是 prerequisite。
+- **Auth failure:** 如果 stderr 包含 "auth"、"login"、"unauthorized" 或 "API key"：提示 "Codex authentication failed. Run \\\`codex login\\\` to authenticate." 然后 fallback 到 Claude subagent。
+- **Timeout:** "Codex timed out after 5 minutes." 然后 fallback 到 Claude subagent。
+- **Empty response:** "Codex returned no response." 然后 fallback 到 Claude subagent。
 
-On any Codex error, fall back to the Claude subagent below.
+任何 Codex error 都 fallback 到下方 Claude subagent。
 
-**If CODEX_NOT_AVAILABLE (or Codex errored):**
+**如果 CODEX_NOT_AVAILABLE（或 Codex errored）：**
 
-Dispatch via the Agent tool. The subagent has fresh context — genuine independence.
+通过 Agent tool dispatch。Subagent 有 fresh context，保持 genuine independence。
 
-Subagent prompt: same mode-appropriate prompt as above (Startup or Builder variant).
+Subagent prompt：使用上方相同的 mode-appropriate prompt（Startup 或 Builder variant）。
 
-Present findings under a \`SECOND OPINION (Claude subagent):\` header.
+在 \`SECOND OPINION (Claude subagent):\` header 下展示 findings。
 
-If the subagent fails or times out: "Second opinion unavailable. Continuing to Phase 4."
+如果 subagent fails 或 times out："Second opinion unavailable. Continuing to Phase 4."
 
-4. **Presentation:**
+4. **Presentation（展示）：**
 
-If Codex ran:
+如果 Codex ran：
 \`\`\`
 SECOND OPINION (Codex):
 ════════════════════════════════════════════════════════════
@@ -387,7 +366,7 @@ SECOND OPINION (Codex):
 ════════════════════════════════════════════════════════════
 \`\`\`
 
-If Claude subagent ran:
+如果 Claude subagent ran：
 \`\`\`
 SECOND OPINION (Claude subagent):
 ════════════════════════════════════════════════════════════
@@ -395,21 +374,21 @@ SECOND OPINION (Claude subagent):
 ════════════════════════════════════════════════════════════
 \`\`\`
 
-5. **Cross-model synthesis:** After presenting the second opinion output, provide 3-5 bullet synthesis:
-   - Where Claude agrees with the second opinion
-   - Where Claude disagrees and why
-   - Whether the challenged premise changes Claude's recommendation
+5. **Cross-model synthesis（跨模型综合）：** 展示 second opinion output 后，提供 3-5 条 bullet synthesis：
+   - Claude 与 second opinion 一致之处
+   - Claude 不同意之处以及原因
+   - challenged premise 是否改变 Claude 的 recommendation
 
-6. **Premise revision check:** If Codex challenged an agreed premise, use AskUserQuestion:
+6. **Premise revision check（前提修订检查）：** 如果 Codex challenged 某个 agreed premise，使用 AskUserQuestion：
 
 > Codex challenged premise #{N}: "{premise text}". Their argument: "{reasoning}".
 > A) Revise this premise based on Codex's input
 > B) Keep the original premise — proceed to alternatives
 
-If A: revise the premise and note the revision. If B: proceed (and note that the user defended this premise with reasoning — this is a founder signal if they articulate WHY they disagree, not just dismiss).`;
+如果选择 A：revise premise 并记录 revision。如果选择 B：继续（并记录用户用 reasoning defend 了这个 premise；如果他们能说明 WHY they disagree，而不是直接 dismiss，这是 founder signal）。`;
 }
 
-// ─── Scope Drift Detection (shared between /review and /ship) ────────
+// ─── Scope Drift Detection（/review 与 /ship 共享） ────────
 
 export function generateScopeDrift(ctx: TemplateContext): string {
   const isShip = ctx.skillName === 'ship';
@@ -417,27 +396,27 @@ export function generateScopeDrift(ctx: TemplateContext): string {
 
   return `## Step ${stepNum}: Scope Drift Detection
 
-Before reviewing code quality, check: **did they build what was requested — nothing more, nothing less?**
+Review code quality 前，先检查：**他们是否构建了被要求的内容，不多也不少？**
 
-1. Read \`TODOS.md\` (if it exists). Read PR description (\`gh pr view --json body --jq .body 2>/dev/null || true\`).
-   Read commit messages (\`git log origin/<base>..HEAD --oneline\`).
-   **If no PR exists:** rely on commit messages and TODOS.md for stated intent — this is the common case since /review runs before /ship creates the PR.
-2. Identify the **stated intent** — what was this branch supposed to accomplish?
-3. Run \`DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" --stat\` and compare the files changed against the stated intent.
+1. 读取 \`TODOS.md\`（如果存在）。读取 PR description（\`gh pr view --json body --jq .body 2>/dev/null || true\`）。
+   读取 commit messages（\`git log origin/<base>..HEAD --oneline\`）。
+   **如果没有 PR：**依赖 commit messages 和 TODOS.md 判断 stated intent；这是常见情况，因为 /review 在 /ship 创建 PR 前运行。
+2. 识别 **stated intent**：这个 branch 原本应该完成什么？
+3. 运行 \`DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" --stat\`，并将 changed files 与 stated intent 对比。
 
-4. Evaluate with skepticism (incorporating plan completion results if available from an earlier step or adjacent section):
+4. 带着 skepticism 评估（如果 earlier step 或 adjacent section 有 plan completion results，也纳入判断）：
 
    **SCOPE CREEP detection:**
-   - Files changed that are unrelated to the stated intent
-   - New features or refactors not mentioned in the plan
-   - "While I was in there..." changes that expand blast radius
+   - 与 stated intent 无关的 changed files
+   - Plan 中未提到的新 features 或 refactors
+   - 扩大 blast radius 的 "While I was in there..." changes
 
    **MISSING REQUIREMENTS detection:**
-   - Requirements from TODOS.md/PR description not addressed in the diff
-   - Test coverage gaps for stated requirements
-   - Partial implementations (started but not finished)
+   - TODOS.md/PR description 中的 requirements 未在 diff 中 addressed
+   - stated requirements 的 test coverage gaps
+   - Partial implementations（开始了但未完成）
 
-5. Output (before the main review begins):
+5. Output（在 main review 开始前）：
    \\\`\\\`\\\`
    Scope Check: [CLEAN / DRIFT DETECTED / REQUIREMENTS MISSING]
    Intent: <1-line summary of what was requested>
@@ -446,7 +425,7 @@ Before reviewing code quality, check: **did they build what was requested — no
    [If missing: list each unaddressed requirement]
    \\\`\\\`\\\`
 
-6. This is **INFORMATIONAL** — does not block the review. Proceed to the next step.
+6. 这是 **INFORMATIONAL**：不 block review。继续下一步。
 
 ---`;
 }
@@ -454,17 +433,17 @@ Before reviewing code quality, check: **did they build what was requested — no
 // ─── Adversarial Review (always-on) ──────────────────────────────────
 
 export function generateAdversarialStep(ctx: TemplateContext): string {
-  // Codex host: strip entirely — Codex should never invoke itself
+  // Codex host：完全移除，Codex 不应 invoke itself
   if (ctx.host === 'codex') return '';
 
   const isShip = ctx.skillName === 'ship';
   const stepNum = isShip ? '11' : '5.7';
 
-  return `## Step ${stepNum}: Adversarial review (always-on)
+  return `## Step ${stepNum}：Adversarial review（always-on）
 
-Every diff gets adversarial review from both Claude and Codex. LOC is not a proxy for risk — a 5-line auth change can be critical.
+每个 diff 都会获得来自 Claude 和 Codex 的 adversarial review。LOC 不是 risk proxy：5 行 auth change 也可能 critical。
 
-**Detect diff size and tool availability:**
+**Detect diff size and tool availability（检测 diff size 和 tool availability）：**
 
 \`\`\`bash
 DIFF_BASE=$(git merge-base origin/<base> HEAD)
@@ -472,104 +451,104 @@ DIFF_INS=$(git diff "$DIFF_BASE" --stat | tail -1 | grep -oE '[0-9]+ insertion' 
 DIFF_DEL=$(git diff "$DIFF_BASE" --stat | tail -1 | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
 DIFF_TOTAL=$((DIFF_INS + DIFF_DEL))
 command -v codex >/dev/null 2>&1 && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
-# Legacy opt-out — only gates Codex passes, Claude always runs
+# Legacy opt-out — 只 gate Codex passes，Claude always runs
 OLD_CFG=$(~/.claude/skills/gstack/bin/gstack-config get codex_reviews 2>/dev/null || true)
 echo "DIFF_SIZE: $DIFF_TOTAL"
 echo "OLD_CFG: \${OLD_CFG:-not_set}"
 \`\`\`
 
-If \`OLD_CFG\` is \`disabled\`: skip Codex passes only. Claude adversarial subagent still runs (it's free and fast). Jump to the "Claude adversarial subagent" section.
+如果 \`OLD_CFG\` 是 \`disabled\`：只 skip Codex passes。Claude adversarial subagent 仍然运行（free and fast）。跳到 "Claude adversarial subagent" section。
 
-**User override:** If the user explicitly requested "full review", "structured review", or "P1 gate", also run the Codex structured review regardless of diff size.
+**User override（用户覆盖）：** 如果用户明确要求 "full review"、"structured review" 或 "P1 gate"，无论 diff size 如何也要运行 Codex structured review。
 
 ---
 
-### Claude adversarial subagent (always runs)
+### Claude adversarial subagent（always runs）
 
-Dispatch via the Agent tool. The subagent has fresh context — no checklist bias from the structured review. This genuine independence catches things the primary reviewer is blind to.
+通过 Agent tool dispatch。Subagent 有 fresh context，没有 structured review 的 checklist bias。这种 genuine independence 能抓住 primary reviewer 看不见的问题。
 
 Subagent prompt:
-"Read the diff for this branch with \`DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE"\`. Think like an attacker and a chaos engineer. Your job is to find ways this code will fail in production. Look for: edge cases, race conditions, security holes, resource leaks, failure modes, silent data corruption, logic errors that produce wrong results silently, error handling that swallows failures, and trust boundary violations. Be adversarial. Be thorough. No compliments — just the problems. For each finding, classify as FIXABLE (you know how to fix it) or INVESTIGATE (needs human judgment). After listing findings, end your output with ONE line in the canonical format \`Recommendation: <action> because <one-line reason naming the most exploitable finding>\` — examples: \`Recommendation: Fix the unbounded retry at queue.ts:78 because it'll DoS the worker pool under sustained 429s\` or \`Recommendation: Ship as-is because the strongest finding is a theoretical race that requires conditions we can't trigger in production\`. The reason must point to a specific finding (or no-fix rationale). Generic reasons like 'because it's safer' do not qualify."
+"用 \`DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE"\` 读取这个 branch 的 diff。像 attacker 和 chaos engineer 一样思考。你的任务是找出这段 code 会如何在 production 中失败。寻找：edge cases、race conditions、security holes、resource leaks、failure modes、silent data corruption、会 silent 产出错误结果的 logic errors、吞掉 failures 的 error handling、以及 trust boundary violations。Be adversarial。Be thorough。No compliments — just the problems。对每个 finding，classify as FIXABLE（你知道如何 fix）或 INVESTIGATE（需要 human judgment）。列出 findings 后，用 ONE line 作为结尾，格式必须是 \`Recommendation: <action> because <one-line reason naming the most exploitable finding>\` — examples: \`Recommendation: Fix the unbounded retry at queue.ts:78 because it'll DoS the worker pool under sustained 429s\` 或 \`Recommendation: Ship as-is because the strongest finding is a theoretical race that requires conditions we can't trigger in production\`。Reason 必须指向 specific finding（或 no-fix rationale）。Generic reasons like 'because it's safer' do not qualify。"
 
-Present findings under an \`ADVERSARIAL REVIEW (Claude subagent):\` header. **FIXABLE findings** flow into the same Fix-First pipeline as the structured review. **INVESTIGATE findings** are presented as informational.
+在 \`ADVERSARIAL REVIEW (Claude subagent):\` header 下呈现 findings。**FIXABLE findings** 进入与 structured review 相同的 Fix-First pipeline。**INVESTIGATE findings** 作为 informational 呈现。
 
-If the subagent fails or times out: "Claude adversarial subagent unavailable. Continuing."
+如果 subagent fails 或 times out："Claude adversarial subagent unavailable. Continuing."
 
 ---
 
-### Codex adversarial challenge (always runs when available)
+### Codex adversarial challenge（available 时 always runs）
 
-If Codex is available AND \`OLD_CFG\` is NOT \`disabled\`:
+如果 Codex 可用且 \`OLD_CFG\` 不是 \`disabled\`：
 
 \`\`\`bash
 TMPERR_ADV=$(mktemp /tmp/codex-adv-XXXXXXXX)
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-codex exec "${CODEX_BOUNDARY}Review the changes on this branch against the base branch. Run DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" to see the diff. Your job is to find ways this code will fail in production. Think like an attacker and a chaos engineer. Find edge cases, race conditions, security holes, resource leaks, failure modes, and silent data corruption paths. Be adversarial. Be thorough. No compliments — just the problems. End your output with ONE line in the canonical format \`Recommendation: <action> because <one-line reason naming the most exploitable finding>\`. Generic reasons like 'because it's safer' do not qualify; the reason must point to a specific finding or no-fix rationale." -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR_ADV"
+codex exec "${CODEX_BOUNDARY}审查这个 branch 相对 base branch 的 changes。运行 DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" 查看 diff。你的任务是找出这段 code 会如何在 production 中失败。像 attacker 和 chaos engineer 一样思考。寻找 edge cases、race conditions、security holes、resource leaks、failure modes 和 silent data corruption paths。Be adversarial。Be thorough。No compliments — just the problems。用 ONE line 作为输出结尾，格式必须是 \`Recommendation: <action> because <one-line reason naming the most exploitable finding>\`。Generic reasons like 'because it's safer' do not qualify；reason 必须指向 specific finding 或 no-fix rationale。" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR_ADV"
 \`\`\`
 
-Set the Bash tool's \`timeout\` parameter to \`300000\` (5 minutes). Do NOT use the \`timeout\` shell command — it doesn't exist on macOS. After the command completes, read stderr:
+将 Bash tool 的 \`timeout\` parameter 设为 \`300000\`（5 minutes）。不要使用 \`timeout\` shell command — macOS 上不存在。Command 完成后读取 stderr：
 \`\`\`bash
 cat "$TMPERR_ADV"
 \`\`\`
 
-Present the full output verbatim. This is informational — it never blocks shipping.
+原样呈现 full output。这是 informational，永不 block shipping。
 
-**Error handling:** All errors are non-blocking — adversarial review is a quality enhancement, not a prerequisite.
-- **Auth failure:** If stderr contains "auth", "login", "unauthorized", or "API key": "Codex authentication failed. Run \\\`codex login\\\` to authenticate."
+**Error handling（错误处理）：** All errors are non-blocking — adversarial review 是 quality enhancement，不是 prerequisite。
+- **Auth failure:** 如果 stderr 包含 "auth"、"login"、"unauthorized" 或 "API key"："Codex authentication failed. Run \\\`codex login\\\` to authenticate."
 - **Timeout:** "Codex timed out after 5 minutes."
 - **Empty response:** "Codex returned no response. Stderr: <paste relevant error>."
 
-**Cleanup:** Run \`rm -f "$TMPERR_ADV"\` after processing.
+**Cleanup（清理）：** processing 后运行 \`rm -f "$TMPERR_ADV"\`。
 
-If Codex is NOT available: "Codex CLI not found — running Claude adversarial only. Install Codex for cross-model coverage: \`npm install -g @openai/codex\`"
+如果 Codex 不可用："Codex CLI not found — running Claude adversarial only. Install Codex for cross-model coverage: \`npm install -g @openai/codex\`"
 
 ---
 
-### Codex structured review (large diffs only, 200+ lines)
+### Codex structured review（仅 large diffs，200+ lines）
 
-If \`DIFF_TOTAL >= 200\` AND Codex is available AND \`OLD_CFG\` is NOT \`disabled\`:
+如果 \`DIFF_TOTAL >= 200\`，且 Codex 可用、\`OLD_CFG\` 不是 \`disabled\`：
 
 \`\`\`bash
 TMPERR=$(mktemp /tmp/codex-review-XXXXXXXX)
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
 cd "$_REPO_ROOT"
-codex review "${CODEX_BOUNDARY}Review the changes on this branch against the base branch <base>. Run git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD to see the diff and review only those changes." -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR"
+codex review "${CODEX_BOUNDARY}审查这个 branch 相对 base branch <base> 的 changes。Run git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD 查看 diff，并只 review 这些 changes。" -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR"
 \`\`\`
 
-Set the Bash tool's \`timeout\` parameter to \`300000\` (5 minutes). Do NOT use the \`timeout\` shell command — it doesn't exist on macOS. Present output under \`CODEX SAYS (code review):\` header.
-Check for \`[P1]\` markers: found → \`GATE: FAIL\`, not found → \`GATE: PASS\`.
+将 Bash tool 的 \`timeout\` parameter 设为 \`300000\`（5 minutes）。不要使用 \`timeout\` shell command — macOS 上不存在。在 \`CODEX SAYS (code review):\` header 下展示 output。
+检查 \`[P1]\` markers：found → \`GATE: FAIL\`，not found → \`GATE: PASS\`。
 
-If GATE is FAIL, use AskUserQuestion:
+如果 GATE 是 FAIL，使用 AskUserQuestion：
 \`\`\`
-Codex found N critical issues in the diff.
+Codex 在 diff 中发现 N 个 critical issues。
 
-A) Investigate and fix now (recommended)
-B) Continue — review will still complete
+A) 现在 investigate 并修复（recommended）
+B) 继续 — review 仍会完成
 \`\`\`
 
-If A: address the findings${isShip ? '. After fixing, re-run tests (Step 5) since code has changed' : ''}. Re-run \`codex review\` to verify.
+如果选择 A：处理 findings${isShip ? '。修复后，因为 code 已改变，重新运行 tests（Step 5）' : ''}。重新运行 \`codex review\` verify。
 
-Read stderr for errors (same error handling as Codex adversarial above).
+读取 stderr 中的 errors（使用上方 Codex adversarial 相同的 error handling）。
 
-After stderr: \`rm -f "$TMPERR"\`
+读取 stderr 后：\`rm -f "$TMPERR"\`
 
-If \`DIFF_TOTAL < 200\`: skip this section silently. The Claude + Codex adversarial passes provide sufficient coverage for smaller diffs.
+如果 \`DIFF_TOTAL < 200\`：静默跳过此 section。Claude + Codex adversarial passes 对 smaller diffs 已提供足够 coverage。
 
 ---
 
-### Persist the review result
+### Persist the review result（持久化 review 结果）
 
-After all passes complete, persist:
+所有 passes 完成后，persist：
 \`\`\`bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"adversarial-review","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","status":"STATUS","source":"SOURCE","tier":"always","gate":"GATE","commit":"'"$(git rev-parse --short HEAD)"'"}'
 \`\`\`
-Substitute: STATUS = "clean" if no findings across ALL passes, "issues_found" if any pass found issues. SOURCE = "both" if Codex ran, "claude" if only Claude subagent ran. GATE = the Codex structured review gate result ("pass"/"fail"), "skipped" if diff < 200, or "informational" if Codex was unavailable. If all passes failed, do NOT persist.
+替换变量：如果 ALL passes 都没有 findings，STATUS = "clean"；任何 pass 发现 issues，则 STATUS = "issues_found"。如果 Codex ran，SOURCE = "both"；如果只有 Claude subagent ran，SOURCE = "claude"。GATE = Codex structured review gate result（"pass"/"fail"），diff < 200 时为 "skipped"，Codex 不可用时为 "informational"。如果所有 passes 都 failed，不要 persist。
 
 ---
 
-### Cross-model synthesis
+### Cross-model synthesis（跨模型综合）
 
-After all passes complete, synthesize findings across all sources:
+所有 passes 完成后，综合所有 sources 的 findings：
 
 \`\`\`
 ADVERSARIAL REVIEW SYNTHESIS (always-on, N lines):
@@ -582,65 +561,55 @@ ADVERSARIAL REVIEW SYNTHESIS (always-on, N lines):
 ════════════════════════════════════════════════════════════
 \`\`\`
 
-High-confidence findings (agreed on by multiple sources) should be prioritized for fixes.
+High-confidence findings（多个 sources 同意）应优先修复。
 
 ---`;
 }
 
 export function generateCodexPlanReview(ctx: TemplateContext): string {
-  // Codex host: strip entirely — Codex should never invoke itself
+  // Codex host：完全移除，Codex 不应 invoke itself
   if (ctx.host === 'codex') return '';
 
-  return `## Outside Voice — Independent Plan Challenge (optional, recommended)
+  return `## Outside Voice — Independent Plan Challenge（可选，推荐）
 
-After all review sections are complete, offer an independent second opinion from a
-different AI system. Two models agreeing on a plan is stronger signal than one model's
-thorough review.
+所有 review sections 完成后，提供来自 different AI system 的 independent second opinion。
+两个 models 对 plan 达成一致，比单个 model 的 thorough review 是更强信号。
 
-**Check tool availability:**
+**Check tool availability（检查工具可用性）：**
 
 \`\`\`bash
 command -v codex >/dev/null 2>&1 && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
 \`\`\`
 
-Use AskUserQuestion:
+使用 AskUserQuestion：
 
-> "All review sections are complete. Want an outside voice? A different AI system can
-> give a brutally honest, independent challenge of this plan — logical gaps, feasibility
-> risks, and blind spots that are hard to catch from inside the review. Takes about 2
-> minutes."
+> "所有 review sections 都已完成。要 outside voice 吗？另一个 AI system 可以对这个 plan
+> 做 brutally honest、independent challenge：logical gaps、feasibility risks，以及 review 内部难以抓住的 blind spots。
+> 大约需要 2 分钟。"
 >
-> RECOMMENDATION: Choose A — an independent second opinion catches structural blind
-> spots. Two different AI models agreeing on a plan is stronger signal than one model's
-> thorough review. Completeness: A=9/10, B=7/10.
+> RECOMMENDATION: Choose A — independent second opinion 能捕捉 structural blind spots。
+> 两个不同 AI models 都同意一个 plan，比单个 model 的 thorough review 是更强 signal。
+> Completeness: A=9/10, B=7/10.
 
-Options:
-- A) Get the outside voice (recommended)
-- B) Skip — proceed to outputs
+Options（选项）:
+- A) 获取 outside voice（recommended）
+- B) 跳过 — 继续 outputs
 
-**If B:** Print "Skipping outside voice." and continue to the next section.
+**如果选择 B：** 打印 "Skipping outside voice."，继续下一 section。
 
-**If A:** Construct the plan review prompt. Read the plan file being reviewed (the file
-the user pointed this review at, or the branch diff scope). If a CEO plan document
-was written in Step 0D-POST, read that too — it contains the scope decisions and vision.
+**如果选择 A：** 构建 plan review prompt。读取正在 review 的 plan file（用户指定的 file，
+或 branch diff scope）。如果 Step 0D-POST 写过 CEO plan document，也读取它 — 它包含 scope decisions 和 vision。
 
-Construct this prompt (substitute the actual plan content — if plan content exceeds 30KB,
-truncate to the first 30KB and note "Plan truncated for size"). **Always start with the
-filesystem boundary instruction:**
+构建这个 prompt（替换为 actual plan content — 如果 plan content 超过 30KB，
+截断到前 30KB，并注明 "Plan truncated for size"）。**始终以 filesystem boundary instruction 开头：**
 
-"${CODEX_BOUNDARY}You are a brutally honest technical reviewer examining a development plan that has
-already been through a multi-section review. Your job is NOT to repeat that review.
-Instead, find what it missed. Look for: logical gaps and unstated assumptions that
-survived the review scrutiny, overcomplexity (is there a fundamentally simpler
-approach the review was too deep in the weeds to see?), feasibility risks the review
-took for granted, missing dependencies or sequencing issues, and strategic
-miscalibration (is this the right thing to build at all?). Be direct. Be terse. No
-compliments. Just the problems.
+"${CODEX_BOUNDARY}你是一位 brutally honest technical reviewer，正在审查一个已经经过 multi-section review 的 development plan。你的任务不是重复那个 review。
+相反，你要找出它漏掉了什么。寻找：survived review scrutiny 的 logical gaps 和 unstated assumptions、overcomplexity（是否存在一个 fundamentally simpler approach，只是 review 太深陷细节没看见？）、review 视为理所当然的 feasibility risks、missing dependencies 或 sequencing issues，以及 strategic miscalibration（这到底是不是该 build 的东西？）。Be direct。Be terse。No compliments。Just the problems。
 
 THE PLAN:
 <plan content>"
 
-**If CODEX_AVAILABLE:**
+**如果 CODEX_AVAILABLE：**
 
 \`\`\`bash
 TMPERR_PV=$(mktemp /tmp/codex-planreview-XXXXXXXX)
@@ -648,12 +617,12 @@ _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo"
 codex exec "<prompt>" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR_PV"
 \`\`\`
 
-Use a 5-minute timeout (\`timeout: 300000\`). After the command completes, read stderr:
+使用 5-minute timeout（\`timeout: 300000\`）。Command 完成后读取 stderr：
 \`\`\`bash
 cat "$TMPERR_PV"
 \`\`\`
 
-Present the full output verbatim:
+原样展示 full output：
 
 \`\`\`
 CODEX SAYS (plan review — outside voice):
@@ -662,27 +631,27 @@ CODEX SAYS (plan review — outside voice):
 ════════════════════════════════════════════════════════════
 \`\`\`
 
-**Error handling:** All errors are non-blocking — the outside voice is informational.
-- Auth failure (stderr contains "auth", "login", "unauthorized"): "Codex auth failed. Run \\\`codex login\\\` to authenticate."
+**Error handling（错误处理）：** 所有 errors 都是 non-blocking：outside voice 是 informational。
+- Auth failure（stderr 包含 "auth"、"login"、"unauthorized"）："Codex auth failed. Run \\\`codex login\\\` to authenticate."
 - Timeout: "Codex timed out after 5 minutes."
 - Empty response: "Codex returned no response."
 
-On any Codex error, fall back to the Claude adversarial subagent.
+任何 Codex error 都 fallback 到 Claude adversarial subagent。
 
-**If CODEX_NOT_AVAILABLE (or Codex errored):**
+**如果 CODEX_NOT_AVAILABLE（或 Codex errored）：**
 
-Dispatch via the Agent tool. The subagent has fresh context — genuine independence.
+通过 Agent tool dispatch。Subagent 有 fresh context，保持 genuine independence。
 
-Subagent prompt: same plan review prompt as above.
+Subagent prompt：使用上方相同的 plan review prompt。
 
-Present findings under an \`OUTSIDE VOICE (Claude subagent):\` header.
+在 \`OUTSIDE VOICE (Claude subagent):\` header 下展示 findings。
 
-If the subagent fails or times out: "Outside voice unavailable. Continuing to outputs."
+如果 subagent fails 或 times out："Outside voice unavailable. Continuing to outputs."
 
-**Cross-model tension:**
+**Cross-model tension（跨模型张力）：**
 
-After presenting the outside voice findings, note any points where the outside voice
-disagrees with the review findings from earlier sections. Flag these as:
+展示 outside voice findings 后，记录 outside voice 与 earlier sections 的 review findings
+不一致之处。按以下格式标记：
 
 \`\`\`
 CROSS-MODEL TENSION:
@@ -690,13 +659,12 @@ CROSS-MODEL TENSION:
   State what context you might be missing that would change the answer.]
 \`\`\`
 
-**User Sovereignty:** Do NOT auto-incorporate outside voice recommendations into the plan.
-Present each tension point to the user. The user decides. Cross-model agreement is a
-strong signal — present it as such — but it is NOT permission to act. You may state
-which argument you find more compelling, but you MUST NOT apply the change without
-explicit user approval.
+**User Sovereignty（用户主权）：** 不要自动把 outside voice recommendations 纳入 plan。
+把每个 tension point 呈现给用户。由用户决定。Cross-model agreement 是 strong signal，
+可以这样呈现，但它不是 permission to act。你可以说明哪个 argument 更 compelling，
+但没有 explicit user approval 时，MUST NOT apply the change。
 
-For each substantive tension point, use AskUserQuestion:
+对每个 substantive tension point，使用 AskUserQuestion：
 
 > "Cross-model disagreement on [topic]. The review found [X] but the outside voice
 > argues [Y]. [One sentence on what context you might be missing.]"
@@ -704,47 +672,47 @@ For each substantive tension point, use AskUserQuestion:
 > RECOMMENDATION: Choose [A or B] because [one-line reason explaining which argument
 > is more compelling and why]. Completeness: A=X/10, B=Y/10.
 
-Options:
+Options（选项）:
 - A) Accept the outside voice's recommendation (I'll apply this change)
 - B) Keep the current approach (reject the outside voice)
 - C) Investigate further before deciding
 - D) Add to TODOS.md for later
 
-Wait for the user's response. Do NOT default to accepting because you agree with the
-outside voice. If the user chooses B, the current approach stands — do not re-argue.
+等待用户 response。不要因为你同意 outside voice 就 default to accepting。
+如果用户选择 B，current approach stands — 不要反复争辩。
 
-If no tension points exist, note: "No cross-model tension — both reviewers agree."
+如果没有 tension points，note: "No cross-model tension — both reviewers agree."
 
-**Persist the result:**
+**Persist the result（持久化结果）：**
 \`\`\`bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"codex-plan-review","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","status":"STATUS","source":"SOURCE","commit":"'"$(git rev-parse --short HEAD)"'"}'
 \`\`\`
 
-Substitute: STATUS = "clean" if no findings, "issues_found" if findings exist.
-SOURCE = "codex" if Codex ran, "claude" if subagent ran.
+替换变量：如果没有 findings，STATUS = "clean"；如果存在 findings，STATUS = "issues_found"。
+如果 Codex ran，SOURCE = "codex"；如果 subagent ran，SOURCE = "claude"。
 
-**Cleanup:** Run \`rm -f "$TMPERR_PV"\` after processing (if Codex was used).
+**Cleanup（清理）：** processing 后运行 \`rm -f "$TMPERR_PV"\`（如果使用了 Codex）。
 
 ---`;
 }
 
-// ─── Plan File Discovery (shared helper) ──────────────────────────────
+// ─── Plan File Discovery（shared helper）──────────────────────────────
 
 function generatePlanFileDiscovery(): string {
-  return `### Plan File Discovery
+  return `### Plan File Discovery（Plan file 发现）
 
-1. **Conversation context (primary):** Check if there is an active plan file in this conversation. The host agent's system messages include plan file paths when in plan mode. If found, use it directly — this is the most reliable signal.
+1. **Conversation context (primary)（conversation context，primary）：** 检查当前 conversation 中是否有 active plan file。Host agent 的 system messages 在 plan mode 时会包含 plan file paths。找到后直接使用 — 这是最可靠的 signal。
 
-2. **Content-based search (fallback):** If no plan file is referenced in conversation context, search by content:
+2. **Content-based search (fallback)（content-based search，fallback）：** 如果 conversation context 中没有引用 plan file，则按 content search：
 
 \`\`\`bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
 BRANCH=$(git branch --show-current 2>/dev/null | tr '/' '-')
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)")
-# Compute project slug for ~/.gstack/projects/ lookup
+# 为 ~/.gstack/projects/ lookup 计算 project slug
 _PLAN_SLUG=$(git remote get-url origin 2>/dev/null | sed 's|.*[:/]\\([^/]*/[^/]*\\)\\.git$|\\1|;s|.*[:/]\\([^/]*/[^/]*\\)$|\\1|' | tr '/' '-' | tr -cd 'a-zA-Z0-9._-') || true
 _PLAN_SLUG="\${_PLAN_SLUG:-$(basename "$PWD" | tr -cd 'a-zA-Z0-9._-')}"
-# Search common plan file locations (project designs first, then personal/local)
+# 搜索 common plan file locations（project designs 优先，然后 personal/local）
 for PLAN_DIR in "$HOME/.gstack/projects/$_PLAN_SLUG" "$HOME/.claude/plans" "$HOME/.codex/plans" ".gstack/plans"; do
   [ -d "$PLAN_DIR" ] || continue
   PLAN=$(ls -t "$PLAN_DIR"/*.md 2>/dev/null | xargs grep -l "$BRANCH" 2>/dev/null | head -1)
@@ -755,11 +723,11 @@ done
 [ -n "$PLAN" ] && echo "PLAN_FILE: $PLAN" || echo "NO_PLAN_FILE"
 \`\`\`
 
-3. **Validation:** If a plan file was found via content-based search (not conversation context), read the first 20 lines and verify it is relevant to the current branch's work. If it appears to be from a different project or feature, treat as "no plan file found."
+3. **Validation（验证）：** 如果 plan file 是通过 content-based search 找到的（不是 conversation context），读取前 20 行并确认它与当前 branch 的 work 相关。如果看起来属于 different project 或 feature，视为 "no plan file found"。
 
-**Error handling:**
-- No plan file found → skip with "No plan file detected — skipping."
-- Plan file found but unreadable (permissions, encoding) → skip with "Plan file found but unreadable — skipping."`;
+**Error handling（错误处理）：**
+- No plan file found → skip with "No plan file detected — skipping."（保留 exact output）
+- Plan file found but unreadable（permissions、encoding）→ skip with "Plan file found but unreadable — skipping."`;
 }
 
 // ─── Plan Completion Audit ────────────────────────────────────────────
@@ -774,9 +742,9 @@ function generatePlanCompletionAuditInner(mode: PlanCompletionMode): string {
 
   // ── Item extraction ──
   sections.push(`
-### Actionable Item Extraction
+### Actionable Item Extraction（可执行事项提取）
 
-Read the plan file. Extract every actionable item — anything that describes work to be done. Look for:
+读取 plan file。提取每个 actionable item — 任何描述待完成工作的内容。查找：
 
 - **Checkbox items:** \`- [ ] ...\` or \`- [x] ...\`
 - **Numbered steps** under implementation headings: "1. Create ...", "2. Add ...", "3. Modify ..."
@@ -785,66 +753,66 @@ Read the plan file. Extract every actionable item — anything that describes wo
 - **Test requirements:** "Test that X", "Add test for Y", "Verify Z"
 - **Data model changes:** "Add column X to table Y", "Create migration for Z"
 
-**Ignore:**
+**Ignore（忽略）：**
 - Context/Background sections (\`## Context\`, \`## Background\`, \`## Problem\`)
 - Questions and open items (marked with ?, "TBD", "TODO: decide")
 - Review report sections (\`## GSTACK REVIEW REPORT\`)
 - Explicitly deferred items ("Future:", "Out of scope:", "NOT in scope:", "P2:", "P3:", "P4:")
 - CEO Review Decisions sections (these record choices, not work items)
 
-**Cap:** Extract at most 50 items. If the plan has more, note: "Showing top 50 of N plan items — full list in plan file."
+**Cap（上限）：** 提取 at most 50 items。如果 plan 更多，note: "Showing top 50 of N plan items — full list in plan file."
 
-**No items found:** If the plan contains no extractable actionable items, skip with: "Plan file contains no actionable items — skipping completion audit."
+**No items found（未找到 items）：** 如果 plan 没有可提取 actionable items，skip with: "Plan file contains no actionable items — skipping completion audit."
 
-For each item, note:
-- The item text (verbatim or concise summary)
-- Its category: CODE | TEST | MIGRATION | CONFIG | DOCS`);
+对每个 item，记录：
+- Item text（verbatim 或 concise summary）
+- Category：CODE | TEST | MIGRATION | CONFIG | DOCS`);
 
   // ── Verification Mode (per PR #1302 — VAS-449 remediation) ──
   sections.push(`
-### Verification Mode
+### Verification Mode（验证模式）
 
-Before judging completion, classify HOW each item can be verified. The diff alone cannot prove every kind of work. Items outside the current repo or system are structurally invisible to \`git diff\`.
+判断 completion 前，先分类每个 item 如何被 verified。Diff alone 无法证明所有类型的 work。当前 repo 或 system 之外的 items 对 \`git diff\` 来说 structurally invisible。
 
-- **DIFF-VERIFIABLE** — A code change in this repo would manifest in \`git diff <base>...HEAD\`. Examples: "add UserService" (file appears), "validate input X" (validation logic appears), "create users table" (migration file appears).
-- **CROSS-REPO** — Item names a file or change in a sibling repo (e.g., \`domain-hq/docs/dashboard.md\`, \`~/Development/<other-repo>/...\`). The current diff CANNOT prove this.
-- **EXTERNAL-STATE** — Item names state in an external system: Supabase config/RLS, Cloudflare DNS, Vercel env vars, OAuth provider allowlists, third-party SaaS, DNS records. The current diff CANNOT prove this.
-- **CONTENT-SHAPE** — Item requires a file to follow a specific convention. If the file is in this repo: diff-verifiable. If in another repo or system: see CROSS-REPO / EXTERNAL-STATE.
+- **DIFF-VERIFIABLE** — 此 repo 中的 code change 会体现在 \`git diff <base>...HEAD\` 中。Examples: "add UserService" (file appears), "validate input X" (validation logic appears), "create users table" (migration file appears).
+- **CROSS-REPO** — Item 指向 sibling repo 中的 file 或 change（例如 \`domain-hq/docs/dashboard.md\`、\`~/Development/<other-repo>/...\`）。Current diff CANNOT prove this.
+- **EXTERNAL-STATE** — Item 指向 external system 中的 state：Supabase config/RLS、Cloudflare DNS、Vercel env vars、OAuth provider allowlists、third-party SaaS、DNS records。Current diff CANNOT prove this.
+- **CONTENT-SHAPE** — Item 要求 file 遵循 specific convention。如果 file 在此 repo：diff-verifiable。如果在另一个 repo 或 system：see CROSS-REPO / EXTERNAL-STATE。
 
-**Verification dispatch:**
+**Verification dispatch（验证分发）：**
 
-- **DIFF-VERIFIABLE** → cross-reference against diff (next section).
-- **CROSS-REPO** → if the sibling repo is reachable on disk (try \`~/Development/<repo>/\`, \`~/code/<repo>/\`, the parent of the current repo), run \`[ -f <path> ]\` to check file existence. File exists → DONE (cite path). File missing → NOT DONE (cite path). Path unreachable → UNVERIFIABLE (cite what needs manual check).
-- **EXTERNAL-STATE** → UNVERIFIABLE. Cite the system and the specific check the user must perform.
-- **CONTENT-SHAPE in another repo** → if the file exists, run any project-detected validator (see "Validator detection" below) before falling back to UNVERIFIABLE. With a validator: pass → DONE; fail → NOT DONE (cite validator output). No validator available: classify UNVERIFIABLE and cite both the file path and the convention to confirm.
+- **DIFF-VERIFIABLE** → 与 diff cross-reference（下一 section）。
+- **CROSS-REPO** → 如果 sibling repo 在 disk 上 reachable（尝试 \`~/Development/<repo>/\`、\`~/code/<repo>/\`、当前 repo 的 parent），运行 \`[ -f <path> ]\` 检查 file existence。File exists → DONE（cite path）。File missing → NOT DONE（cite path）。Path unreachable → UNVERIFIABLE（cite 需要 manual check 的内容）。
+- **EXTERNAL-STATE** → UNVERIFIABLE。Cite system 和用户必须执行的 specific check。
+- **CONTENT-SHAPE in another repo** → 如果 file exists，fallback 到 UNVERIFIABLE 前先运行任何 project-detected validator（见下方 "Validator detection"）。有 validator：pass → DONE；fail → NOT DONE（cite validator output）。无 validator：classify UNVERIFIABLE，并 cite 需要确认的 file path 和 convention。
 
-**Path concreteness rule.** If a plan item names a *concrete filesystem path* (absolute, \`~/...\`, or \`<sibling-repo>/<file>\`), it MUST be classified DONE or NOT DONE based on \`[ -f <path> ]\`. UNVERIFIABLE is only valid when the path is genuinely abstract ("Cloudflare DNS", "Supabase allowlist") or the sibling root is unreachable on this machine. "I don't want to check" is not unreachable.
+**Path concreteness rule（路径具体性规则）。** 如果 plan item 指向 *concrete filesystem path*（absolute、\`~/...\` 或 \`<sibling-repo>/<file>\`），MUST 基于 \`[ -f <path> ]\` 分类为 DONE 或 NOT DONE。只有 path 真正 abstract（"Cloudflare DNS"、"Supabase allowlist"）或 sibling root 在这台机器上 unreachable 时，UNVERIFIABLE 才 valid。"I don't want to check" 不是 unreachable。
 
-**Validator detection.** Before falling back to UNVERIFIABLE on a CONTENT-SHAPE item, scan the target repo's \`package.json\` for any script matching \`validate-*\`, \`lint-wiki\`, \`check-docs\`, or similar. If found, invoke it with the relevant path argument (e.g., \`npm run validate-wiki -- <path>\`). For multi-target validators (e.g., \`validate-wiki --all\`), run once and reconcile per-item from the output. A passing validator promotes the item from UNVERIFIABLE to DONE; a failing one demotes to NOT DONE.
+**Validator detection（验证器检测）。** 对 CONTENT-SHAPE item fallback 到 UNVERIFIABLE 前，扫描 target repo 的 \`package.json\`，寻找匹配 \`validate-*\`、\`lint-wiki\`、\`check-docs\` 或类似名称的 script。如果找到，带相关 path argument 调用（例如 \`npm run validate-wiki -- <path>\`）。对 multi-target validators（例如 \`validate-wiki --all\`），运行一次并从 output 对每个 item reconcile。Passing validator 将 item 从 UNVERIFIABLE 提升为 DONE；failing validator 降为 NOT DONE。
 
-**Honesty rule.** Do NOT classify an item as DONE just because related code shipped. Code that *handles* a deliverable is not the deliverable. Shipping a markdown-extraction library is not the same as shipping the markdown file. When in doubt between DONE and UNVERIFIABLE, prefer UNVERIFIABLE — better to surface a confirmation prompt than silently miss a deliverable.`);
+**Honesty rule（诚实规则）。** 不要因为 related code shipped 就把 item classify as DONE。能 *handle* deliverable 的 code 不是 deliverable 本身。Shipping a markdown-extraction library 不等于 shipping the markdown file。在 DONE 和 UNVERIFIABLE 之间不确定时，prefer UNVERIFIABLE — surface confirmation prompt 好过 silently miss deliverable。`);
 
   // ── Cross-reference against diff ──
   sections.push(`
-### Cross-Reference Against Diff
+### Cross-Reference Against Diff（与 diff 交叉核对）
 
-Run \`git diff origin/<base>...HEAD\` and \`git log origin/<base>..HEAD --oneline\` to understand what was implemented.
+运行 \`git diff origin/<base>...HEAD\` 和 \`git log origin/<base>..HEAD --oneline\`，理解实际 implemented 的内容。
 
-For each extracted plan item, run the verification dispatch from the previous section, then classify:
+对每个 extracted plan item，运行上一 section 的 verification dispatch，然后 classify：
 
-- **DONE** — Clear evidence the item shipped. Cite the specific file(s) changed in the diff for DIFF-VERIFIABLE items, or the verified path that exists for CROSS-REPO items with a reachable sibling repo.
-- **PARTIAL** — Some work toward this item exists but is incomplete (e.g., model created but controller missing, function exists but edge cases not handled).
-- **NOT DONE** — Verification ran and produced negative evidence (file missing, code absent in diff, sibling-repo file confirmed absent).
-- **CHANGED** — The item was implemented using a different approach than the plan described, but the same goal is achieved. Note the difference.
-- **UNVERIFIABLE** — The diff and any reachable sibling-repo checks cannot prove or disprove this. Always applies to EXTERNAL-STATE items and to CROSS-REPO items where the sibling repo isn't reachable. Cite the specific manual verification the user must perform (e.g., "check Cloudflare DNS shows DNS-only mode for dashboard.example.com", "confirm /docs/dashboard.md exists in domain-hq repo").
+- **DONE** — 有 clear evidence 表明 item 已 shipped。Cite the specific file(s) changed in the diff for DIFF-VERIFIABLE items；reachable sibling repo 中的 CROSS-REPO items cite 已验证存在的 path。
+- **PARTIAL** — 此 item 有部分 work，但不完整（例如 model created but controller missing、function exists but edge cases not handled）。
+- **NOT DONE** — Verification 已运行并产生 negative evidence（file missing、code absent in diff、sibling-repo file confirmed absent）。
+- **CHANGED** — Item 用不同于 plan 描述的 approach 实现，但同一 goal 已达成。Note the difference。
+- **UNVERIFIABLE** — Diff 和任何 reachable sibling-repo checks 都无法 prove 或 disprove。始终适用于 EXTERNAL-STATE items，以及 sibling repo 不 reachable 的 CROSS-REPO items。Cite 用户必须执行的 specific manual verification（例如 "check Cloudflare DNS shows DNS-only mode for dashboard.example.com"、"confirm /docs/dashboard.md exists in domain-hq repo"）。
 
-**Be conservative with DONE** — require clear evidence. A file being touched is not enough; the specific functionality described must be present.
-**Be generous with CHANGED** — if the goal is met by different means, that counts as addressed.
-**Be honest with UNVERIFIABLE** — better to surface 5 items the user must manually confirm than silently classify them DONE.`);
+**Be conservative with DONE** — require clear evidence。File touched 不够；必须存在描述的 specific functionality。
+**Be generous with CHANGED** — 如果 goal 用不同方式达成，也算 addressed。
+**Be honest with UNVERIFIABLE** — surface 5 个需要用户 manually confirm 的 items，好过 silently classify them DONE。`);
 
   // ── Output format ──
   sections.push(`
-### Output Format
+### Output Format（输出格式）
 
 \`\`\`
 PLAN COMPLETION AUDIT
@@ -877,86 +845,86 @@ COMPLETION: 5/9 DONE, 1 PARTIAL, 1 NOT DONE, 1 CHANGED, 2 UNVERIFIABLE
   // ── Gate logic (mode-specific) ──
   if (mode === 'ship') {
     sections.push(`
-### Gate Logic
+### Gate Logic（门禁逻辑）
 
-After producing the completion checklist, evaluate in priority order:
+生成 completion checklist 后，按 priority order 评估：
 
-1. **Any NOT DONE items** (highest priority — known missing work). Use AskUserQuestion:
-   - Show the completion checklist above
+1. **Any NOT DONE items**（最高 priority：known missing work）。使用 AskUserQuestion：
+   - 展示上方 completion checklist
    - "{N} items from the plan are NOT DONE. These were part of the original plan but are missing from the implementation."
-   - RECOMMENDATION: depends on item count and severity. If 1-2 minor items (docs, config), recommend B. If core functionality is missing, recommend A.
+   - RECOMMENDATION: 取决于 item count 和 severity。如果是 1-2 个 minor items（docs、config），recommend B。如果 core functionality missing，recommend A。
    - Options:
      A) Stop — implement the missing items before shipping
      B) Ship anyway — defer these to a follow-up (will create P1 TODOs in Step 5.5)
      C) These items were intentionally dropped — remove from scope
-   - If A: STOP. List the missing items for the user to implement.
-   - If B: Continue. For each NOT DONE item, create a P1 TODO in Step 5.5 with "Deferred from plan: {plan file path}".
-   - If C: Continue. Note in PR body: "Plan items intentionally dropped: {list}."
+   - 如果 A：STOP。列出 missing items 供用户 implement。
+   - 如果 B：Continue。对每个 NOT DONE item，在 Step 5.5 创建一个 P1 TODO，并写入 "Deferred from plan: {plan file path}"。
+   - 如果 C：Continue。在 PR body 中 note: "Plan items intentionally dropped: {list}."
 
-2. **Any UNVERIFIABLE items** (silent gaps — the diff cannot prove them either way). Only fires after NOT DONE is resolved or absent.
+2. **Any UNVERIFIABLE items**（silent gaps：diff 无法双向证明）。仅在 NOT DONE resolved 或 absent 后触发。
 
-   **Per-item confirmation is mandatory.** Do NOT use a single AskUserQuestion to blanket-confirm all UNVERIFIABLE items. Blanket confirmation is the failure mode that surfaced in VAS-449 (user clicks A without opening any file). Instead:
+   **Per-item confirmation is mandatory。** 不要用单个 AskUserQuestion blanket-confirm 所有 UNVERIFIABLE items。Blanket confirmation 是 VAS-449 暴露出的 failure mode（user clicks A without opening any file）。Instead：
 
-   - Loop through UNVERIFIABLE items one at a time.
-   - For each item, use AskUserQuestion with the item's *specific* manual check (e.g., "Confirm: does \`~/Development/domain-hq/docs/dashboard.md\` exist?", not "Have you checked all items?").
-   - Options per item:
+   - 逐个 loop through UNVERIFIABLE items。
+   - 对每个 item，使用带有该 item *specific* manual check 的 AskUserQuestion（例如 "Confirm: does \`~/Development/domain-hq/docs/dashboard.md\` exist?"，不是 "Have you checked all items?"）。
+   - Options per item：
      Y) Confirmed done — cite what you verified (free-text, embedded in PR body)
      N) Not done — block ship; treat as NOT DONE and re-enter the priority-1 gate
      D) Intentionally dropped — note in PR body: "Plan item intentionally dropped: {item}"
-   - RECOMMENDATION per item: Y if the item is concrete and easily verified; N if it's critical-path (auth, DNS, deliverables to other repos) and the user shows hesitation.
+   - RECOMMENDATION per item：如果 item concrete 且 easily verified，recommend Y；如果是 critical-path（auth、DNS、deliverables to other repos）且用户表现出 hesitation，recommend N。
 
-   **Exit conditions:**
-   - Any N: STOP. Surface the missing items, suggest re-running /ship after they're addressed.
-   - All Y or D: Continue. Embed \`## Plan Completion — Manual Verifications\` section in PR body listing each Y'd item with the user's free-text evidence and each D'd item with "intentionally dropped".
+   **Exit conditions（退出条件）：**
+   - Any N：STOP。Surface missing items，建议 address 后 re-run /ship。
+   - All Y or D：Continue。在 PR body 中嵌入 \`## Plan Completion — Manual Verifications\` section，列出每个 Y'd item 及用户 free-text evidence，以及每个 D'd item 的 "intentionally dropped"。
 
-   **Cap.** If there are more than 5 UNVERIFIABLE items, present them as a numbered list first and ask whether the user wants to (1) confirm each individually, (2) stop and reduce scope, or (3) explicitly accept blanket-confirmation with the warning that this is the VAS-449 failure shape. Default and recommended option is (1).
+   **Cap（上限）。** 如果 UNVERIFIABLE items 超过 5 个，先以 numbered list 呈现，然后询问用户是否要 (1) 逐个 confirm，(2) stop and reduce scope，或 (3) 带着这是 VAS-449 failure shape 的 warning 显式接受 blanket-confirmation。Default 和 recommended option 是 (1)。
 
-3. **Only PARTIAL items (no NOT DONE, no UNVERIFIABLE):** Continue with a note in the PR body. Not blocking.
+3. **Only PARTIAL items（没有 NOT DONE、没有 UNVERIFIABLE）：** Continue，并在 PR body note。Not blocking。
 
-4. **All DONE or CHANGED:** Pass. "Plan completion: PASS — all items addressed." Continue.
+4. **All DONE or CHANGED:** Pass。"Plan completion: PASS — all items addressed." Continue。
 
-**No plan file found:** Skip entirely. "No plan file detected — skipping plan completion audit."
+**No plan file found：** 完全 skip。"No plan file detected — skipping plan completion audit."（保留 exact output）
 
-**Include in PR body (Step 8):** Add a \`## Plan Completion\` section with the checklist summary.`);
+**Include in PR body (Step 8):** 添加 \`## Plan Completion\` section，包含 checklist summary。`);
   } else {
     // review mode — enhanced Delivery Integrity (Release 2: Review Army)
     sections.push(`
-### Fallback Intent Sources (when no plan file found)
+### Fallback Intent Sources（未找到 plan file 时）
 
-When no plan file is detected, use these secondary intent sources:
+未检测到 plan file 时，使用这些 secondary intent sources：
 
-1. **Commit messages:** Run \`git log origin/<base>..HEAD --oneline\`. Use judgment to extract real intent:
-   - Commits with actionable verbs ("add", "implement", "fix", "create", "remove", "update") are intent signals
-   - Skip noise: "WIP", "tmp", "squash", "merge", "chore", "typo", "fixup"
-   - Extract the intent behind the commit, not the literal message
-2. **TODOS.md:** If it exists, check for items related to this branch or recent dates
-3. **PR description:** Run \`gh pr view --json body -q .body 2>/dev/null\` for intent context
+1. **Commit messages:** 运行 \`git log origin/<base>..HEAD --oneline\`。用 judgment 提取 real intent：
+   - 带 actionable verbs（"add"、"implement"、"fix"、"create"、"remove"、"update"）的 commits 是 intent signals
+   - 跳过 noise："WIP"、"tmp"、"squash"、"merge"、"chore"、"typo"、"fixup"
+   - 提取 commit 背后的 intent，而不是 literal message
+2. **TODOS.md:** 如果存在，检查与此 branch 或 recent dates 相关的 items
+3. **PR description:** 运行 \`gh pr view --json body -q .body 2>/dev/null\` 获取 intent context
 
-**With fallback sources:** Apply the same Cross-Reference classification (DONE/PARTIAL/NOT DONE/CHANGED) using best-effort matching. Note that fallback-sourced items are lower confidence than plan-file items.
+**With fallback sources:** 使用 best-effort matching 应用相同的 Cross-Reference classification（DONE/PARTIAL/NOT DONE/CHANGED）。注意 fallback-sourced items 比 plan-file items confidence 更低。
 
-### Investigation Depth
+### Investigation Depth（调查深度）
 
-For each PARTIAL or NOT DONE item, investigate WHY:
+对每个 PARTIAL 或 NOT DONE item，调查 WHY：
 
-1. Check \`git log origin/<base>..HEAD --oneline\` for commits that suggest the work was started, attempted, or reverted
-2. Read the relevant code to understand what was built instead
-3. Determine the likely reason from this list:
-   - **Scope cut** — evidence of intentional removal (revert commit, removed TODO)
-   - **Context exhaustion** — work started but stopped mid-way (partial implementation, no follow-up commits)
-   - **Misunderstood requirement** — something was built but it doesn't match what the plan described
-   - **Blocked by dependency** — plan item depends on something that isn't available
-   - **Genuinely forgotten** — no evidence of any attempt
+1. Check \`git log origin/<base>..HEAD --oneline\`，寻找 work started、attempted 或 reverted 的 commit evidence
+2. Read relevant code，理解实际 build 的替代内容
+3. 从下列列表 determine likely reason：
+   - **Scope cut** — intentional removal 的 evidence（revert commit、removed TODO）
+   - **Context exhaustion** — work started 但 mid-way 停止（partial implementation、no follow-up commits）
+   - **Misunderstood requirement** — 构建了某些东西，但不匹配 plan 描述
+   - **Blocked by dependency** — plan item 依赖 unavailable 的东西
+   - **Genuinely forgotten** — 没有任何 attempt evidence
 
-Output for each discrepancy:
+每个 discrepancy 输出：
 \`\`\`
 DISCREPANCY: {PARTIAL|NOT_DONE} | {plan item} | {what was actually delivered}
 INVESTIGATION: {likely reason with evidence from git log / code}
 IMPACT: {HIGH|MEDIUM|LOW} — {what breaks or degrades if this stays undelivered}
 \`\`\`
 
-### Learnings Logging (plan-file discrepancies only)
+### Learnings Logging（仅 plan-file discrepancies）
 
-**Only for discrepancies sourced from plan files** (not commit messages or TODOS.md), log a learning so future sessions know this pattern occurred:
+**仅对 sourced from plan files 的 discrepancies**（不是 commit messages 或 TODOS.md），log learning，让 future sessions 知道此 pattern 发生过：
 
 \`\`\`bash
 ~/.claude/skills/gstack/bin/gstack-learnings-log '{
@@ -969,23 +937,23 @@ IMPACT: {HIGH|MEDIUM|LOW} — {what breaks or degrades if this stays undelivered
 }'
 \`\`\`
 
-Replace KEBAB_SUMMARY with a kebab-case summary of the gap, and fill in the actual values.
+将 KEBAB_SUMMARY 替换为 gap 的 kebab-case summary，并填入 actual values。
 
-**Do NOT log learnings from commit-message-derived or TODOS.md-derived discrepancies.** These are informational in the review output but too noisy for durable memory.
+**Do NOT log learnings from commit-message-derived or TODOS.md-derived discrepancies.** 它们在 review output 中是 informational，但对 durable memory 来说 too noisy。
 
-### Integration with Scope Drift Detection
+### Integration with Scope Drift Detection（与 Scope Drift Detection 集成）
 
-The plan completion results augment the existing Scope Drift Detection. If a plan file is found:
+Plan completion results 会 augment existing Scope Drift Detection。如果找到 plan file：
 
-- **NOT DONE items** become additional evidence for **MISSING REQUIREMENTS** in the scope drift report.
-- **Items in the diff that don't match any plan item** become evidence for **SCOPE CREEP** detection.
-- **HIGH-impact discrepancies** trigger AskUserQuestion:
-  - Show the investigation findings
+- **NOT DONE items** 成为 scope drift report 中 **MISSING REQUIREMENTS** 的 additional evidence。
+- **Diff 中不匹配任何 plan item 的 items** 成为 **SCOPE CREEP** detection 的 evidence。
+- **HIGH-impact discrepancies** 触发 AskUserQuestion：
+  - 展示 investigation findings
   - Options: A) Stop and implement missing items, B) Ship anyway + create P1 TODOs, C) Intentionally dropped
 
-This is **INFORMATIONAL** unless HIGH-impact discrepancies are found (then it gates via AskUserQuestion).
+这是 **INFORMATIONAL**，除非发现 HIGH-impact discrepancies（此时通过 AskUserQuestion gate）。
 
-Update the scope drift output to include plan file context:
+更新 scope drift output，包含 plan file context：
 
 \`\`\`
 Scope Check: [CLEAN / DRIFT DETECTED / REQUIREMENTS MISSING]
@@ -997,7 +965,7 @@ Plan items: N DONE, M PARTIAL, K NOT DONE
 [If scope creep: list each out-of-scope change not in the plan]
 \`\`\`
 
-**No plan file found:** Use commit messages and TODOS.md as fallback sources (see above). If no intent sources at all, skip with: "No intent sources detected — skipping completion audit."`);
+**No plan file found：** 使用 commit messages 和 TODOS.md 作为 fallback sources（见上方）。如果完全没有 intent sources，skip with: "No intent sources detected — skipping completion audit."（保留 exact output）`);
   }
 
   return sections.join('\n');
@@ -1014,20 +982,20 @@ export function generatePlanCompletionAuditReview(_ctx: TemplateContext): string
 // ─── Plan Verification Execution ──────────────────────────────────────
 
 export function generatePlanVerificationExec(_ctx: TemplateContext): string {
-  return `## Step 8.1: Plan Verification
+  return `## Step 8.1：Plan Verification（计划验证）
 
-Automatically verify the plan's testing/verification steps using the \`/qa-only\` skill.
+使用 \`/qa-only\` skill 自动 verify plan 中的 testing/verification steps。
 
-### 1. Check for verification section
+### 1. Check for verification section（检查 verification section）
 
-Using the plan file already discovered in Step 8, look for a verification section. Match any of these headings: \`## Verification\`, \`## Test plan\`, \`## Testing\`, \`## How to test\`, \`## Manual testing\`, or any section with verification-flavored items (URLs to visit, things to check visually, interactions to test).
+使用 Step 8 已发现的 plan file，查找 verification section。匹配任意 headings：\`## Verification\`、\`## Test plan\`、\`## Testing\`、\`## How to test\`、\`## Manual testing\`，或任何包含 verification-flavored items 的 section（URLs to visit、things to check visually、interactions to test）。
 
-**If no verification section found:** Skip with "No verification steps found in plan — skipping auto-verification."
-**If no plan file was found in Step 8:** Skip (already handled).
+**如果未找到 verification section：** Skip with "No verification steps found in plan — skipping auto-verification."
+**如果 Step 8 没有找到 plan file：** Skip（already handled）。
 
-### 2. Check for running dev server
+### 2. Check for running dev server（检查运行中的 dev server）
 
-Before invoking browse-based verification, check if a dev server is reachable:
+调用 browse-based verification 前，检查 dev server 是否 reachable：
 
 \`\`\`bash
 curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 2>/dev/null || \\
@@ -1036,41 +1004,41 @@ curl -s -o /dev/null -w '%{http_code}' http://localhost:5173 2>/dev/null || \\
 curl -s -o /dev/null -w '%{http_code}' http://localhost:4000 2>/dev/null || echo "NO_SERVER"
 \`\`\`
 
-**If NO_SERVER:** Skip with "No dev server detected — skipping plan verification. Run /qa separately after deploying."
+**如果 NO_SERVER：** Skip with "No dev server detected — skipping plan verification. Run /qa separately after deploying."
 
-### 3. Invoke /qa-only inline
+### 3. Invoke /qa-only inline（内联调用 /qa-only）
 
-Read the \`/qa-only\` skill from disk:
+从 disk 读取 \`/qa-only\` skill：
 
 \`\`\`bash
 cat \${CLAUDE_SKILL_DIR}/../qa-only/SKILL.md
 \`\`\`
 
-**If unreadable:** Skip with "Could not load /qa-only — skipping plan verification."
+**如果 unreadable：** Skip with "Could not load /qa-only — skipping plan verification."
 
-Follow the /qa-only workflow with these modifications:
-- **Skip the preamble** (already handled by /ship)
-- **Use the plan's verification section as the primary test input** — treat each verification item as a test case
-- **Use the detected dev server URL** as the base URL
-- **Skip the fix loop** — this is report-only verification during /ship
-- **Cap at the verification items from the plan** — do not expand into general site QA
+按以下 modifications 遵循 /qa-only workflow：
+- **Skip the preamble**（已由 /ship 处理）
+- **Use the plan's verification section as the primary test input**：将每个 verification item 视为 test case
+- **Use the detected dev server URL** 作为 base URL
+- **Skip the fix loop**：这是 /ship 期间的 report-only verification
+- **Cap at the verification items from the plan**：不要扩展成 general site QA
 
-### 4. Gate logic
+### 4. Gate logic（门禁逻辑）
 
-- **All verification items PASS:** Continue silently. "Plan verification: PASS."
-- **Any FAIL:** Use AskUserQuestion:
-  - Show the failures with screenshot evidence
-  - RECOMMENDATION: Choose A if failures indicate broken functionality. Choose B if cosmetic only.
+- **All verification items PASS:** 静默 continue。"Plan verification: PASS."
+- **Any FAIL:** 使用 AskUserQuestion：
+  - 展示 failures 和 screenshot evidence
+  - RECOMMENDATION: 如果 failures 表明 broken functionality，Choose A；如果只是 cosmetic，Choose B。
   - Options:
-    A) Fix the failures before shipping (recommended for functional issues)
-    B) Ship anyway — known issues (acceptable for cosmetic issues)
-- **No verification section / no server / unreadable skill:** Skip (non-blocking).
+    A) Shipping 前修复 failures（functional issues 时 recommended）
+    B) 仍然 ship — known issues（cosmetic issues 可接受）
+- **No verification section / no server / unreadable skill:** Skip（non-blocking）。
 
-### 5. Include in PR body
+### 5. Include in PR body（纳入 PR body）
 
-Add a \`## Verification Results\` section to the PR body (Step 19):
-- If verification ran: summary of results (N PASS, M FAIL, K SKIPPED)
-- If skipped: reason for skipping (no plan, no server, no verification section)`;
+向 PR body（Step 19）添加 \`## Verification Results\` section：
+- 如果 verification ran：results summary（N PASS, M FAIL, K SKIPPED）
+- 如果 skipped：skipping reason（no plan, no server, no verification section）`;
 }
 
 // ─── Cross-Review Finding Dedup ──────────────────────────────────────
@@ -1082,37 +1050,37 @@ export function generateCrossReviewDedup(ctx: TemplateContext): string {
     ? 'the checklist pass (Step 9) and specialist review (Step 9.1-9.2)'
     : 'Step 4 critical pass and Step 4.5-4.6 specialists';
 
-  return `### Step ${stepNum}: Cross-review finding dedup
+  return `### Step ${stepNum}: Cross-review finding dedup（跨 review finding 去重）
 
-Before classifying findings, check if any were previously skipped by the user in a prior review on this branch.
+分类 findings 前，检查是否有 finding 在此 branch 的 prior review 中已被用户 skipped。
 
 \`\`\`bash
 ~/.claude/skills/gstack/bin/gstack-review-read
 \`\`\`
 
-Parse the output: only lines BEFORE \`---CONFIG---\` are JSONL entries (the output also contains \`---CONFIG---\` and \`---HEAD---\` footer sections that are not JSONL — ignore those).
+Parse output：只有 \`---CONFIG---\` 之前的 lines 是 JSONL entries（output 还包含 \`---CONFIG---\` 和 \`---HEAD---\` footer sections，它们不是 JSONL — ignore those）。
 
-For each JSONL entry that has a \`findings\` array:
-1. Collect all fingerprints where \`action: "skipped"\`
-2. Note the \`commit\` field from that entry
+对每个带 \`findings\` array 的 JSONL entry：
+1. Collect 所有 \`action: "skipped"\` 的 fingerprints
+2. Note 该 entry 的 \`commit\` field
 
-If skipped fingerprints exist, get the list of files changed since that review:
+如果存在 skipped fingerprints，获取从该 review 以来 changed files 的 list：
 
 \`\`\`bash
 git diff --name-only <prior-review-commit> HEAD
 \`\`\`
 
-For each current finding (from both ${findingsRef}), check:
-- Does its fingerprint match a previously skipped finding?
-- Is the finding's file path NOT in the changed-files set?
+对每个 current finding（来自 ${findingsRef}），检查：
+- 它的 fingerprint 是否匹配 previously skipped finding？
+- Finding 的 file path 是否不在 changed-files set 中？
 
-If both conditions are true: suppress the finding. It was intentionally skipped and the relevant code hasn't changed.
+如果两个条件都为 true：suppress the finding。它之前被 intentionally skipped，且相关 code 没变。
 
 Print: "Suppressed N findings from prior reviews (previously skipped by user)"
 
-**Only suppress \`skipped\` findings — never \`fixed\` or \`auto-fixed\`** (those might regress and should be re-checked).
+**只 suppress \`skipped\` findings，不要 suppress \`fixed\` 或 \`auto-fixed\`**（后两者可能 regress，应重新检查）。
 
-If no prior reviews exist or none have a \`findings\` array, skip this step silently.
+如果没有 prior reviews，或没有任何 review 带 \`findings\` array，静默 skip this step。
 
-Output a summary header: \`Pre-Landing Review: N issues (X critical, Y informational)\``;
+输出 summary header：\`Pre-Landing Review: N issues (X critical, Y informational)\``;
 }

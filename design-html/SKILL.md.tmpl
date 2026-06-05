@@ -3,14 +3,14 @@ name: design-html
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Design finalization: generates production-quality Pretext-native HTML/CSS.
-  Works with approved mockups from /design-shotgun, CEO plans from /plan-ceo-review,
-  design review context from /plan-design-review, or from scratch with a user
-  description. Text actually reflows, heights are computed, layouts are dynamic.
-  30KB overhead, zero deps. Smart API routing: picks the right Pretext patterns
-  for each design type. Use when: "finalize this design", "turn this into HTML",
-  "build me a page", "implement this design", or after any planning skill.
-  Proactively suggest when user has approved a design or has a plan ready. (gstack)
+  Design finalization：生成 production-quality Pretext-native HTML/CSS。可使用
+  /design-shotgun 的 approved mockups、/plan-ceo-review 的 CEO plans、
+  /plan-design-review 的 design review context，或从用户 description 从零开始。
+  Text 会真正 reflow，heights 会计算，layouts 是 dynamic。30KB overhead，zero deps。
+  Smart API routing：为每种 design type 选择正确的 Pretext patterns。当用户说
+  "finalize this design"、"turn this into HTML"、"build me a page"、
+  "implement this design"，或任何 planning skill 之后使用。
+  当用户已 approve design 或已有 plan ready 时主动建议使用。(gstack)
 voice-triggers:
   - "build the design"
   - "code the mockup"
@@ -34,10 +34,9 @@ allowed-tools:
 
 # /design-html: Pretext-Native HTML Engine
 
-You generate production-quality HTML where text actually works correctly. Not CSS
-approximations. Computed layout via Pretext. Text reflows on resize, heights adjust
-to content, cards size themselves, chat bubbles shrinkwrap, editorial spreads flow
-around obstacles.
+你生成 production-quality HTML，让 text 真正正确工作，而不是 CSS approximations。
+通过 Pretext 计算 layout。Text 在 resize 时 reflow，heights 随 content 调整，cards
+自适应尺寸，chat bubbles shrinkwrap，editorial spreads 会围绕 obstacles flow。
 
 {{DESIGN_SETUP}}
 
@@ -47,13 +46,13 @@ around obstacles.
 
 ---
 
-## Step 0: Input Detection
+## Step 0: Input Detection（输入检测）
 
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
 ```
 
-Detect what design context exists for this project. Run all four checks:
+检测这个 project 中存在什么 design context。运行全部四个 checks：
 
 ```bash
 setopt +o nomatch 2>/dev/null || true
@@ -80,108 +79,106 @@ _FINALIZED=$(ls -t ~/.gstack/projects/$SLUG/designs/*/finalized.html 2>/dev/null
 [ -f DESIGN.md ] && echo "DESIGN_MD: exists" || echo "NO_DESIGN_MD"
 ```
 
-Now route based on what was found. Check these cases in order:
+现在根据发现的内容路由。按顺序检查这些 cases：
 
-### Case A: approved.json exists (design-shotgun ran)
+### Case A: approved.json exists（design-shotgun 已运行）
 
-If `APPROVED` was found, read it. Extract: approved variant PNG path, user feedback,
-screen name. Also read the CEO plan if one exists (it adds strategic context).
+如果找到 `APPROVED`，读取它。提取：approved variant PNG path、user feedback、screen name。
+如果 CEO plan 存在，也读取它（它会增加 strategic context）。
 
-Read `DESIGN.md` if it exists in the repo root. These tokens take priority for
-system-level values (fonts, brand colors, spacing scale).
+如果 repo root 存在 `DESIGN.md`，读取它。这些 tokens 对 system-level values
+（fonts、brand colors、spacing scale）拥有优先级。
 
-Then check for prior finalized.html. If `FINALIZED` was also found, use AskUserQuestion:
+然后检查 prior finalized.html。如果也找到 `FINALIZED`，使用 AskUserQuestion：
 > Found a prior finalized HTML from a previous session. Want to evolve it
 > (apply new changes on top, preserving your custom edits) or start fresh?
 > A) Evolve — iterate on the existing HTML
 > B) Start fresh — regenerate from the approved mockup
 
-If evolve: read the existing HTML. Apply changes on top during Step 3.
-If fresh or no finalized.html: proceed to Step 1 with the approved PNG as the
-visual reference.
+如果 evolve：读取 existing HTML，并在 Step 3 中基于它叠加 changes。
+如果 fresh 或没有 finalized.html：进入 Step 1，使用 approved PNG 作为 visual reference。
 
-### Case B: CEO plan and/or design variants exist, but no approved.json
+### Case B：存在 CEO plan 和/或 design variants，但没有 approved.json
 
-If `CEO_PLAN` or `VARIANTS` was found but no `APPROVED`:
+如果找到 `CEO_PLAN` 或 `VARIANTS`，但没有 `APPROVED`：
 
-Read whichever context exists:
-- If CEO plan found: read it and summarize the product vision and design requirements.
-- If variant PNGs found: show them inline using the Read tool.
-- If DESIGN.md found: read it for design tokens and constraints.
+读取存在的 context：
+- 如果找到 CEO plan：读取它，并总结 product vision 和 design requirements。
+- 如果找到 variant PNGs：用 Read tool inline 展示它们。
+- 如果找到 DESIGN.md：读取其中的 design tokens 和 constraints。
 
-Use AskUserQuestion:
-> Found [CEO plan from /plan-ceo-review | design review variants from /plan-design-review | both]
-> but no approved design mockup.
-> A) Run /design-shotgun — explore design variants based on the existing plan context
-> B) Skip mockups — I'll design the HTML directly from the plan context
-> C) I have a PNG — let me provide the path
+使用 AskUserQuestion：
+> 找到了 [来自 /plan-ceo-review 的 CEO plan | 来自 /plan-design-review 的 design review variants | 两者]
+> 但没有 approved design mockup。
+> A) 运行 /design-shotgun：基于 existing plan context 探索 design variants
+> B) 跳过 mockups：我会直接根据 plan context 设计 HTML
+> C) 我有 PNG：让我提供 path
 
-If A: tell the user to run /design-shotgun, then come back to /design-html.
-If B: proceed to Step 1 in "plan-driven mode." There is no approved PNG, the plan is
-the source of truth. Ask the user for a screen name to use for the output directory
-(e.g., "landing-page", "dashboard", "pricing").
-If C: accept a PNG file path from the user and proceed with that as the reference.
+如果 A：告诉用户先运行 /design-shotgun，再回到 /design-html。
+如果 B：以 "plan-driven mode" 进入 Step 1。没有 approved PNG，plan 是 source of truth。
+询问用户用于 output directory 的 screen name（例如 "landing-page"、"dashboard"、"pricing"）。
+如果 C：接受用户提供的 PNG file path，并将其作为 reference 继续。
 
-### Case C: Nothing found (clean slate)
+### Case C：没有找到任何 context（clean slate）
 
-If none of the above produced any context:
+如果上面没有产生任何 context：
 
-Use AskUserQuestion:
-> No design context found for this project. How do you want to start?
-> A) Run /plan-ceo-review first — think through the product strategy before designing
-> B) Run /plan-design-review first — design review with visual mockups
-> C) Run /design-shotgun — jump straight to visual design exploration
-> D) Just describe it — tell me what you want and I'll design the HTML live
+使用 AskUserQuestion：
+> 没找到这个 project 的 design context。你想从哪里开始？
+> A) 先运行 /plan-ceo-review：设计前先想清楚 product strategy
+> B) 先运行 /plan-design-review：带 visual mockups 的 design review
+> C) 运行 /design-shotgun：直接进入 visual design exploration
+> D) 直接描述：告诉我你想要什么，我现场设计 HTML
 
-If A, B, or C: tell the user to run that skill, then come back to /design-html.
-If D: proceed to Step 1 in "freeform mode." Ask the user for a screen name.
+如果 A、B 或 C：告诉用户运行对应 skill，然后回到 /design-html。
+如果 D：以 "freeform mode" 进入 Step 1。询问用户 screen name。
 
-### Context summary
+### Context summary（上下文摘要）
 
-After routing, output a brief context summary:
+路由后，输出 brief context summary：
 - **Mode:** approved-mockup | plan-driven | freeform | evolve
-- **Visual reference:** path to approved PNG, or "none (plan-driven)" or "none (freeform)"
-- **CEO plan:** path or "none"
-- **Design tokens:** "DESIGN.md" or "none"
-- **Screen name:** from approved.json, user-provided, or inferred from CEO plan
+- **Visual reference:** approved PNG path，或 "none (plan-driven)" / "none (freeform)"
+- **CEO plan:** path 或 "none"
+- **Design tokens:** "DESIGN.md" 或 "none"
+- **Screen name:** 来自 approved.json、用户提供，或从 CEO plan 推断
 
 ---
 
-## Step 1: Design Analysis
+## Step 1：Design Analysis（设计分析）
 
-1. If `$D` is available (`DESIGN_READY`), extract a structured implementation spec:
+1. 如果 `$D` 可用（`DESIGN_READY`），提取 structured implementation spec：
 ```bash
 $D prompt --image <approved-variant.png> --output json
 ```
-This returns colors, typography, layout structure, and component inventory via GPT-4o vision.
+这会通过 GPT-4o vision 返回 colors、typography、layout structure 和 component inventory。
 
-2. If `$D` is not available, read the approved PNG inline using the Read tool.
-   Describe the visual layout, colors, typography, and component structure yourself.
+2. 如果 `$D` 不可用，用 Read tool inline 读取 approved PNG。自己描述 visual layout、
+   colors、typography 和 component structure。
 
-3. If in plan-driven or freeform mode (no approved PNG), design from context:
-   - **Plan-driven:** read the CEO plan and/or design review notes. Extract the described
-     UI requirements, user flows, target audience, visual feel (dark/light, dense/spacious),
-     content structure (hero, features, pricing, etc.), and design constraints. Build an
-     implementation spec from the plan's prose rather than a visual reference.
-   - **Freeform:** use AskUserQuestion to gather what the user wants to build. Ask about:
-     purpose/audience, visual feel (dark/light, playful/serious, dense/spacious),
-     content structure (hero, features, pricing, etc.), and any reference sites they like.
-   In both cases, describe the intended visual layout, colors, typography, and
-   component structure as your implementation spec. Generate realistic content based
-   on the plan or user description (never lorem ipsum).
+3. 如果处于 plan-driven 或 freeform mode（没有 approved PNG），从 context 设计：
+   - **Plan-driven:** 读取 CEO plan 和/或 design review notes。提取其中描述的 UI
+     requirements、user flows、target audience、visual feel（dark/light、dense/spacious）、
+     content structure（hero、features、pricing 等）和 design constraints。根据 plan prose
+     构建 implementation spec，而不是 visual reference。
+   - **Freeform:** 使用 AskUserQuestion 收集用户想构建什么。询问：purpose/audience、
+     visual feel（dark/light、playful/serious、dense/spacious）、content structure
+     （hero、features、pricing 等），以及他们喜欢的 reference sites。
+   两种情况都要把 intended visual layout、colors、typography 和 component structure
+   描述为 implementation spec。基于 plan 或用户 description 生成 realistic content
+   （never lorem ipsum）。
 
-4. Read `DESIGN.md` tokens. These override any extracted values for system-level
-   properties (brand colors, font family, spacing scale).
+4. 读取 `DESIGN.md` tokens。它们会 override system-level properties（brand colors、
+   font family、spacing scale）中任何已提取 values。
 
-5. Output an "Implementation spec" summary: colors (hex), fonts (family + weights),
-   spacing scale, component list, layout type.
+5. 输出 "Implementation spec" summary：colors（hex）、fonts（family + weights）、
+   spacing scale、component list、layout type。
 
 ---
 
-## Step 2: Smart Pretext API Routing
+## Step 2: Smart Pretext API Routing（智能 Pretext API 路由）
 
-Analyze the approved design and classify it into a Pretext tier. Each tier uses
-different Pretext APIs for optimal results:
+分析 approved design，并将其分类到一个 Pretext tier。每个 tier 使用不同 Pretext APIs
+以获得最佳结果：
 
 | Design type | Pretext APIs | Use case |
 |-------------|-------------|----------|
@@ -191,38 +188,38 @@ different Pretext APIs for optimal results:
 | Content-heavy (editorial, blog) | `prepareWithSegments()` + `layoutNextLine()` | Text around obstacles |
 | Complex editorial | Full engine + `layoutWithLines()` | Manual line rendering |
 
-State the chosen tier and why. Reference the specific Pretext APIs that will be used.
+说明选择的 tier 及原因。引用将要使用的 specific Pretext APIs。
 
 ---
 
-## Step 2.5: Framework Detection
+## Step 2.5: Framework Detection（框架检测）
 
-Check if the user's project uses a frontend framework:
+检查用户 project 是否使用 frontend framework：
 
 ```bash
 [ -f package.json ] && cat package.json | grep -o '"react"\|"svelte"\|"vue"\|"@angular/core"\|"solid-js"\|"preact"' | head -1 || echo "NONE"
 ```
 
-If a framework is detected, use AskUserQuestion:
+如果检测到 framework，使用 AskUserQuestion：
 > Detected [React/Svelte/Vue] in your project. What format should the output be?
 > A) Vanilla HTML — self-contained preview file (recommended for first pass)
 > B) [React/Svelte/Vue] component — framework-native with Pretext hooks
 
-If the user chooses framework output, ask one follow-up:
+如果用户选择 framework output，追加一个 follow-up：
 > A) TypeScript
 > B) JavaScript
 
-For vanilla HTML: proceed to Step 3 with vanilla output.
-For framework output: proceed to Step 3 with framework-specific patterns.
-If no framework detected: default to vanilla HTML, no question needed.
+对于 vanilla HTML：以 vanilla output 进入 Step 3。
+对于 framework output：以 framework-specific patterns 进入 Step 3。
+如果没有检测到 framework：默认使用 vanilla HTML，无需提问。
 
 ---
 
-## Step 3: Generate Pretext-Native HTML
+## Step 3: Generate Pretext-Native HTML（生成 Pretext-native HTML）
 
-### Pretext Source Embedding
+### Pretext Source Embedding（Pretext source 嵌入）
 
-For **vanilla HTML output**, check for the vendored Pretext bundle:
+对于 **vanilla HTML output**，检查 vendored Pretext bundle：
 ```bash
 _PRETEXT_VENDOR=""
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -231,60 +228,60 @@ _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 [ -n "$_PRETEXT_VENDOR" ] && echo "VENDOR: $_PRETEXT_VENDOR" || echo "VENDOR_MISSING"
 ```
 
-- If `VENDOR` found: read the file and inline it in a `<script>` tag. The HTML file
-  is fully self-contained with zero network dependencies.
-- If `VENDOR_MISSING`: use CDN import as fallback:
+- 如果找到 `VENDOR`：读取该文件，并 inline 到 `<script>` tag 中。HTML file 完全
+  self-contained，zero network dependencies。
+- 如果 `VENDOR_MISSING`：使用 CDN import 作为 fallback：
   `<script type="module">import { prepare, layout, prepareWithSegments, walkLineRanges, layoutNextLine, layoutWithLines } from 'https://esm.sh/@chenglou/pretext'</script>`
-  Add a comment: `<!-- FALLBACK: vendor/pretext.js missing, using CDN -->`
+  添加 comment：`<!-- FALLBACK: vendor/pretext.js missing, using CDN -->`
 
-For **framework output**, add to the project's dependencies instead:
+对于 **framework output**，改为添加到 project dependencies：
 ```bash
-# Detect package manager
+# 检测 package manager
 [ -f bun.lockb ] && echo "bun add @chenglou/pretext" || \
 [ -f pnpm-lock.yaml ] && echo "pnpm add @chenglou/pretext" || \
 [ -f yarn.lock ] && echo "yarn add @chenglou/pretext" || \
 echo "npm install @chenglou/pretext"
 ```
-Run the detected install command. Then use standard imports in the component.
+运行检测到的 install command。然后在 component 中使用 standard imports。
 
-### HTML Generation
+### HTML Generation（HTML 生成）
 
-Write a single file using the Write tool. Save to:
+使用 Write tool 写入单个文件。保存到：
 `~/.gstack/projects/$SLUG/designs/<screen-name>-YYYYMMDD/finalized.html`
 
-For framework output, save to:
+对于 framework output，保存到：
 `~/.gstack/projects/$SLUG/designs/<screen-name>-YYYYMMDD/finalized.[tsx|svelte|vue]`
 
-**Always include in vanilla HTML:**
-- Pretext source (inlined or CDN, see above)
-- CSS custom properties for design tokens from DESIGN.md / Step 1 extraction
-- Google Fonts via `<link>` tags + `document.fonts.ready` gate before first `prepare()`
-- Semantic HTML5 (`<header>`, `<nav>`, `<main>`, `<section>`, `<footer>`)
-- Responsive behavior via Pretext relayout (not just media queries)
-- Breakpoint-specific adjustments at 375px, 768px, 1024px, 1440px
-- ARIA attributes, heading hierarchy, focus-visible states
-- `contenteditable` on text elements + MutationObserver to re-prepare + re-layout on edit
-- ResizeObserver on containers to re-layout on resize
-- `prefers-color-scheme` media query for dark mode
-- `prefers-reduced-motion` for animation respect
-- Real content extracted from the mockup (never lorem ipsum)
+**vanilla HTML 中始终包含：**
+- Pretext source（inlined 或 CDN，见上文）
+- 来自 DESIGN.md / Step 1 extraction 的 design tokens CSS custom properties
+- 通过 `<link>` tags 引入 Google Fonts，并在首次 `prepare()` 前使用 `document.fonts.ready` gate
+- Semantic HTML5（`<header>`、`<nav>`、`<main>`、`<section>`、`<footer>`）
+- 通过 Pretext relayout 实现 responsive behavior（不只是 media queries）
+- 375px、768px、1024px、1440px 的 breakpoint-specific adjustments
+- ARIA attributes、heading hierarchy、focus-visible states
+- text elements 上的 `contenteditable` + MutationObserver，用于 edit 后 re-prepare + re-layout
+- containers 上的 ResizeObserver，用于 resize 后 re-layout
+- dark mode 的 `prefers-color-scheme` media query
+- 尊重 animation 的 `prefers-reduced-motion`
+- 从 mockup 提取的 real content（never lorem ipsum）
 
-**Never include (AI slop blacklist):**
-- Purple/blue gradients as default
+**绝不要包含（AI slop blacklist）：**
+- 默认使用 purple/blue gradients
 - Generic 3-column feature grids
-- Center-everything layouts with no visual hierarchy
-- Decorative blobs, waves, or geometric patterns not in the mockup
+- 没有 visual hierarchy 的 center-everything layouts
+- mockup 中不存在的 decorative blobs、waves 或 geometric patterns
 - Stock photo placeholder divs
-- "Get Started" / "Learn More" generic CTAs not from the mockup
-- Rounded-corner cards with drop shadows as the default component
-- Emoji as visual elements
+- mockup 中不存在的 "Get Started" / "Learn More" generic CTAs
+- 把带 drop shadows 的 rounded-corner cards 作为 default component
+- Emoji 作为 visual elements
 - Generic testimonial sections
-- Cookie-cutter hero sections with left-text right-image
+- Cookie-cutter hero sections（左文右图的套路 hero）
 
-### Pretext Wiring Patterns
+### Pretext Wiring Patterns（Pretext wiring 模式）
 
-Use these patterns based on the tier selected in Step 2. These are the correct
-Pretext API usage patterns. Follow them exactly.
+根据 Step 2 选择的 tier 使用这些 patterns。这些是正确的 Pretext API usage patterns，
+必须严格遵循。
 
 **Pattern 1: Basic height computation (Simple layout, Card/grid)**
 ```js
@@ -402,47 +399,47 @@ for (const line of lines) {
 }
 ```
 
-### Pretext API Reference
+### Pretext API Reference（Pretext API 参考）
 
 ```
 PRETEXT API CHEATSHEET:
 
 prepare(text, font) → handle
-  One-time text measurement. Call after document.fonts.ready.
-  Font: CSS shorthand like '16px Inter' or 'bold 24px Georgia'.
+  One-time text measurement。document.fonts.ready 之后调用。
+  Font：CSS shorthand，例如 '16px Inter' 或 'bold 24px Georgia'。
 
 layout(prepared, maxWidth, lineHeight) → { height, lineCount }
-  Fast layout computation. Call on every resize. Sub-millisecond.
+  Fast layout computation。每次 resize 时调用。Sub-millisecond。
 
 prepareWithSegments(text, font) → handle
-  Like prepare() but enables line-level APIs below.
+  类似 prepare()，但启用下面的 line-level APIs。
 
 layoutWithLines(segs, maxWidth, lineHeight) → { lines: [{text, width, x, y}...], height }
-  Full line-by-line breakdown. For Canvas/SVG rendering.
+  Full line-by-line breakdown。用于 Canvas/SVG rendering。
 
 walkLineRanges(segs, maxWidth, onLine) → void
-  Calls onLine(lineCount, startIdx, endIdx) for each possible layout.
-  Find minimum width for N lines. For tight-fit containers.
+  对每种 possible layout 调用 onLine(lineCount, startIdx, endIdx)。
+  为 N lines 寻找 minimum width。用于 tight-fit containers。
 
 layoutNextLine(segs, state, maxWidth, lineHeight) → { text, width, state } | null
-  Iterator. Different maxWidth per line = text around obstacles.
-  Pass null as initial state. Returns null when text is exhausted.
+  Iterator。每行不同 maxWidth = text around obstacles。
+  初始 state 传 null。text exhausted 时返回 null。
 
 clearCache() → void
-  Clears internal measurement caches. Use when cycling many fonts.
+  清除 internal measurement caches。cycling many fonts 时使用。
 
 setLocale(locale?) → void
-  Retargets word segmenter for future prepare() calls.
+  为未来的 prepare() calls retarget word segmenter。
 ```
 
 ---
 
-## Step 3.5: Live Reload Server
+## Step 3.5: Live Reload Server（实时重载 server）
 
-After writing the HTML file, start a simple HTTP server for live preview:
+写入 HTML file 后，启动一个简单 HTTP server 用于 live preview：
 
 ```bash
-# Start a simple HTTP server in the output directory
+# 在 output directory 中启动一个简单 HTTP server
 _OUTPUT_DIR=$(dirname <path-to-finalized.html>)
 cd "$_OUTPUT_DIR"
 python3 -m http.server 0 --bind 127.0.0.1 &
@@ -452,26 +449,26 @@ echo "SERVER: http://localhost:$_PORT/finalized.html"
 echo "PID: $_SERVER_PID"
 ```
 
-If python3 is not available, fall back to:
+如果 python3 不可用，fallback 到：
 ```bash
 open <path-to-finalized.html>
 ```
 
-Tell the user: "Live preview running at http://localhost:$_PORT/finalized.html.
+告诉用户："Live preview running at http://localhost:$_PORT/finalized.html.
 After each edit, just refresh the browser (Cmd+R) to see changes."
 
-When the refinement loop ends (Step 4 exits), kill the server:
+refinement loop 结束时（Step 4 exits），kill server：
 ```bash
 kill $_SERVER_PID 2>/dev/null || true
 ```
 
 ---
 
-## Step 4: Preview + Refinement Loop
+## Step 4: Preview + Refinement Loop（预览与细化循环）
 
-### Verification Screenshots
+### Verification Screenshots（验证截图）
 
-If `$B` is available (browse binary), take verification screenshots at 3 viewports:
+如果 `$B` 可用（browse binary），在 3 个 viewports 截取 verification screenshots：
 
 ```bash
 $B goto "file://<path-to-finalized.html>"
@@ -480,78 +477,78 @@ $B screenshot /tmp/gstack-verify-tablet.png --width 768
 $B screenshot /tmp/gstack-verify-desktop.png --width 1440
 ```
 
-Show all three screenshots inline using the Read tool. Check for:
-- Text overflow (text cut off or extending beyond containers)
-- Layout collapse (elements overlapping or missing)
-- Responsive breakage (content not adapting to viewport)
+使用 Read tool inline 展示三张 screenshots。检查：
+- Text overflow（text 被截断或超出 containers）
+- Layout collapse（elements overlap 或 missing）
+- Responsive breakage（content 没有适配 viewport）
 
-If issues are found, note them and fix before presenting to the user.
+如果发现 issues，记录并在呈现给用户前修复。
 
-If `$B` is not available, skip verification and note:
-"Browse binary not available. Skipping automated viewport verification."
+如果 `$B` 不可用，跳过 verification 并注明：
+"Browse binary 不可用。跳过 automated viewport verification。"
 
-### Refinement Loop
+### Refinement Loop（细化循环）
 
 ```
 LOOP:
-  1. If server is running, tell user to open http://localhost:PORT/finalized.html
-     Otherwise: open <path>/finalized.html
+  1. 如果 server 正在运行，告诉用户打开 http://localhost:PORT/finalized.html
+     否则：open <path>/finalized.html
 
-  2. If an approved mockup PNG exists, show it inline (Read tool) for visual comparison.
-     If in plan-driven or freeform mode, skip this step.
+  2. 如果存在 approved mockup PNG，用 Read tool inline 展示它，便于 visual comparison。
+     如果处于 plan-driven 或 freeform mode，跳过此 step。
 
-  3. AskUserQuestion (adjust wording based on mode):
-     With mockup: "The HTML is live in your browser. Here's the approved mockup for comparison.
-      Try: resize the window (text should reflow dynamically),
-      click any text (it's editable, layout recomputes instantly).
-      What needs to change? Say 'done' when satisfied."
-     Without mockup: "The HTML is live in your browser. Try: resize the window
-      (text should reflow dynamically), click any text (it's editable, layout
+  3. AskUserQuestion（根据 mode 调整措辞）：
+     With mockup: "HTML 已在你的 browser 中运行。这里是 approved mockup，方便 comparison。
+      试试：resize window（text 应该动态 reflow），
+      点击任意 text（它可编辑，layout 会即时 recompute）。
+      哪里需要修改？满意后说 'done'。"
+     Without mockup: "HTML 已在你的 browser 中运行。试试：resize window
+      （text 应该动态 reflow），点击任意 text（它可编辑，layout
       recomputes instantly). What needs to change? Say 'done' when satisfied."
 
-  4. If "done" / "ship it" / "looks good" / "perfect" → exit loop, go to Step 5
+  4. 如果用户说 "done" / "ship it" / "looks good" / "perfect" → exit loop，进入 Step 5
 
-  5. Apply feedback using targeted Edit tool changes on the HTML file
-     (do NOT regenerate the entire file — surgical edits only)
+  5. 使用 Edit tool 对 HTML file 做 targeted changes 来应用 feedback
+     （do NOT regenerate entire file，只做 surgical edits）
 
-  6. Brief summary of what changed (2-3 lines max)
+  6. 简要总结 changed 内容（最多 2-3 行）
 
-  7. If verification screenshots are available, re-take them to confirm the fix
+  7. 如果 verification screenshots 可用，重新截图以确认 fix
 
-  8. Go to LOOP
+  8. 回到 LOOP
 ```
 
-Maximum 10 iterations. If the user hasn't said "done" after 10, use AskUserQuestion:
+最多 10 次 iterations。如果用户 10 次后仍未说 "done"，使用 AskUserQuestion：
 "We've done 10 rounds of refinement. Want to continue iterating or call it done?"
 
 ---
 
-## Step 5: Save & Next Steps
+## Step 5: Save & Next Steps（保存与下一步）
 
-### Design Token Extraction
+### Design Token Extraction（设计 token 提取）
 
-If no `DESIGN.md` exists in the repo root, offer to create one from the generated HTML:
+如果 repo root 没有 `DESIGN.md`，提供从 generated HTML 创建一个：
 
-Extract from the HTML:
-- CSS custom properties (colors, spacing, font sizes)
-- Font families and weights used
-- Color palette (primary, secondary, accent, neutral)
+从 HTML 中提取：
+- CSS custom properties（colors、spacing、font sizes）
+- 使用的 font families 和 weights
+- Color palette（primary、secondary、accent、neutral）
 - Spacing scale
 - Border radius values
 - Shadow values
 
-Use AskUserQuestion:
-> No DESIGN.md found. I can extract the design tokens from the HTML we just built
-> and create a DESIGN.md for your project. This means future /design-shotgun and
-> /design-html runs will be style-consistent automatically.
-> A) Create DESIGN.md from these tokens
-> B) Skip — I'll handle the design system later
+使用 AskUserQuestion：
+> 没找到 DESIGN.md。我可以从刚构建的 HTML 中提取 design tokens，
+> 并为你的 project 创建 DESIGN.md。这样未来的 /design-shotgun 和
+> /design-html 运行会自动保持 style-consistent。
+> A) 根据这些 tokens 创建 DESIGN.md
+> B) 跳过：我稍后处理 design system
 
-If A: write `DESIGN.md` to the repo root with the extracted tokens.
+如果 A：将提取出的 tokens 写入 repo root 的 `DESIGN.md`。
 
-### Save Metadata
+### Save Metadata（保存 metadata）
 
-Write `finalized.json` alongside the HTML:
+在 HTML 旁边写入 `finalized.json`：
 ```json
 {
   "source_mockup": "<approved variant PNG path or null>",
@@ -567,34 +564,33 @@ Write `finalized.json` alongside the HTML:
 }
 ```
 
-### Next Steps
+### Next Steps（下一步）
 
-Use AskUserQuestion:
-> Design finalized with Pretext-native layout. What's next?
-> A) Copy to project — copy the HTML/component into your codebase
-> B) Iterate more — keep refining
+使用 AskUserQuestion：
+> Design 已用 Pretext-native layout finalized。下一步？
+> A) 复制到 project：把 HTML/component 复制进你的 codebase
+> B) 继续 iterate：继续 refine
 > C) Done — I'll use this as a reference
 
 ---
 
-## Important Rules
+## Important Rules（重要规则）
 
-- **Source of truth fidelity over code elegance.** When an approved mockup exists,
-  pixel-match it. If that requires `width: 312px` instead of a CSS grid class, that's
-  correct. When in plan-driven or freeform mode, the user's feedback during the
-  refinement loop is the source of truth. Code cleanup happens later during
-  component extraction.
+- **Source of truth fidelity over code elegance.** 当 approved mockup 存在时，要 pixel-match。
+  如果这需要 `width: 312px` 而不是 CSS grid class，那就是正确选择。处于 plan-driven
+  或 freeform mode 时，refinement loop 中的用户 feedback 是 source of truth。Code cleanup
+  稍后在 component extraction 阶段处理。
 
-- **Always use Pretext for text layout.** Even if the design looks simple, Pretext
-  ensures correct height computation on resize. The overhead is 30KB. Every page benefits.
+- **始终使用 Pretext 做 text layout。** 即使 design 看起来简单，Pretext 也能确保 resize
+  时 height computation 正确。overhead 是 30KB。每个 page 都会受益。
 
-- **Surgical edits in the refinement loop.** Use the Edit tool to make targeted changes,
-  not the Write tool to regenerate the entire file. The user may have made manual edits
-  via contenteditable that should be preserved.
+- **Surgical edits in the refinement loop.** 使用 Edit tool 做 targeted changes，不要用
+  Write tool regenerate 整个 file。用户可能已经通过 contenteditable 做了 manual edits，
+  这些应当保留。
 
-- **Real content only.** When a mockup exists, extract text from it. In plan-driven mode,
-  use content from the plan. In freeform mode, generate realistic content based on the
-  user's description. Never use "Lorem ipsum", "Your text here", or placeholder content.
+- **只使用真实内容。** mockup 存在时，从中提取 text。plan-driven mode 使用 plan 中的
+  content。freeform mode 基于用户 description 生成 realistic content。Never use
+  "Lorem ipsum"、"Your text here" 或 placeholder content。
 
-- **One page per invocation.** For multi-page designs, run /design-html once per page.
-  Each run produces one HTML file.
+- **One page per invocation.** 对 multi-page designs，每个 page 运行一次 /design-html。
+  每次 run 产生一个 HTML file。

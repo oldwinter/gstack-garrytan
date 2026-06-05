@@ -1,12 +1,12 @@
 # gstack-full Pipeline
 
-Injected by the orchestrator for complete feature builds. Append to existing CLAUDE.md.
+由 orchestrator 为 complete feature builds 注入。追加到现有 CLAUDE.md。
 
 ## Full Pipeline
-1. Read CLAUDE.md and understand the project context.
-2. Run /autoplan to review your approach (CEO + eng + design review pipeline).
-3. Implement the approved plan. Follow the planning discipline above.
-4. Run /ship to create a PR with tests, changelog, and version bump.
-5. Report back: PR URL, what shipped, decisions made, anything uncertain.
+1. 读取 CLAUDE.md 并理解 project context。
+2. 运行 /autoplan 审查 approach（CEO + eng + design review pipeline）。
+3. Implement approved plan。遵循上面的 planning discipline。
+4. 运行 /ship 创建包含 tests、changelog 和 version bump 的 PR。
+5. 回报：PR URL、what shipped、decisions made、anything uncertain。
 
-Do not ask for human input until the PR is ready for review.
+PR ready for review 前不要请求 human input。

@@ -1,21 +1,18 @@
-# Design: slop-scan integration in /review and /ship
+# Design：/review 和 /ship 中的 slop-scan integration
 
-Status: deferred
-Created: 2026-04-09
-Depends on: slop-diff script (scripts/slop-diff.ts, already landed)
+Status（状态）: deferred
+Created（创建时间）: 2026-04-09
+Depends on（依赖）: slop-diff script（scripts/slop-diff.ts，already landed）
 
-## Problem
+## 问题
 
-slop-scan findings are only visible if you run `bun run slop:diff` manually. They
-should surface automatically during code review and shipping, the same way SQL safety
-and trust boundary checks do.
+slop-scan findings 只有在你手动运行 `bun run slop:diff` 时才可见。它们应该像 SQL safety 和 trust boundary checks 一样，在 code review 和 shipping 过程中自动 surfaced。
 
-## Integration points
+## Integration points（集成点）
 
-### /review (Step 4, after checklist pass)
+### /review（Step 4，after checklist pass）
 
-Run `bun run slop:diff` after the critical/informational checklist pass. Show new
-findings inline with other review output:
+在 critical/informational checklist pass 后运行 `bun run slop:diff`。把 new findings 与其他 review output 一起 inline 显示：
 
 ```
 Pre-Landing Review: 3 issues (1 critical, 2 informational)
@@ -27,55 +24,50 @@ AI Slop: +2 new findings, -0 removed
       line 87: empty catch, boundary=process
 ```
 
-Classification: INFORMATIONAL (never blocks merge, just surfaces the pattern).
+Classification（分类）：INFORMATIONAL（永远不阻塞 merge，只 surface pattern）。
 
-Fix-First heuristic applies: if the finding is an empty catch around a file op,
-auto-fix with `safeUnlink()`. If it's a catch-and-log in extension code, skip
-(that's the correct pattern per CLAUDE.md guidelines).
+Fix-First heuristic 适用：如果 finding 是围绕 file op 的 empty catch，则用 `safeUnlink()` auto-fix。如果是 extension code 中的 catch-and-log，则 skip（按 CLAUDE.md guidelines，这是正确 pattern）。
 
-### /ship (Step 3.5, pre-landing review + PR body)
+### /ship（Step 3.5，pre-landing review + PR body）
 
-Same integration as /review. Additionally, show a one-line summary in the PR body:
+与 /review 相同 integration。另外，在 PR body 中显示一行 summary：
 
 ```markdown
-## Pre-Landing Review
+## Pre-Landing Review（落地前审查）
 - 2 issues auto-fixed, 0 needs input
 - AI Slop: +0 new / -3 removed ✓
 ```
 
-### Review Readiness Dashboard
+### Review Readiness Dashboard（评审就绪面板）
 
-Do NOT add a row. Slop is a diagnostic on the diff, not a review that gets "run"
-independently. It shows up inside Eng Review output, not as its own dashboard entry.
+不要新增 row。Slop 是 diff diagnostic，不是可以独立“run”的 review。它出现在 Eng Review output 内部，不作为自己的 dashboard entry。
 
-## What to auto-fix vs what to skip
+## Auto-fix 什么，skip 什么
 
-Follow CLAUDE.md "Slop-scan" section. Summary:
+遵循 CLAUDE.md 的 "Slop-scan" section。摘要：
 
-**Auto-fix (genuine quality improvements):**
-- Empty catch around `fs.unlinkSync` → replace with `safeUnlink()`
-- Empty catch around `process.kill` → replace with `safeKill()`
-- `return await` with no enclosing try → remove `await`
-- Untyped catch around URL parsing → add `instanceof TypeError` check
+**Auto-fix（真实 quality improvements）：**
+- `fs.unlinkSync` 周围的 empty catch → 替换为 `safeUnlink()`
+- `process.kill` 周围的 empty catch → 替换为 `safeKill()`
+- 没有 enclosing try 的 `return await` → 移除 `await`
+- URL parsing 周围的 untyped catch → 添加 `instanceof TypeError` check
 
-**Skip (correct patterns that slop-scan flags):**
-- `.catch(() => {})` on fire-and-forget browser ops (page.close, bringToFront)
-- Catch-and-log in Chrome extension code (uncaught errors crash extensions)
-- `safeUnlinkQuiet` in shutdown/emergency paths (swallowing all errors is correct)
-- Pass-through wrappers that delegate to active session (API stability layer)
+**Skip（slop-scan 会 flag 但实际正确的 patterns）：**
+- fire-and-forget browser ops（page.close、bringToFront）上的 `.catch(() => {})`
+- Chrome extension code 中的 catch-and-log（uncaught errors 会 crash extensions）
+- shutdown/emergency paths 中的 `safeUnlinkQuiet`（swallowing all errors 是正确行为）
+- delegate 到 active session 的 pass-through wrappers（API stability layer）
 
-## Implementation notes
+## Implementation notes（实现说明）
 
-- `scripts/slop-diff.ts` already handles the heavy lifting (worktree-based base
-  comparison, line-number-insensitive fingerprinting, graceful fallback)
-- The review/ship skills run bash blocks. Integration is: run the script, parse
-  the output, include in the review findings
-- If slop-scan is not installed (`npx slop-scan` fails), skip silently
-- The script exits 0 always (diagnostic, never gates)
+- `scripts/slop-diff.ts` 已经处理 heavy lifting（worktree-based base comparison、line-number-insensitive fingerprinting、graceful fallback）
+- review/ship skills 运行 bash blocks。Integration 是：运行脚本、解析 output、包含到 review findings 中
+- 如果 slop-scan 未安装（`npx slop-scan` fails），静默 skip
+- 脚本始终 exit 0（diagnostic，never gates）
 
-## Effort estimate
+## Effort estimate（工作量估计）
 
-| Task | Human | CC+gstack |
+| Task（任务） | Human（人工） | CC+gstack |
 |------|-------|-----------|
 | Add to review/SKILL.md.tmpl | 2 hours | 10 min |
 | Add to ship/SKILL.md.tmpl | 2 hours | 10 min |

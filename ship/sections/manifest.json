@@ -2,55 +2,55 @@
   "$schema": "https://gstack.dev/schemas/section-manifest.json",
   "skill": "ship",
   "version": 1,
-  "note": "PASSIVE registry (v2 plan T9 / CM2). Fields are IDs, file paths, human titles, and human-readable trigger text ONLY. The skeleton's decision-tree prose is the ONLY place that decides WHEN to read a section; required-reads live in the E2E fixtures. No machine predicate here — see docs/designs/v2_PLAN.md:663.",
+  "note": "PASSIVE registry（v2 plan T9 / CM2）。字段只包含 IDs、file paths、human titles 和 human-readable trigger text。Skeleton 的 decision-tree prose 是唯一决定何时读取 section 的位置；required-reads 位于 E2E fixtures。这里没有 machine predicate，见 docs/designs/v2_PLAN.md:663。",
   "sections": [
     {
       "id": "tests",
       "file": "tests.md",
-      "title": "Test bootstrap, run, triage + eval suites",
-      "trigger": "running the test suites and (if prompt files changed) the eval suites (Steps 4-6)"
+      "title": "Test bootstrap、run、triage + eval suites",
+      "trigger": "运行 test suites，以及 prompt files 改变时运行 eval suites（Steps 4-6）"
     },
     {
       "id": "test-coverage",
       "file": "test-coverage.md",
-      "title": "Test coverage audit (subagent)",
-      "trigger": "auditing test coverage of the diff (Step 7)"
+      "title": "Test coverage audit（subagent）",
+      "trigger": "审计 diff 的 test coverage（Step 7）"
     },
     {
       "id": "plan-completion",
       "file": "plan-completion.md",
-      "title": "Plan completion + verification audit (subagent)",
-      "trigger": "auditing plan completion, verification, and scope drift (Step 8)"
+      "title": "Plan completion + verification audit（subagent）",
+      "trigger": "审计 plan completion、verification 和 scope drift（Step 8）"
     },
     {
       "id": "review-army",
       "file": "review-army.md",
       "title": "Pre-landing review + specialist army",
-      "trigger": "the pre-landing review and specialist dispatch (Step 9)"
+      "trigger": "执行 pre-landing review 和 specialist dispatch（Step 9）"
     },
     {
       "id": "greptile",
       "file": "greptile.md",
-      "title": "Address Greptile review comments",
-      "trigger": "addressing Greptile review comments when a PR exists (Step 10)"
+      "title": "处理 Greptile review comments",
+      "trigger": "PR 存在时处理 Greptile review comments（Step 10）"
     },
     {
       "id": "adversarial",
       "file": "adversarial.md",
       "title": "Adversarial review + learnings refresh",
-      "trigger": "the adversarial review and learnings capture (Step 11)"
+      "trigger": "执行 adversarial review 和 learnings capture（Step 11）"
     },
     {
       "id": "changelog",
       "file": "changelog.md",
-      "title": "CHANGELOG entry (release-summary + itemized)",
-      "trigger": "writing the CHANGELOG entry (Step 13)"
+      "title": "CHANGELOG entry（release-summary + itemized）",
+      "trigger": "写入 CHANGELOG entry（Step 13）"
     },
     {
       "id": "pr-body",
       "file": "pr-body.md",
       "title": "Documentation sync + PR/MR creation",
-      "trigger": "syncing docs and creating or updating the PR/MR (Steps 18-19)"
+      "trigger": "同步 docs，并创建或更新 PR/MR（Steps 18-19）"
     }
   ]
 }

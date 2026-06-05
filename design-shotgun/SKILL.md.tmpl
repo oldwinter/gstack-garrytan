@@ -3,12 +3,11 @@ name: design-shotgun
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Design shotgun: generate multiple AI design variants, open a comparison board,
-  collect structured feedback, and iterate. Standalone design exploration you can
-  run anytime. Use when: "explore designs", "show me options", "design variants",
-  "visual brainstorm", or "I don't like how this looks".
-  Proactively suggest when the user describes a UI feature but hasn't seen
-  what it could look like. (gstack)
+  Design shotgun：生成多个 AI design variants，打开 comparison board，收集 structured
+  feedback，并迭代。可随时运行的 standalone design exploration。当用户说
+  "explore designs"、"show me options"、"design variants"、"visual brainstorm"
+  或 "I don't like how this looks" 时使用。
+  当用户描述 UI feature 但还没看到它可能长什么样时，主动建议使用。(gstack)
 triggers:
   - explore design variants
   - show me design options
@@ -46,17 +45,16 @@ gbrain:
 
 # /design-shotgun: Visual Design Exploration
 
-You are a design brainstorming partner. Generate multiple AI design variants, open them
-side-by-side in the user's browser, and iterate until they approve a direction. This is
-visual brainstorming, not a review process.
+你是 design brainstorming partner。生成多个 AI design variants，在用户浏览器中并排打开，
+并持续迭代直到用户 approve 一个方向。这是 visual brainstorming，不是 review process。
 
 {{DESIGN_SETUP}}
 
 {{UX_PRINCIPLES}}
 
-## Step 0: Session Detection
+## Step 0: Session Detection（session 检测）
 
-Check for prior design exploration sessions for this project:
+检查这个 project 是否存在 prior design exploration sessions：
 
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
@@ -66,8 +64,8 @@ _PREV=$(find ~/.gstack/projects/$SLUG/designs/ -name "approved.json" -maxdepth 2
 echo "$_PREV"
 ```
 
-**If `PREVIOUS_SESSIONS_FOUND`:** Read each `approved.json`, display a summary, then
-AskUserQuestion:
+**如果 `PREVIOUS_SESSIONS_FOUND`：** 读取每个 `approved.json`，展示 summary，然后
+AskUserQuestion：
 
 > "Previous design explorations for this project:
 > - [date]: [screen] — chose variant [X], feedback: '[summary]'
@@ -76,32 +74,30 @@ AskUserQuestion:
 > B) New exploration — start fresh with new or updated instructions
 > C) Something else"
 
-If A: regenerate the board from existing variant PNGs, reopen, and resume the feedback loop.
-If B: proceed to Step 1.
+如果 A：从 existing variant PNGs 重新生成 board，重新打开，并恢复 feedback loop。
+如果 B：进入 Step 1。
 
-**If `NO_PREVIOUS_SESSIONS`:** Show the first-time message:
+**如果 `NO_PREVIOUS_SESSIONS`：** 展示 first-time message：
 
-"This is /design-shotgun — your visual brainstorming tool. I'll generate multiple AI
-design directions, open them side-by-side in your browser, and you pick your favorite.
-You can run /design-shotgun anytime during development to explore design directions for
-any part of your product. Let's start."
+"这是 /design-shotgun，你的 visual brainstorming tool。我会生成多个 AI design directions，
+在 browser 中并排打开，让你选择最喜欢的一个。开发期间你可以随时运行 /design-shotgun，
+为 product 的任何部分探索 design directions。我们开始吧。"
 
-## Step 1: Context Gathering
+## Step 1: Context Gathering（上下文收集）
 
-When design-shotgun is invoked from plan-design-review, design-consultation, or another
-skill, the calling skill has already gathered context. Check for `$_DESIGN_BRIEF` — if
-it's set, skip to Step 2.
+当 design-shotgun 由 plan-design-review、design-consultation 或其他 skill 调用时，
+calling skill 已经收集过 context。检查 `$_DESIGN_BRIEF`；如果已设置，跳到 Step 2。
 
-When run standalone, gather context to build a proper design brief.
+standalone 运行时，收集 context 来构建合适的 design brief。
 
-**Required context (5 dimensions):**
-1. **Who** — who is the design for? (persona, audience, expertise level)
-2. **Job to be done** — what is the user trying to accomplish on this screen/page?
-3. **What exists** — what's already in the codebase? (existing components, pages, patterns)
-4. **User flow** — how do users arrive at this screen and where do they go next?
-5. **Edge cases** — long names, zero results, error states, mobile, first-time vs power user
+**Required context（5 个维度）：**
+1. **Who** — 这个 design 面向谁？（persona、audience、expertise level）
+2. **Job to be done** — 用户想在这个 screen/page 上完成什么？
+3. **What exists** — codebase 中已有些什么？（existing components、pages、patterns）
+4. **User flow** — 用户如何到达这个 screen，之后会去哪里？
+5. **Edge cases** — long names、zero results、error states、mobile、first-time vs power user
 
-**Auto-gather first:**
+**先 auto-gather：**
 
 ```bash
 cat DESIGN.md 2>/dev/null | head -80 || echo "NO_DESIGN_MD"
@@ -116,61 +112,59 @@ setopt +o nomatch 2>/dev/null || true
 ls ~/.gstack/projects/$SLUG/*office-hours* 2>/dev/null | head -5
 ```
 
-If DESIGN.md exists, tell the user: "I'll follow your design system in DESIGN.md by
-default. If you want to go off the reservation on visual direction, just say so —
-design-shotgun will follow your lead, but won't diverge by default."
+如果 DESIGN.md 存在，告诉用户："默认情况下，我会遵循 DESIGN.md 中的 design system。
+如果你想在 visual direction 上跳出既定方向，直接说就行；design-shotgun 会跟随你的选择，
+但默认不会偏离。"
 
-**Check for a live site to screenshot** (for the "I don't like THIS" use case):
+**检查是否有 live site 可截图**（用于 "I don't like THIS" use case）：
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "NO_LOCAL_SITE"
 ```
 
-If a local site is running AND the user referenced a URL or said something like "I don't
-like how this looks," screenshot the current page and use `$D evolve` instead of
-`$D variants` to generate improvement variants from the existing design.
+如果 local site 正在运行，且用户引用了 URL 或说类似 "I don't like how this looks"，
+截取当前 page，并使用 `$D evolve` 而不是 `$D variants`，基于 existing design
+生成 improvement variants。
 
-**AskUserQuestion with pre-filled context:** Pre-fill what you inferred from the codebase,
-DESIGN.md, and office-hours output. Then ask for what's missing. Frame as ONE question
-covering all gaps:
+**带 pre-filled context 的 AskUserQuestion：** 预填你从 codebase、DESIGN.md 和
+office-hours output 推断出的内容。然后询问缺失信息。把所有 gaps 合成一个问题：
 
 > "Here's what I know: [pre-filled context]. I'm missing [gaps].
 > Tell me: [specific questions about the gaps].
 > How many variants? (default 3, up to 8 for important screens)"
 
-Two rounds max of context gathering, then proceed with what you have and note assumptions.
+context gathering 最多两轮，然后基于已有信息继续，并注明 assumptions。
 
-## Step 2: Taste Memory
+## Step 2: Taste Memory（taste memory）
 
-Read both the persistent taste profile (cross-session) AND the per-session approved
-designs to bias generation toward the user's demonstrated taste.
+同时读取 persistent taste profile（cross-session）和 per-session approved designs，让生成偏向
+用户已表现出的 taste。
 
-**Persistent taste profile (v1 schema at `~/.gstack/projects/$SLUG/taste-profile.json`):**
+**Persistent taste profile（v1 schema 位于 `~/.gstack/projects/$SLUG/taste-profile.json`）：**
 
 {{TASTE_PROFILE}}
 
-**Per-session approved.json files (legacy, still supported):**
+**Per-session approved.json files（legacy，仍支持）：**
 
 ```bash
 setopt +o nomatch 2>/dev/null || true
 _TASTE=$(find ~/.gstack/projects/$SLUG/designs/ -name "approved.json" -maxdepth 2 2>/dev/null | sort -r | head -10)
 ```
 
-If prior sessions exist, read each `approved.json` and extract patterns from the
-approved variants. Merge these into the taste-profile.json-derived signal — if the
-profile already says "user prefers Geist font" (from aggregated history), the
-approved.json files add the specific recent approval context.
+如果 prior sessions 存在，读取每个 `approved.json`，并从 approved variants 中提取 patterns。
+把这些合并进 taste-profile.json-derived signal。如果 profile 已经基于 aggregated history
+显示 "user prefers Geist font"，approved.json files 会补充具体的 recent approval context。
 
-Limit to last 10 sessions. Try/catch JSON parse on each (skip corrupted files).
+最多读取最近 10 个 sessions。对每个文件使用 try/catch JSON parse（跳过 corrupted files）。
 
-**Updating taste profile after a design-shotgun session:** When the user picks a
-variant, call `{{BIN_DIR}}/gstack-taste-update approved <variant-path>`. When they
-explicitly reject a variant, call `{{BIN_DIR}}/gstack-taste-update rejected <variant-path>`.
-The CLI handles schema migration from approved.json, decay, and conflict flagging.
+**design-shotgun session 之后更新 taste profile：** 当用户选择某个 variant 时，调用
+`{{BIN_DIR}}/gstack-taste-update approved <variant-path>`。当用户明确 reject 某个 variant
+时，调用 `{{BIN_DIR}}/gstack-taste-update rejected <variant-path>`。CLI 会处理从
+approved.json 的 schema migration、decay 和 conflict flagging。
 
-## Step 3: Generate Variants
+## Step 3: Generate Variants（生成 variants）
 
-Set up the output directory:
+设置 output directory：
 
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
@@ -179,13 +173,13 @@ mkdir -p "$_DESIGN_DIR"
 echo "DESIGN_DIR: $_DESIGN_DIR"
 ```
 
-Replace `<screen-name>` with a descriptive kebab-case name from the context gathering.
+用 context gathering 得到的 descriptive kebab-case name 替换 `<screen-name>`。
 
-### Step 3a: Concept Generation
+### Step 3a: Concept Generation（概念生成）
 
-Before any API calls, generate N text concepts describing each variant's design direction.
-Each concept should be a distinct creative direction, not a minor variation. Present them
-as a lettered list:
+在任何 API calls 之前，生成 N 个 text concepts，描述每个 variant 的 design direction。
+每个 concept 都应该是独立 creative direction，而不是 minor variation。用 lettered list
+呈现：
 
 ```
 I'll explore 3 directions:
@@ -195,52 +189,50 @@ B) "Name" — one-line visual description of this direction
 C) "Name" — one-line visual description of this direction
 ```
 
-Draw on DESIGN.md, taste memory, and the user's request to make each concept distinct.
+结合 DESIGN.md、taste memory 和用户请求，让每个 concept 彼此明显不同。
 
-**Anti-convergence directive (hard requirement):** Each variant MUST use a different
-font family, color palette, and layout approach. If two variants look like siblings
-— same typographic feel, overlapping color temperature, comparable layout rhythm —
-one of them failed. Regenerate the weaker one with a deliberately different direction.
+**Anti-convergence directive（hard requirement）：** 每个 variant MUST 使用不同的
+font family、color palette 和 layout approach。如果两个 variants 像 siblings：
+typographic feel 相同、color temperature 重叠、layout rhythm 接近，那其中一个就失败了。
+用刻意不同的方向重新生成较弱的那个。
 
-Concrete test: if someone could swap the headline text between two variants without
-noticing, they're too similar. Variants should feel like they came from three
-different design teams, not the same team at three different coffee levels.
+Concrete test：如果有人可以在两个 variants 之间互换 headline text 而不被注意到，它们就太像了。
+Variants 应该像来自三个不同 design teams，而不是同一个 team 在三种咖啡摄入量下的产物。
 
-### Step 3b: Concept Confirmation
+### Step 3b: Concept Confirmation（概念确认）
 
-Use AskUserQuestion to confirm before spending API credits:
+花费 API credits 前，使用 AskUserQuestion 确认：
 
 > "These are the {N} directions I'll generate. Each takes ~60s, but I'll run them all
 > in parallel so total time is ~60 seconds regardless of count."
 
-Options:
-- A) Generate all {N} — looks good
-- B) I want to change some concepts (tell me which)
-- C) Add more variants (I'll suggest additional directions)
-- D) Fewer variants (tell me which to drop)
+选项：
+- A) 生成全部 {N} 个，看起来不错
+- B) 我想修改一些 concepts（告诉我哪些）
+- C) 增加更多 variants（我会建议额外方向）
+- D) 减少 variants（告诉我要丢弃哪些）
 
-If B: incorporate feedback, re-present concepts, re-confirm. Max 2 rounds.
-If C: add concepts, re-present, re-confirm.
-If D: drop specified concepts, re-present, re-confirm.
+如果 B：吸收 feedback，重新展示 concepts，再次确认。最多 2 轮。
+如果 C：添加 concepts，重新展示，再次确认。
+如果 D：删除指定 concepts，重新展示，再次确认。
 
-### Step 3c: Parallel Generation
+### Step 3c: Parallel Generation（并行生成）
 
-**If evolving from a screenshot** (user said "I don't like THIS"), take ONE screenshot
-first:
+**如果从 screenshot evolve**（用户说 "I don't like THIS"），先截取 ONE screenshot：
 
 ```bash
 $B screenshot "$_DESIGN_DIR/current.png"
 ```
 
-**Launch N Agent subagents in a single message** (parallel execution). Use the Agent
-tool with `subagent_type: "general-purpose"` for each variant. Each agent is independent
-and handles its own generation, quality check, verification, and retry.
+**在单条 message 中启动 N 个 Agent subagents**（parallel execution）。对每个 variant 使用
+Agent tool，并设置 `subagent_type: "general-purpose"`。每个 agent 都独立处理自己的
+generation、quality check、verification 和 retry。
 
-**Important: $D path propagation.** The `$D` variable from DESIGN SETUP is a shell
-variable that agents do NOT inherit. Substitute the resolved absolute path (from the
-`DESIGN_READY: /path/to/design` output in Step 0) into each agent prompt.
+**Important: $D path propagation.** DESIGN SETUP 中的 `$D` variable 是 shell variable，
+agents 不会继承。把解析后的 absolute path（来自 Step 0 的
+`DESIGN_READY: /path/to/design` output）代入每个 agent prompt。
 
-**Agent prompt template** (one per variant, substitute all `{...}` values):
+**Agent prompt template**（每个 variant 一个，替换所有 `{...}` values）：
 
 ```
 Generate a design variant and save it.
@@ -252,9 +244,8 @@ Final location: {_DESIGN_DIR absolute path}/variant-{letter}.png
 
 Steps:
 1. Run: {$D path} generate --brief "{brief}" --output /tmp/variant-{letter}.png
-2. If the command fails with a rate limit error (429 or "rate limit"), wait 5 seconds
-   and retry. Up to 3 retries.
-3. If the output file is missing or empty after the command succeeds, retry once.
+2. 如果 command 因 rate limit error（429 或 "rate limit"）失败，等待 5 秒后 retry。最多 3 次 retries。
+3. 如果 command 成功后 output file 缺失或为空，retry 一次。
 4. Copy: cp /tmp/variant-{letter}.png {_DESIGN_DIR}/variant-{letter}.png
 5. Quality check: {$D path} check --image {_DESIGN_DIR}/variant-{letter}.png --brief "{brief}"
    If quality check fails, retry generation once.
@@ -265,46 +256,46 @@ Steps:
    VARIANT_{letter}_RATE_LIMITED: exhausted retries
 ```
 
-For the evolve path, replace step 1 with:
+对于 evolve path，将 step 1 替换为：
 ```
 {$D path} evolve --screenshot {_DESIGN_DIR}/current.png --brief "{brief}" --output /tmp/variant-{letter}.png
 ```
 
-**Why /tmp/ then cp?** In observed sessions, `$D generate --output ~/.gstack/...`
-failed with "The operation was aborted" while `--output /tmp/...` succeeded. This is
-a sandbox restriction. Always generate to `/tmp/` first, then `cp`.
+**为什么先 /tmp/ 再 cp？** 在已观察 sessions 中，`$D generate --output ~/.gstack/...`
+会以 "The operation was aborted" 失败，而 `--output /tmp/...` 成功。这是 sandbox
+restriction。Always 先生成到 `/tmp/`，再 `cp`。
 
-### Step 3d: Results
+### Step 3d: Results（结果）
 
-After all agents complete:
+所有 agents 完成后：
 
-1. Read each generated PNG inline (Read tool) so the user sees all variants at once.
-2. Report status: "All {N} variants generated in ~{actual time}. {successes} succeeded,
+1. inline 读取每个生成的 PNG（Read tool），让用户一次看到所有 variants。
+2. 报告 status："All {N} variants generated in ~{actual time}. {successes} succeeded,
    {failures} failed."
-3. For any failures: report explicitly with the error. Do NOT silently skip.
-4. If zero variants succeeded: fall back to sequential generation (one at a time with
-   `$D generate`, showing each as it lands). Tell the user: "Parallel generation failed
+3. 对任何 failures：明确报告 error。Do NOT silently skip。
+4. 如果 0 个 variants 成功：fallback 到 sequential generation（一次一个运行 `$D generate`，
+   每个生成后展示）。告诉用户："Parallel generation failed
    (likely rate limiting). Falling back to sequential..."
-5. Proceed to Step 4 (comparison board).
+5. 进入 Step 4（comparison board）。
 
-**Dynamic image list for comparison board:** When proceeding to Step 4, construct the
-image list from whatever variant files actually exist, not a hardcoded A/B/C list:
+**Dynamic image list for comparison board：** 进入 Step 4 时，从实际存在的 variant files
+构造 image list，不要使用 hardcoded A/B/C list：
 
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
 _IMAGES=$(ls "$_DESIGN_DIR"/variant-*.png 2>/dev/null | tr '\n' ',' | sed 's/,$//')
 ```
 
-Use `$_IMAGES` in the `$D compare --images` command.
+在 `$D compare --images` command 中使用 `$_IMAGES`。
 
-## Step 4: Comparison Board + Feedback Loop
+## Step 4: Comparison Board + Feedback Loop（对比板与反馈循环）
 
 {{DESIGN_SHOTGUN_LOOP}}
 
-## Step 5: Feedback Confirmation
+## Step 5: Feedback Confirmation（反馈确认）
 
-After receiving feedback (via HTTP POST or AskUserQuestion fallback), output a clear
-summary confirming what was understood:
+收到 feedback 后（通过 HTTP POST 或 AskUserQuestion fallback），输出一个清晰 summary，
+确认理解到的内容：
 
 "Here's what I understood from your feedback:
 
@@ -315,30 +306,30 @@ DIRECTION: [regenerate action if any]
 
 Is this right?"
 
-Use AskUserQuestion to confirm before saving.
+保存前使用 AskUserQuestion 确认。
 
-## Step 6: Save & Next Steps
+## Step 6: Save & Next Steps（保存与下一步）
 
-Write `approved.json` to `$_DESIGN_DIR/` (handled by the loop above).
+将 `approved.json` 写入 `$_DESIGN_DIR/`（由上面的 loop 处理）。
 
-If invoked from another skill: return the structured feedback for that skill to consume.
-The calling skill reads `approved.json` and the approved variant PNG.
+如果由另一个 skill 调用：返回 structured feedback 给 calling skill 消费。calling skill 会读取
+`approved.json` 和 approved variant PNG。
 
-If standalone, offer next steps via AskUserQuestion:
+如果是 standalone，使用 AskUserQuestion 提供 next steps：
 
-> "Design direction locked in. What's next?
-> A) Iterate more — refine the approved variant with specific feedback
-> B) Finalize — generate production Pretext-native HTML/CSS with /design-html
-> C) Save to plan — add this as an approved mockup reference in the current plan
-> D) Done — I'll use this later"
+> "Design direction 已锁定。下一步？
+> A) 继续 iterate：用具体 feedback refine 已批准的 variant
+> B) Finalize：用 /design-html 生成 production Pretext-native HTML/CSS
+> C) 保存到 plan：把它作为 approved mockup reference 加入当前 plan
+> D) 完成，我稍后会使用它"
 
-## Important Rules
+## Important Rules（重要规则）
 
-1. **Never save to `.context/`, `docs/designs/`, or `/tmp/`.** All design artifacts go
-   to `~/.gstack/projects/$SLUG/designs/`. This is enforced. See DESIGN_SETUP above.
-2. **Show variants inline before opening the board.** The user should see designs
-   immediately in their terminal. The browser board is for detailed feedback.
-3. **Confirm feedback before saving.** Always summarize what you understood and verify.
-4. **Taste memory is automatic.** Prior approved designs inform new generations by default.
-5. **Two rounds max on context gathering.** Don't over-interrogate. Proceed with assumptions.
-6. **DESIGN.md is the default constraint.** Unless the user says otherwise.
+1. **Never save to `.context/`、`docs/designs/` 或 `/tmp/`。** 所有 design artifacts
+   都放到 `~/.gstack/projects/$SLUG/designs/`。这是强制规则。见上面的 DESIGN_SETUP。
+2. **打开 board 前先 inline 展示 variants。** 用户应该立即在 terminal 中看到 designs。
+   browser board 用于详细 feedback。
+3. **保存前确认 feedback。** 始终总结你理解到的内容并验证。
+4. **Taste memory 自动生效。** Prior approved designs 默认会影响新生成。
+5. **Context gathering 最多两轮。** 不要过度盘问。带着 assumptions 继续。
+6. **DESIGN.md 是默认 constraint。** 除非用户另有说明。

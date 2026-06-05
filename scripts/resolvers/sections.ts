@@ -1,20 +1,18 @@
 /**
- * Section resolvers (v2 plan T9, Claude-first carve).
+ * Section resolvers（v2 plan T9，Claude-first carve）。
  *
- * A carved skill keeps its prose-heavy steps in `<skill>/sections/<id>.md`, read
- * on demand. The SAME template ships to every host, so these resolvers make the
- * carve host-aware:
+ * Carved skill 把 prose-heavy steps 放在 `<skill>/sections/<id>.md` 中，按需读取。
+ * 同一个 template 会分发到所有 host，因此这些 resolvers 要保持 host-aware：
  *
- *  - On CLAUDE: {{SECTION:id}} emits a STOP-Read pointer to the generated section
- *    file (the skeleton), and the section .md is generated + installed separately.
- *  - On every OTHER host: {{SECTION:id}} INLINES the section template's content,
- *    so external hosts keep the full monolith ship skill (no section files, no
- *    host-portable-path problem). Inlined content keeps its own {{RESOLVER}}
- *    tokens, which the generator's multi-pass resolve expands.
+ *  - 在 CLAUDE：{{SECTION:id}} 生成指向 generated section file 的 STOP-Read pointer
+ *    （skeleton 中的指令），section .md 会单独生成并安装。
+ *  - 在其他 host：{{SECTION:id}} inline section template content，让 external hosts
+ *    保持完整 monolith ship skill（没有 section files，也没有 host-portable-path 问题）。
+ *    Inlined content 保留自身的 {{RESOLVER}} tokens，由 generator 的 multi-pass resolve 展开。
  *
- * {{SECTION_INDEX:skill}} renders the situation→section table from the PASSIVE
- * manifest on Claude (empty on other hosts — they have no sections). The manifest
- * is the single source of id/file/title/trigger text (CM2; v2_PLAN.md:663).
+ * {{SECTION_INDEX:skill}} 在 Claude 上从 PASSIVE manifest 渲染 situation→section table
+ * （其他 host 为空，因为它们没有 sections）。Manifest 是 id/file/title/trigger text 的
+ * single source of truth（CM2；v2_PLAN.md:663）。
  */
 
 import * as fs from 'fs';
@@ -61,13 +59,13 @@ export const SECTION: ResolverFn = (ctx: TemplateContext, args?: string[]): stri
   if (ctx.host === 'claude') {
     const sectionPath = `${ctx.paths.skillRoot}/${ctx.skillName}/sections/${entry.file}`;
     return [
-      `> **STOP.** Before ${entry.trigger}, Read \`${sectionPath}\` and execute it`,
-      `> in full. Do not work from memory — that section is the source of truth for this step.`,
+      `> **STOP.** 在 ${entry.trigger} 之前，Read \`${sectionPath}\` 并完整执行它。`,
+      `> 不要凭 memory 操作：该 section 是此 step 的 source of truth。`,
     ].join('\n');
   }
 
-  // Non-Claude hosts inline the section template content (monolith preserved).
-  // Inner {{RESOLVER}} tokens are expanded by the generator's multi-pass resolve.
+  // Non-Claude hosts inline section template content（保留 monolith）。
+  // Inner {{RESOLVER}} tokens 由 generator 的 multi-pass resolve 展开。
   const tmplPath = path.join(ROOT, ctx.skillName, 'sections', `${entry.file}.tmpl`);
   return fs.readFileSync(tmplPath, 'utf-8').trimEnd();
 };
@@ -81,12 +79,12 @@ export const SECTION_INDEX: ResolverFn = (ctx: TemplateContext, args?: string[])
   const skill = args?.[0] ?? ctx.skillName;
   const manifest = loadManifest(skill);
   const lines: string[] = [
-    '## Section index — Read each section when its situation applies',
+    '## Section index — 情况适用时读取对应 section',
     '',
-    'This skill is a decision-tree skeleton. The steps below point to on-demand',
-    'sections. Read a section in full before doing its step; do not work from memory.',
+    '此 skill 是 decision-tree skeleton。下面的 steps 指向按需读取的 sections。',
+    '执行某个 step 前，先完整读取对应 section；不要凭 memory 操作。',
     '',
-    '| When | Read this section |',
+    '| 何时 | 读取此 section |',
     '|------|-------------------|',
   ];
   for (const s of manifest.sections) {

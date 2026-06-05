@@ -1,31 +1,31 @@
 ---
 name: gstack-openclaw-retro
-description: "Weekly engineering retrospective. Analyzes commit history, work patterns, and code quality metrics with persistent history and trend tracking. Team-aware with per-person contributions, praise, and growth areas. Use when asked for weekly retro, what shipped this week, or engineering retrospective."
+description: "Weekly engineering retrospective。分析 commit history、work patterns 和 code quality metrics，带持久化 history 与 trend tracking。Team-aware：按人拆分 contributions、praise 和 growth areas。当用户要求 weekly retro、what shipped this week 或 engineering retrospective 时使用。"
 ---
 
-# Weekly Engineering Retrospective
+# Weekly Engineering Retrospective（每周工程复盘）
 
-Generates a comprehensive engineering retrospective analyzing commit history, work patterns, and code quality metrics. Team-aware: identifies the user running the command, then analyzes every contributor with per-person praise and growth opportunities.
+生成完整 engineering retrospective，分析 commit history、work patterns 和 code quality metrics。Team-aware：先识别运行命令的用户，再分析每位 contributor，给出 per-person praise 和 growth opportunities。
 
-## Arguments
+## Arguments（参数）
 
-- Default: last 7 days
-- `24h`: last 24 hours
-- `14d`: last 14 days
-- `30d`: last 30 days
-- `compare`: compare current window vs prior same-length window
+- Default：last 7 days
+- `24h`：last 24 hours
+- `14d`：last 14 days
+- `30d`：last 30 days
+- `compare`：比较 current window 与 prior same-length window
 
-## Instructions
+## Instructions（说明）
 
-Parse the argument to determine the time window. Default to 7 days. All times should be reported in the user's **local timezone**.
+解析 argument，确定 time window。默认 7 天。所有时间都应按用户的 **local timezone** 报告。
 
-**Midnight-aligned windows:** For day units, compute an absolute start date at local midnight. For example, if today is 2026-03-18 and the window is 7 days, the start date is 2026-03-11. Use `--since="2026-03-11T00:00:00"` for git log queries. For hour units, use `--since="N hours ago"`.
+**Midnight-aligned windows：**对 day units，在 local midnight 计算 absolute start date。例如今天是 2026-03-18，window 是 7 天，则 start date 是 2026-03-11。git log queries 使用 `--since="2026-03-11T00:00:00"`。对 hour units，使用 `--since="N hours ago"`。
 
 ---
 
-### Step 1: Gather Raw Data
+### Step 1：Gather Raw Data
 
-First, fetch origin and identify the current user:
+首先 fetch origin，并识别 current user：
 
 ```bash
 git fetch origin main --quiet
@@ -33,24 +33,24 @@ git config user.name
 git config user.email
 ```
 
-The name returned by `git config user.name` is **"you"** ... the person reading this retro. All other authors are teammates.
+`git config user.name` 返回的 name 是 **"you"**，也就是阅读此 retro 的人。所有其他 authors 都是 teammates。
 
-Run ALL of these git commands (they are independent):
+运行以下全部 git commands（它们彼此独立）：
 
 ```bash
-# All commits with timestamps, subject, hash, author, files changed
+# 所有 commits：timestamps、subject、hash、author、files changed
 git log origin/main --since="<window>" --format="%H|%aN|%ae|%ai|%s" --shortstat
 
-# Per-commit test vs total LOC breakdown with author
+# 每个 commit 的 test vs total LOC breakdown，包含 author
 git log origin/main --since="<window>" --format="COMMIT:%H|%aN" --numstat
 
-# Commit timestamps for session detection and hourly distribution
+# 用于 session detection 和 hourly distribution 的 commit timestamps
 git log origin/main --since="<window>" --format="%at|%aN|%ai|%s" | sort -n
 
-# Files most frequently changed (hotspot analysis)
+# 最常变更文件（hotspot analysis）
 git log origin/main --since="<window>" --format="" --name-only | grep -v '^$' | sort | uniq -c | sort -rn
 
-# PR numbers from commit messages
+# 从 commit messages 提取 PR numbers
 git log origin/main --since="<window>" --format="%s" | grep -oE '[#!][0-9]+' | sort -t'#' -k1 | uniq
 
 # Per-author file hotspots
@@ -62,15 +62,15 @@ git shortlog origin/main --since="<window>" -sn --no-merges
 # Test file count
 find . -name '*.test.*' -o -name '*.spec.*' -o -name '*_test.*' -o -name '*_spec.*' 2>/dev/null | grep -v node_modules | wc -l
 
-# Test files changed in window
+# window 内变更过的 test files
 git log origin/main --since="<window>" --format="" --name-only | grep -E '\.(test|spec)\.' | sort -u | wc -l
 ```
 
 ---
 
-### Step 2: Compute Metrics
+### Step 2：Compute Metrics
 
-Calculate and present these metrics in a summary:
+计算并在 summary 中展示这些 metrics：
 
 - **Commits to main:** N
 - **Contributors:** N
@@ -85,7 +85,7 @@ Calculate and present these metrics in a summary:
 - **Detected sessions:** N
 - **Avg LOC/session-hour:** N
 
-Then show a **per-author leaderboard** immediately below:
+然后紧接着展示 **per-author leaderboard**：
 
 ```
 Contributor         Commits   +/-          Top area
@@ -94,13 +94,13 @@ alice                    12   +800/-150    app/services/
 bob                       3   +120/-40     tests/
 ```
 
-Sort by commits descending. The current user always appears first, labeled "You (name)".
+按 commits 降序排序。Current user 始终放在第一位，label 为 `You (name)`。
 
 ---
 
-### Step 3: Commit Time Distribution
+### Step 3：Commit Time Distribution
 
-Show hourly histogram in local time:
+按 local time 展示 hourly histogram：
 
 ```
 Hour  Commits  ████████████████
@@ -109,33 +109,33 @@ Hour  Commits  ████████████████
  ...
 ```
 
-Identify:
+识别：
 - Peak hours
 - Dead zones
-- Bimodal pattern (morning/evening) vs continuous
-- Late-night coding clusters (after 10pm)
+- Bimodal pattern（morning / evening）vs continuous
+- Late-night coding clusters（晚上 10 点后）
 
 ---
 
-### Step 4: Work Session Detection
+### Step 4：Work Session Detection
 
-Detect sessions using **45-minute gap** threshold between consecutive commits.
+使用连续 commits 之间 **45-minute gap** 的 threshold 检测 sessions。
 
-Classify sessions:
-- **Deep sessions** (50+ min)
-- **Medium sessions** (20-50 min)
-- **Micro sessions** (<20 min, single-commit)
+分类 sessions：
+- **Deep sessions**（50+ min）
+- **Medium sessions**（20-50 min）
+- **Micro sessions**（<20 min，single-commit）
 
-Calculate:
+计算：
 - Total active coding time
 - Average session length
 - LOC per hour of active time
 
 ---
 
-### Step 5: Commit Type Breakdown
+### Step 5：Commit Type Breakdown
 
-Categorize by conventional commit prefix (feat/fix/refactor/test/chore/docs). Show as percentage bar:
+按 conventional commit prefix（feat / fix / refactor / test / chore / docs）分类，并展示 percentage bar：
 
 ```
 feat:     20  (40%)  ████████████████████
@@ -143,65 +143,65 @@ fix:      27  (54%)  ███████████████████�
 refactor:  2  ( 4%)  ██
 ```
 
-Flag if fix ratio exceeds 50% ... signals a "ship fast, fix fast" pattern that may indicate review gaps.
+如果 fix ratio 超过 50%，标记它。这表示 `ship fast, fix fast` pattern，可能暗示 review gaps。
 
 ---
 
-### Step 6: Hotspot Analysis
+### Step 6：Hotspot Analysis
 
-Show top 10 most-changed files. Flag:
-- Files changed 5+ times (churn hotspots)
-- Test files vs production files in the hotspot list
-- VERSION/CHANGELOG frequency
-
----
-
-### Step 7: PR Size Distribution
-
-Estimate PR sizes and bucket them:
-- **Small** (<100 LOC)
-- **Medium** (100-500 LOC)
-- **Large** (500-1500 LOC)
-- **XL** (1500+ LOC)
+展示 top 10 most-changed files。标记：
+- 变更 5+ 次的 files（churn hotspots）
+- Hotspot list 中的 test files vs production files
+- VERSION / CHANGELOG frequency
 
 ---
 
-### Step 8: Focus Score + Ship of the Week
+### Step 7：PR Size Distribution
 
-**Focus score:** Percentage of commits touching the single most-changed top-level directory. Higher = deeper focused work. Lower = scattered context-switching.
-
-**Ship of the week:** The single highest-LOC PR in the window. Highlight PR number, LOC changed, and why it matters.
-
----
-
-### Step 9: Team Member Analysis
-
-For each contributor (including the current user), compute:
-
-1. **Commits and LOC** ... total commits, insertions, deletions, net LOC
-2. **Areas of focus** ... which directories/files they touched most (top 3)
-3. **Commit type mix** ... their personal feat/fix/refactor/test breakdown
-4. **Session patterns** ... when they code (peak hours), session count
-5. **Test discipline** ... their personal test LOC ratio
-6. **Biggest ship** ... their single highest-impact commit or PR
-
-**For the current user ("You"):** Deepest treatment. Include all session analysis, time patterns, focus score. Frame in first person.
-
-**For each teammate:** 2-3 sentences covering what they shipped and their pattern. Then:
-
-- **Praise** (1-2 specific things): Anchor in actual commits. Not "great work" ... say exactly what was good.
-- **Opportunity for growth** (1 specific thing): Frame as leveling-up, not criticism. Anchor in actual data.
-
-**If solo repo:** Skip team breakdown.
-
-**AI collaboration:** If commits have `Co-Authored-By` AI trailers, track "AI-assisted commits" as a separate metric.
+估算 PR sizes，并分桶：
+- **Small**（<100 LOC）
+- **Medium**（100-500 LOC）
+- **Large**（500-1500 LOC）
+- **XL**（1500+ LOC）
 
 ---
 
-### Step 10: Week-over-Week Trends (if window >= 14d)
+### Step 8：Focus Score + Ship of the Week
 
-Split into weekly buckets and show trends:
-- Commits per week (total and per-author)
+**Focus score：**触碰 single most-changed top-level directory 的 commits 百分比。越高表示更深的 focused work；越低表示 scattered context-switching。
+
+**Ship of the week：**window 内 single highest-LOC PR。突出 PR number、LOC changed，以及为什么重要。
+
+---
+
+### Step 9：Team Member Analysis
+
+对每位 contributor（包括 current user），计算：
+
+1. **Commits and LOC**：total commits、insertions、deletions、net LOC
+2. **Areas of focus**：他们最常触碰哪些 directories / files（top 3）
+3. **Commit type mix**：个人 feat / fix / refactor / test breakdown
+4. **Session patterns**：他们何时写 code（peak hours）、session count
+5. **Test discipline**：个人 test LOC ratio
+6. **Biggest ship**：他们 single highest-impact commit 或 PR
+
+**对 current user（"You"）：**做最深入分析。包含所有 session analysis、time patterns、focus score。用第一人称 framing。
+
+**对每位 teammate：**用 2-3 句覆盖他们 ship 了什么以及 pattern。然后：
+
+- **Praise**（1-2 个 specific things）：anchor in actual commits。不要说 `great work`，要说具体好在哪里。
+- **Opportunity for growth**（1 个 specific thing）：framing 为 leveling-up，而不是 criticism。Anchor in actual data。
+
+**如果是 solo repo：**跳过 team breakdown。
+
+**AI collaboration：**如果 commits 有 `Co-Authored-By` AI trailers，将 `AI-assisted commits` 作为 separate metric 追踪。
+
+---
+
+### Step 10：Week-over-Week Trends（如果 window >= 14d）
+
+拆成 weekly buckets 并展示 trends：
+- Commits per week（total 和 per-author）
 - LOC per week
 - Test ratio per week
 - Fix ratio per week
@@ -209,9 +209,9 @@ Split into weekly buckets and show trends:
 
 ---
 
-### Step 11: Streak Tracking
+### Step 11：Streak Tracking
 
-Count consecutive days with at least 1 commit, going back from today:
+从今天往回数，统计至少有 1 个 commit 的 consecutive days：
 
 ```bash
 # Team streak
@@ -221,17 +221,17 @@ git log origin/main --format="%ad" --date=format:"%Y-%m-%d" | sort -u
 git log origin/main --author="<user_name>" --format="%ad" --date=format:"%Y-%m-%d" | sort -u
 ```
 
-Display both:
-- "Team shipping streak: 47 consecutive days"
-- "Your shipping streak: 32 consecutive days"
+同时展示：
+- `Team shipping streak: 47 consecutive days`
+- `Your shipping streak: 32 consecutive days`
 
 ---
 
-### Step 12: Load History & Compare
+### Step 12：Load History & Compare
 
-Check for prior retro history in `memory/`:
+检查 `memory/` 中是否有 prior retro history：
 
-If prior retros exist, load the most recent one and calculate deltas:
+如果 prior retros 存在，加载最近一次并计算 deltas：
 
 ```
                     Last        Now         Delta
@@ -241,59 +241,59 @@ LOC/hour:           200    →    350         ↑75%
 Fix ratio:          54%    →    30%         ↓24pp (improving)
 ```
 
-If no prior retros exist, note "First retro recorded, run again next week to see trends."
+如果没有 prior retros，说明：`First retro recorded, run again next week to see trends.`（保留 exact note）
 
 ---
 
-### Step 13: Save Retro History
+### Step 13：Save Retro History
 
-Save a JSON snapshot to `memory/retro-YYYY-MM-DD.json` with metrics, authors, version range, streak, and tweetable summary.
+将 JSON snapshot 保存到 `memory/retro-YYYY-MM-DD.json`，包含 metrics、authors、version range、streak 和 tweetable summary。
 
 ---
 
-### Step 14: Write the Narrative
+### Step 14：Write the Narrative
 
-**Format for Telegram** (bullets, bold, no markdown tables in the final output).
+**Format for Telegram**（bullets、bold，final output 不使用 markdown tables）。
 
-Structure:
+结构：
 
-**Tweetable summary** (first line):
+**Tweetable summary**（第一行）：
 > Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs, peak: 10pm | Streak: 47d
 
-Then sections:
+然后包含以下 sections：
 
-- **Summary** ... key metrics
-- **Trends vs Last Retro** ... deltas (skip if first retro)
-- **Time & Session Patterns** ... when the team codes, session lengths, deep vs micro
-- **Shipping Velocity** ... commit types, PR sizes, fix-chain detection
-- **Code Quality Signals** ... test ratio, hotspots, churn
-- **Focus & Highlights** ... focus score, ship of the week
-- **Your Week** ... personal deep-dive for the current user
-- **Team Breakdown** ... per-teammate analysis with praise + growth (skip if solo)
-- **Top 3 Team Wins** ... highest-impact things shipped
-- **3 Things to Improve** ... specific, actionable, anchored in commits
-- **3 Habits for Next Week** ... small, practical, realistic (<5 min to adopt)
-
----
-
-## Compare Mode
-
-When the user says "compare":
-- Run the retro for the current window
-- Run the retro for the prior same-length window
-- Present side-by-side metrics with arrows showing improvement/regression
-- Brief narrative on biggest changes
+- **Summary**：key metrics
+- **Trends vs Last Retro**：deltas（如果是 first retro 则跳过）
+- **Time & Session Patterns**：team 何时写 code、session lengths、deep vs micro
+- **Shipping Velocity**：commit types、PR sizes、fix-chain detection
+- **Code Quality Signals**：test ratio、hotspots、churn
+- **Focus & Highlights**：focus score、ship of the week
+- **Your Week**：current user 的 personal deep-dive
+- **Team Breakdown**：per-teammate analysis，包含 praise + growth（如果 solo 则跳过）
+- **Top 3 Team Wins**：highest-impact things shipped
+- **3 Things to Improve**：specific、actionable、anchored in commits
+- **3 Habits for Next Week**：small、practical、realistic（<5 min to adopt）
 
 ---
 
-## Important Rules
+## Compare Mode（比较模式）
 
-- **All times in local timezone.** Never set `TZ`.
-- **Format for Telegram.** Use bullets and bold. Avoid markdown tables in the final output.
-- **Praise anchored in commits.** Never say "great work" without naming what was good.
-- **Growth areas anchored in data.** Never criticize without evidence.
-- **Save history.** Every retro saves to `memory/` for trend tracking.
-- **Completion status:**
-  - DONE ... retro generated, history saved
-  - DONE_WITH_CONCERNS ... generated but missing data (e.g., no prior retros for comparison)
-  - BLOCKED ... not in a git repo or no commits in window
+当用户说 `compare` 时：
+- 为 current window 运行 retro
+- 为 prior same-length window 运行 retro
+- 并排呈现 metrics，用 arrows 表示 improvement / regression
+- 简短叙述 biggest changes
+
+---
+
+## 重要规则
+
+- **所有时间使用 local timezone。** 永远不要设置 `TZ`。
+- **Format for Telegram。** 使用 bullets 和 bold。Final output 避免 markdown tables。
+- **Praise anchored in commits。** 不命名具体好在哪里，就不要说 "great work"。
+- **Growth areas anchored in data。** 没有 evidence 就不要批评。
+- **Save history。** 每次 retro 都保存到 `memory/`，用于 trend tracking。
+- **Completion status：**
+  - DONE ... retro 已生成，history 已保存
+  - DONE_WITH_CONCERNS ... 已生成但缺少数据（例如 no prior retros for comparison）
+  - BLOCKED ... 不在 git repo 中，或 window 内没有 commits

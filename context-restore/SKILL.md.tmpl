@@ -3,13 +3,12 @@ name: context-restore
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Restore working context saved earlier by /context-save. Loads the most recent
-  saved state (across all branches by default) so you can pick up where you
-  left off — even across Conductor workspace handoffs.
-  Use when asked to "resume", "restore context", "where was I", or
-  "pick up where I left off". Pair with /context-save.
-  Formerly /checkpoint resume — renamed because Claude Code treats /checkpoint
-  as a native rewind alias in current environments. (gstack)
+  恢复先前由 /context-save 保存的工作上下文。默认加载所有 branches 中最近保存的
+  state，让你可以从中断处继续，甚至跨 Conductor workspace handoffs 也可以。
+  当用户要求 "resume"、"restore context"、"where was I" 或
+  "pick up where I left off" 时使用。与 /context-save 配套使用。
+  以前叫 /checkpoint resume；因为当前环境中 Claude Code 会把 /checkpoint
+  当作 native rewind alias，所以已重命名。（gstack）
 allowed-tools:
   - Bash
   - Read
@@ -26,39 +25,35 @@ triggers:
 
 {{PREAMBLE}}
 
-# /context-restore — Restore Saved Working Context
+# /context-restore — 恢复已保存的工作上下文
 
-You are a **Staff Engineer reading a colleague's meticulous session notes** to
-pick up exactly where they left off. Your job is to load the most recent saved
-context and present it clearly so the user can resume work without losing a beat.
+你是一名**正在阅读同事细致 session notes 的 Staff Engineer**，要精确接上对方停下的位置。
+你的工作是加载最近保存的 context，并清晰呈现，让用户可以不中断节奏地恢复工作。
 
-**HARD GATE:** Do NOT implement code changes. This skill only reads saved
-context files and presents the summary.
+**HARD GATE：**不要实现代码变更。此 skill 只读取 saved context files，并呈现 summary。
 
-**Default: load the most recent saved context across ALL branches.** This is
-intentionally different from `/context-save list`, which defaults to the current
-branch. `/context-restore` is for Conductor workspace handoff — a context saved
-on one branch can be resumed from another.
+**默认：加载所有 branches 中最近保存的 context。**这有意不同于 `/context-save list`，
+后者默认只看当前 branch。`/context-restore` 面向 Conductor workspace handoff：
+一个 branch 上保存的 context 可以在另一个 branch 中恢复。
 
-**Do NOT filter the candidate set by current branch.** The `list` flow does
-that; `/context-restore` does not.
+**不要按当前 branch 过滤候选集。**`list` flow 会这样做；`/context-restore` 不会。
 
 ---
 
-## Detect command
+## Detect command（识别命令）
 
-Parse the user's input:
+解析用户输入：
 
-- `/context-restore` → load the most recent saved context (any branch)
-- `/context-restore <title-fragment-or-number>` → load a specific saved context
-- `/context-restore list` → tell the user "Use `/context-save list` — listing
-  lives on the save side" and exit. No mode detection here.
+- `/context-restore` -> 加载最近保存的 context（任意 branch）
+- `/context-restore <title-fragment-or-number>` -> 加载指定 saved context
+- `/context-restore list` -> 告诉用户 "Use `/context-save list` — listing
+  lives on the save side" 并退出。这里不做 mode detection。
 
 ---
 
-## Restore flow
+## Restore flow（恢复流程）
 
-### Step 1: Find saved contexts
+### Step 1：查找 saved contexts
 
 ```bash
 {{SLUG_SETUP}}
@@ -83,18 +78,16 @@ else
 fi
 ```
 
-**Candidates include every `.md` file in the directory, regardless of branch**
-(the branch is recorded in frontmatter, not used for filtering here). This
-enables Conductor workspace handoff.
+**候选集包含目录中的每个 `.md` file，不论 branch**
+（branch 记录在 frontmatter 中，这里不用于过滤）。这支持 Conductor workspace handoff。
 
-### Step 2: Load the right file
+### Step 2：加载正确文件
 
-- If the user specified a title fragment or number: find the matching file among
-  the candidates.
-- Otherwise: load the **first file returned by the `sort -r` above** — that is
-  the newest `YYYYMMDD-HHMMSS` prefix, which is the canonical "most recent."
+- 如果用户指定了 title fragment 或 number：在候选集中找到匹配文件。
+- 否则：加载**上面 `sort -r` 返回的第一个文件**，也就是最新的
+  `YYYYMMDD-HHMMSS` prefix，这是 canonical 的 "most recent"。
 
-Read the chosen file and present a summary:
+读取选中的文件并呈现 summary：
 
 ```
 RESUMING CONTEXT
@@ -106,49 +99,47 @@ Duration:    Last session was {formatted duration} (if available)
 Status:      {status}
 ════════════════════════════════════════
 
-### Summary
+### Summary（摘要）
 {summary from saved file}
 
-### Remaining Work
+### Remaining Work（剩余工作）
 {remaining work items}
 
-### Notes
+### Notes（备注）
 {notes}
 ```
 
-If the current branch differs from the saved context's branch, note this:
+如果当前 branch 与 saved context 的 branch 不同，说明：
 "This context was saved on branch `{branch}`. You are currently on
 `{current branch}`. You may want to switch branches before continuing."
 
-### Step 3: Offer next steps
+### Step 3：提供下一步
 
-After presenting, ask via AskUserQuestion:
+呈现后，通过 AskUserQuestion 询问：
 
 - A) Continue working on the remaining items
 - B) Show the full saved file
 - C) Just needed the context, thanks
 
-If A, summarize the first remaining work item and suggest starting there.
+如果选择 A，总结第一个 remaining work item，并建议从那里开始。
 
 ---
 
-## If no saved contexts exist
+## 如果没有 saved contexts
 
-If Step 1 printed `NO_CHECKPOINTS`, tell the user:
+如果 Step 1 打印 `NO_CHECKPOINTS`，告诉用户：
 
-"No saved contexts yet. Run `/context-save` first to save your current working
-state, then `/context-restore` will find it."
+"还没有 saved contexts。请先运行 `/context-save` 保存当前 working state，
+之后 `/context-restore` 就能找到它。"
 
 ---
 
-## Important Rules
+## Important Rules（重要规则）
 
-- **Never modify code.** This skill only reads saved files and presents them.
-- **Always search across all branches by default.** Cross-branch resume is the
-  whole point. Only filter by branch if the user explicitly asks via a
-  title-fragment match that happens to be branch-specific.
-- **"Most recent" means the filename `YYYYMMDD-HHMMSS` prefix**, not
-  `ls -1t` (filesystem mtime). Filenames are stable across file-system
-  operations; mtime is not.
-- **This is a gstack skill, not a Claude Code built-in.** When the user types
-  `/context-restore`, invoke this skill via the Skill tool.
+- **绝不修改代码。**此 skill 只读取 saved files 并呈现它们。
+- **默认始终跨所有 branches 搜索。**跨 branch resume 是核心目的。只有当用户通过
+  title-fragment 明确要求，而匹配结果本身具有 branch 特异性时，才按 branch 过滤。
+- **"Most recent" 指 filename 的 `YYYYMMDD-HHMMSS` prefix**，而不是
+  `ls -1t`（filesystem mtime）。Filenames 在文件系统操作中稳定；mtime 不稳定。
+- **这是 gstack skill，不是 Claude Code built-in。**当用户输入 `/context-restore`
+  时，通过 Skill tool 调用此 skill。

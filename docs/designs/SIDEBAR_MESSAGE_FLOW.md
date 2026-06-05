@@ -1,16 +1,10 @@
-# Sidebar Flow
+# Sidebar Flow（侧边栏流程）
 
-How the GStack Browser sidebar actually works. Read this before touching
-`sidepanel.js`, `background.js`, `content.js`, `terminal-agent.ts`, or
-sidebar-related server endpoints.
+GStack Browser sidebar 实际如何工作。修改 `sidepanel.js`、`background.js`、`content.js`、`terminal-agent.ts` 或 sidebar-related server endpoints 前，请先阅读本文。
 
-The sidebar has one primary surface — the **Terminal** pane, an interactive
-`claude` PTY. Activity / Refs / Inspector survive as debug overlays behind
-the `debug` toggle in the footer. The chat queue path (one-shot `claude -p`,
-sidebar-agent.ts) was ripped once the PTY proved out — the Terminal pane is
-strictly more capable.
+Sidebar 有一个 primary surface：**Terminal** pane，也就是 interactive `claude` PTY。Activity / Refs / Inspector 作为 debug overlays 保留在 footer 的 `debug` toggle 后面。一旦 PTY proved out，chat queue path（one-shot `claude -p`、sidebar-agent.ts）就被移除了，因为 Terminal pane strictly more capable。
 
-## Components
+## Components（组件）
 
 ```
 ┌─────────────────┐     ┌──────────────┐     ┌──────────────────┐
@@ -44,11 +38,9 @@ strictly more capable.
                        └──────────────────┘
 ```
 
-The compiled browse server can't `posix_spawn` external executables —
-`terminal-agent.ts` runs as a separate non-compiled `bun run` process and
-owns the `claude` subprocess.
+Compiled browse server 不能 `posix_spawn` external executables，因此 `terminal-agent.ts` 作为 separate non-compiled `bun run` process 运行，并拥有 `claude` subprocess。
 
-## Startup + first-keystroke timeline
+## Startup + first-keystroke timeline（启动与首次按键时间线）
 
 ```
 T+0ms     CLI runs `$B connect`
@@ -80,110 +72,70 @@ T+ready   tryAutoConnect calls connect()
             └── Agent message handler sees the byte → spawnClaude()
 ```
 
-## Auth: WebSocket can't send Authorization headers
+## Auth：WebSocket 不能发送 Authorization headers
 
-Browser WebSocket clients can't set `Authorization`. They CAN set
-`Sec-WebSocket-Protocol` via the second arg of `new WebSocket(url,
-protocols)`. We exploit that:
+Browser WebSocket clients 不能设置 `Authorization`。但它们可以通过 `new WebSocket(url, protocols)` 的第二个参数设置 `Sec-WebSocket-Protocol`。我们利用这一点：
 
-1. `POST /pty-session` (auth: Bearer AUTH_TOKEN) → server mints a
-   short-lived session token, pushes it to the agent over loopback,
-   returns it in the JSON body.
-2. Extension calls `new WebSocket(url, ['gstack-pty.<token>'])`.
-3. Agent reads `Sec-WebSocket-Protocol`, strips `gstack-pty.`, validates
-   against `validTokens`, echoes the protocol back. Echo is mandatory —
-   without it Chromium closes the connection on receipt of the upgrade
-   response.
+1. `POST /pty-session`（auth: Bearer AUTH_TOKEN）-> server mint short-lived session token，通过 loopback push 给 agent，并在 JSON body 中返回。
+2. Extension 调用 `new WebSocket(url, ['gstack-pty.<token>'])`。
+3. Agent 读取 `Sec-WebSocket-Protocol`，strip `gstack-pty.`，对 `validTokens` validate，然后 echo protocol back。Echo 是 mandatory，没有它 Chromium 会在收到 upgrade response 后关闭 connection。
 
-A `Set-Cookie: gstack_pty=...` header is also returned for non-browser
-callers (curl, integration tests). The cookie path was the original v1
-design but `SameSite=Strict` cookies don't survive the cross-port jump
-from server.ts:34567 → agent:<random> from a chrome-extension origin.
-The protocol-token path is what the browser actually uses.
+还会返回一个 `Set-Cookie: gstack_pty=...` header，供 non-browser callers（curl、integration tests）使用。Cookie path 是原始 v1 design，但 `SameSite=Strict` cookies 无法从 chrome-extension origin 跨 port jump（server.ts:34567 -> agent:<random>）保留。Protocol-token path 是 browser 实际使用的路径。
 
-### Dual-token model
+### Dual-token model（双 token 模型）
 
-| Token | Lives in | Used for | Lifetime |
+| Token | Lives in（存放位置） | Used for（用途） | Lifetime（生命周期） |
 |-------|----------|----------|----------|
-| `AUTH_TOKEN` | `<stateDir>/browse.json`; in-memory in server.ts | `/pty-session` POST (mint cookie + token) | server lifetime |
+| `AUTH_TOKEN` | `<stateDir>/browse.json`; in-memory in server.ts | `/pty-session` POST（mint cookie + token） | server lifetime |
 | `gstack-pty.<...>` (Sec-WebSocket-Protocol) | Browser memory only; agent `validTokens` Set | `/ws` upgrade auth | 30 min, auto-revoked on WS close |
-| `INTERNAL_TOKEN` | `<stateDir>/terminal-internal-token`; in agent memory | server → agent loopback `/internal/grant` | agent lifetime |
+| `INTERNAL_TOKEN` | `<stateDir>/terminal-internal-token`; in agent memory | server -> agent loopback `/internal/grant` | agent lifetime |
 
-`AUTH_TOKEN` is **never** valid for `/ws` directly. The session token is
-**never** valid for `/pty-session` or `/command`. Strict separation
-prevents an SSE or page-content token leak from escalating into shell
-access.
+`AUTH_TOKEN` **永远不能**直接用于 `/ws`。Session token **永远不能**用于 `/pty-session` 或 `/command`。Strict separation 防止 SSE 或 page-content token leak escalate 成 shell access。
 
-## Threat model
+## Threat model（威胁模型）
 
-The Terminal pane **bypasses the prompt-injection security stack** on
-purpose — the user is typing directly to claude, there's no untrusted
-page content in the loop. Trust source is the keyboard, same as any
-local terminal.
+Terminal pane **有意 bypass prompt-injection security stack**，因为用户直接向 claude typing，loop 中没有 untrusted page content。Trust source 是 keyboard，和任何 local terminal 一样。
 
-That trust assumption is load-bearing on three transport guarantees:
+这个 trust assumption 依赖三个 transport guarantees：
 
-1. **Local-only listener.** terminal-agent.ts binds `127.0.0.1` only.
-   The dual-listener tunnel surface (server.ts `TUNNEL_PATHS`) does
-   not include `/pty-session` or `/terminal/*`, so the tunnel returns
-   404 by default-deny.
-2. **Origin gate.** `/ws` upgrades require
-   `Origin: chrome-extension://<id>`. A localhost web page can't mount
-   a cross-site WebSocket hijack against the shell because its Origin
-   is a regular `http(s)://...`.
-3. **Session token auth.** Minted only by an authenticated
-   `/pty-session` POST, scoped to one WS, auto-revoked on close.
+1. **Local-only listener。** terminal-agent.ts 只绑定 `127.0.0.1`。Dual-listener tunnel surface（server.ts `TUNNEL_PATHS`）不包含 `/pty-session` 或 `/terminal/*`，所以 tunnel 默认 deny 并返回 404。
+2. **Origin gate。** `/ws` upgrades 要求 `Origin: chrome-extension://<id>`。Localhost web page 无法对 shell 发起 cross-site WebSocket hijack，因为它的 Origin 是普通 `http(s)://...`。
+3. **Session token auth。** 只能由 authenticated `/pty-session` POST mint，scoped to one WS，close 时 auto-revoked。
 
-Drop any one of those three and the whole tab becomes unsafe.
+丢掉其中任意一个，整个 tab 就不安全。
 
-## Lifecycle
+## Lifecycle（生命周期）
 
-- **Eager auto-connect.** Sidebar opens → tryAutoConnect polls for the
-  bootstrap globals and connects as soon as they're set. No keypress
-  required.
-- **One PTY per WS.** Closing the WebSocket SIGINTs claude, then SIGKILLs
-  after 3s. The session token is revoked so a stolen token can't be
-  replayed.
-- **No auto-reconnect on close.** The user sees "Session ended, click to
-  start a new session." Auto-reconnect would burn a fresh claude session
-  on every reload. v1.1 may add session resumption keyed on tab/session
-  id (see TODOS).
-- **Manual restart anytime.** A `↻ Restart` button lives in the always-
-  visible terminal toolbar — works mid-session, not just from the ENDED
-  state.
+- **Eager auto-connect。** Sidebar opens -> tryAutoConnect polls bootstrap globals，并在它们设置后立即 connect。不需要 keypress。
+- **One PTY per WS。** 关闭 WebSocket 会 SIGINT claude，3s 后 SIGKILL。Session token revoked，因此 stolen token 不能 replay。
+- **No auto-reconnect on close。** 用户会看到 "Session ended, click to start a new session."（Session 已结束，点击以启动新 session。）Auto-reconnect 会在每次 reload 时 burn fresh claude session。v1.1 可能基于 tab/session id 添加 session resumption（见 TODOS）。
+- **Manual restart anytime。** Always-visible terminal toolbar 中有 `↻ Restart` button，可在 mid-session 工作，不只在 ENDED state。
 
-## Quick-action toolbar
+## Quick-action toolbar（快速操作工具栏）
 
-Three browser-action buttons live next to the Restart button at the top
-of the Terminal pane:
+Terminal pane 顶部 Restart button 旁有三个 browser-action buttons：
 
-| Button | Behavior |
+| Button（按钮） | Behavior（行为） |
 |--------|----------|
-| 🧹 Cleanup | `window.gstackInjectToTerminal(prompt)` — pipes a "remove ads/banners" instruction into the live PTY. claude in the terminal sees it and acts. |
-| 📸 Screenshot | `POST /command screenshot` — direct browse-server call, no PTY involvement. |
-| 🍪 Cookies | Navigates to the `/cookie-picker` page. |
+| 🧹 Cleanup | `window.gstackInjectToTerminal(prompt)`：把 “remove ads/banners” instruction pipe 到 live PTY。Terminal 中的 claude 会看到并执行。 |
+| 📸 Screenshot | `POST /command screenshot`：直接调用 browse-server，不涉及 PTY。 |
+| 🍪 Cookies | Navigate 到 `/cookie-picker` page。 |
 
-The Inspector's "Send to Code" button uses the same `gstackInjectToTerminal`
-path to forward CSS inspector data into claude.
+Inspector 的 "Send to Code" button 使用同样的 `gstackInjectToTerminal` path，把 CSS inspector data forward 给 claude。
 
-## Debug surfaces (Activity / Refs / Inspector)
+## Debug surfaces（Activity / Refs / Inspector，调试界面）
 
-Behind the `debug` toggle in the footer. SSE-driven, independent of the
-Terminal pane:
+位于 footer 的 `debug` toggle 后。SSE-driven，独立于 Terminal pane：
 
-- **Activity** — streams every browse command via `/activity/stream` SSE.
-- **Refs** — REST: `GET /refs` — current page's `@ref` element labels.
-- **Inspector** — CDP-based element picker; SSE on `/inspector/events`.
+- **Activity**：通过 `/activity/stream` SSE stream 每个 browse command。
+- **Refs**：REST：`GET /refs`，当前 page 的 `@ref` element labels。
+- **Inspector**：CDP-based element picker；SSE on `/inspector/events`。
 
-When the debug strip closes, the Terminal pane re-becomes visible.
-xterm.js doesn't auto-redraw when its container flips from `display:none`
-to `display:flex`, so sidepanel-terminal.js runs a `MutationObserver` on
-`#tab-terminal`'s class attribute and forces a fit + refresh when
-`.active` returns.
+Debug strip 关闭时，Terminal pane 重新可见。xterm.js 不会在 container 从 `display:none` 变回 `display:flex` 时 auto-redraw，所以 sidepanel-terminal.js 会在 `#tab-terminal` 的 class attribute 上运行 `MutationObserver`，并在 `.active` 返回时 force fit + refresh。
 
-## Files
+## Files（文件）
 
-| Component | File | Runs in |
+| Component（组件） | File（文件） | Runs in（运行位置） |
 |-----------|------|---------|
 | Sidebar UI shell | `extension/sidepanel.html` + `sidepanel.js` + `sidepanel.css` | Chrome side panel |
 | Terminal UI | `extension/sidepanel-terminal.js` + `extension/lib/xterm.js` | Chrome side panel |

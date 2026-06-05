@@ -1,31 +1,31 @@
 import type { TemplateContext } from '../types';
 
 export function generateTelemetryPrompt(ctx: TemplateContext): string {
-  return `If \`TEL_PROMPTED\` is \`no\` AND \`LAKE_INTRO\` is \`yes\`: ask telemetry once via AskUserQuestion:
+  return `如果 \`TEL_PROMPTED\` 是 \`no\` 且 \`LAKE_INTRO\` 是 \`yes\`：通过 AskUserQuestion 询问一次 telemetry：
 
-> Help gstack get better. Share usage data only: skill, duration, crashes, stable device ID. No code or file paths. Your repo name is recorded locally only and stripped before any upload.
-
-Options:
-- A) Help gstack get better! (recommended)
-- B) No thanks
-
-If A: run \`${ctx.paths.binDir}/gstack-config set telemetry community\`
-
-If B: ask follow-up:
-
-> Anonymous mode sends only aggregate usage, no unique ID.
+> 帮助 gstack 变得更好。只分享 usage data：skill、duration、crashes、stable device ID。不分享 code 或 file paths。Repo name 只在本地记录，并会在任何 upload 前移除。
 
 Options:
-- A) Sure, anonymous is fine
-- B) No thanks, fully off
+- A) 帮助 gstack 变得更好！（recommended）
+- B) 不，谢谢
 
-If B→A: run \`${ctx.paths.binDir}/gstack-config set telemetry anonymous\`
-If B→B: run \`${ctx.paths.binDir}/gstack-config set telemetry off\`
+如果选择 A：运行 \`${ctx.paths.binDir}/gstack-config set telemetry community\`
 
-Always run:
+如果选择 B：继续询问：
+
+> Anonymous mode 只发送 aggregate usage，不发送 unique ID。
+
+Options:
+- A) 可以，anonymous 没问题
+- B) 不，谢谢，完全关闭
+
+如果 B→A：运行 \`${ctx.paths.binDir}/gstack-config set telemetry anonymous\`
+如果 B→B：运行 \`${ctx.paths.binDir}/gstack-config set telemetry off\`
+
+始终运行：
 \`\`\`bash
 touch ~/.gstack/.telemetry-prompted
 \`\`\`
 
-Skip if \`TEL_PROMPTED\` is \`yes\`.`;
+如果 \`TEL_PROMPTED\` 是 \`yes\`，跳过。`;
 }

@@ -1,271 +1,266 @@
 {
   "$schema": "https://gstack.dev/schemas/proactive-suggestions.json",
   "catalog_mode": "trim",
-  "note": "Routing / voice-trigger prose extracted from SKILL.md frontmatter descriptions during catalog trim. Loaded on demand when routing guidance is needed.",
+  "note": "Routing / voice-trigger prose 在 catalog trim 期间从 SKILL.md frontmatter descriptions 抽取。需要 routing guidance 时按需加载。",
   "skills": {
     "autoplan": {
-      "lead": "Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk and runs them sequentially with auto-decisions using 6 decision principles.",
-      "routing": "Surfaces\ntaste decisions (close approaches, borderline scope, codex disagreements) at a final\napproval gate. One command, fully reviewed plan out.\nUse when asked to \"auto review\", \"autoplan\", \"run all reviews\", \"review this plan\nautomatically\", or \"make the decisions for me\".\nProactively suggest when the user has a plan file and wants to run the full review\ngauntlet without answering 15-30 intermediate questions.",
+      "lead": "Auto-review pipeline：从磁盘读取完整 CEO、design、eng 和 DX review skills， 并用 6 条 decision principles 顺序运行、自动决策。在 final approval gate 呈现 taste decisions（close approaches、borderline",
+      "routing": "scope、codex disagreements）。\n一条命令输入 rough plan，输出 fully reviewed plan。\n适用于用户要求 \"auto review\"、\"autoplan\"、\"run all reviews\"、\n\"review this plan automatically\" 或 \"make the decisions for me\"。\n当用户有 plan file，并希望跑完整 review gauntlet、但不想回答 15-30 个中间问题时，\n主动建议使用。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"auto plan\", \"automatic review\"."
     },
     "benchmark": {
-      "lead": "Performance regression detection using the browse daemon.",
-      "routing": "Establishes\nbaselines for page load times, Core Web Vitals, and resource sizes.\nCompares before/after on every PR. Tracks performance trends over time.\nUse when: \"performance\", \"benchmark\", \"page speed\", \"lighthouse\", \"web vitals\",\n\"bundle size\", \"load time\".",
+      "lead": "使用 browse daemon 做 Performance regression detection。为 page load times、 Core Web Vitals 和 resource sizes 建立 baselines。每个 PR 都做",
+      "routing": "before/after 对比。\n追踪 performance trends。适用于：\"performance\"、\"benchmark\"、\"page speed\"、\n\"lighthouse\"、\"web vitals\"、\"bundle size\"、\"load time\"。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"speed test\", \"check performance\"."
     },
     "benchmark-models": {
-      "lead": "Cross-model benchmark for gstack skills.",
-      "routing": "Runs the same prompt through Claude,\nGPT (via Codex CLI), and Gemini side-by-side — compares latency, tokens, cost,\nand optionally quality via LLM judge. Answers \"which model is actually best\nfor this skill?\" with data instead of vibes. Separate from /benchmark, which\nmeasures web page performance. Use when: \"benchmark models\", \"compare models\",\n\"which model is best for X\", \"cross-model comparison\", \"model shootout\".",
+      "lead": "gstack skills 的 cross-model benchmark。将同一个 prompt 并排跑过 Claude、 GPT（通过 Codex CLI）和 Gemini，对比 latency、tokens、cost，并可选通过 LLM judge 评估 quality。用数据而不是 vibes 回答 \"which",
+      "routing": "model is actually best for this skill?\"。\n与测量 web page performance 的 /benchmark 分开。适用于：\"benchmark models\"、\n\"compare models\"、\"which model is best for X\"、\"cross-model comparison\"、\n\"model shootout\"。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"compare models\", \"model shootout\", \"which model is best\"."
     },
     "browse": {
-      "lead": "Fast headless browser for QA testing and site dogfooding.",
-      "routing": "Navigate any URL, interact with\nelements, verify page state, diff before/after actions, take annotated screenshots, check\nresponsive layouts, test forms and uploads, handle dialogs, and assert element states.\n~100ms per command. Use when you need to test a feature, verify a deployment, dogfood a\nuser flow, or file a bug with evidence. Use when asked to \"open in browser\", \"test the\nsite\", \"take a screenshot\", or \"dogfood this\".",
+      "lead": "用于 QA testing 和 site dogfooding 的快速 headless browser。可 navigate 任意 URL、 interact with elements、verify page state、diff actions 前后变化、截图并标注、 检查",
+      "routing": "responsive layouts、测试 forms 和 uploads、处理 dialogs，并 assert element states。\n每条 command 约 100ms。当你需要测试 feature、验证 deployment、dogfood user flow，\n或带 evidence 提交 bug 时使用。当用户要求 \"open in browser\"、\"test the site\"、\n\"take a screenshot\" 或 \"dogfood this\" 时使用。（gstack）",
       "voice_line": null
     },
     "canary": {
-      "lead": "Post-deploy canary monitoring.",
-      "routing": "Watches the live app for console errors,\nperformance regressions, and page failures using the browse daemon. Takes\nperiodic screenshots, compares against pre-deploy baselines, and alerts\non anomalies. Use when: \"monitor deploy\", \"canary\", \"post-deploy check\",\n\"watch production\", \"verify deploy\".",
+      "lead": "Post-deploy canary monitoring。使用 browse daemon 监控 live app 的 console errors、 performance regressions 和 page failures。定期截图，与 pre-deploy baselines 对比， 并在",
+      "routing": "anomalies 上 alert。适用于：\"monitor deploy\"、\"canary\"、\"post-deploy check\"、\n\"watch production\"、\"verify deploy\"。（gstack）",
       "voice_line": null
     },
     "careful": {
-      "lead": "Safety guardrails for destructive commands.",
-      "routing": "Warns before rm -rf, DROP TABLE,\nforce-push, git reset --hard, kubectl delete, and similar destructive operations.\nUser can override each warning. Use when touching prod, debugging live systems,\nor working in a shared environment. Use when asked to \"be careful\", \"safety mode\",\n\"prod mode\", or \"careful mode\".",
+      "lead": "破坏性命令的安全护栏.",
+      "routing": "在 rm -rf、DROP TABLE、force-push、git reset --hard、\nkubectl delete 以及类似破坏性操作前发出警告。用户可以覆盖每条警告。适用于接触 prod、\n调试 live systems，或在共享环境中工作。用户要求 \"be careful\"、\"safety mode\"、\n\"prod mode\" 或 \"careful mode\" 时使用。",
       "voice_line": null
     },
     "codex": {
-      "lead": "OpenAI Codex CLI wrapper — three modes.",
-      "routing": "Code review: independent diff review via\ncodex review with pass/fail gate. Challenge: adversarial mode that tries to break\nyour code. Consult: ask codex anything with session continuity for follow-ups.\nThe \"200 IQ autistic developer\" second opinion. Use when asked to \"codex review\",\n\"codex challenge\", \"ask codex\", \"second opinion\", or \"consult codex\".",
+      "lead": "OpenAI Codex CLI wrapper - 三种模式。Code review：通过 codex review 做独立 diff review， 带 pass/fail gate。Challenge：尝试打破你代码的 adversarial mode。Consult：向 codex 提问， 并为",
+      "routing": "follow-ups 保持 session continuity。\n\"200 IQ autistic developer\" second opinion。当用户要求 \"codex review\"、\n\"codex challenge\"、\"ask codex\"、\"second opinion\" 或 \"consult codex\" 时使用。",
       "voice_line": "Voice triggers (speech-to-text aliases): \"code x\", \"code ex\", \"get another opinion\"."
     },
     "context-restore": {
-      "lead": "Restore working context saved earlier by /context-save.",
-      "routing": "Loads the most recent\nsaved state (across all branches by default) so you can pick up where you\nleft off — even across Conductor workspace handoffs.\nUse when asked to \"resume\", \"restore context\", \"where was I\", or\n\"pick up where I left off\". Pair with /context-save.\nFormerly /checkpoint resume — renamed because Claude Code treats /checkpoint\nas a native rewind alias in current environments.",
+      "lead": "恢复先前由 /context-save 保存的工作上下文。默认加载所有 branches 中最近保存的 state，让你可以从中断处继续，甚至跨 Conductor workspace handoffs 也可以。 当用户要求 \"resume\"、\"restore context\"、\"where was I\" 或 \"pick up where I",
+      "routing": "left off\" 时使用。与 /context-save 配套使用。\n以前叫 /checkpoint resume；因为当前环境中 Claude Code 会把 /checkpoint\n当作 native rewind alias，所以已重命名。（gstack）",
       "voice_line": null
     },
     "context-save": {
-      "lead": "Save working context.",
-      "routing": "Captures git state, decisions made, and remaining work\nso any future session can pick up without losing a beat.\nUse when asked to \"save progress\", \"save state\", \"context save\", or\n\"save my work\". Pair with /context-restore to resume later.\nFormerly /checkpoint — renamed because Claude Code treats /checkpoint as a\nnative rewind alias in current environments, which was shadowing this skill.",
+      "lead": "保存工作上下文。捕获 git state、已做决策和 remaining work，让未来任意 session 都能不中断节奏地接上。 当用户要求 \"save progress\"、\"save state\"、\"context save\" 或 \"save my work\" 时使用。与 /context-restore 配套，用于之后恢复。 以前叫",
+      "routing": "/checkpoint；因为当前环境中 Claude Code 会把 /checkpoint 当作\nnative rewind alias，遮蔽了这个 skill，所以已重命名。（gstack）",
       "voice_line": null
     },
     "cso": {
-      "lead": "Chief Security Officer mode.",
-      "routing": "Infrastructure-first security audit: secrets archaeology,\ndependency supply chain, CI/CD pipeline security, LLM/AI security, skill supply chain\nscanning, plus OWASP Top 10, STRIDE threat modeling, and active verification.\nTwo modes: daily (zero-noise, 8/10 confidence gate) and comprehensive (monthly deep\nscan, 2/10 bar). Trend tracking across audit runs.\nUse when: \"security audit\", \"threat model\", \"pentest review\", \"OWASP\", \"CSO review\".",
+      "lead": "Chief Security Officer mode。Infrastructure-first security audit：secrets archaeology、 dependency supply chain、CI/CD pipeline security、LLM/AI security、skill supply chain scanning，外加 OWASP Top...",
+      "routing": "modeling 和 active verification。\n两种模式：daily（zero-noise，8/10 confidence gate）和 comprehensive（monthly deep\nscan，2/10 bar）。跨 audit runs 做 trend tracking。\n当用户要求 \"security audit\"、\"threat model\"、\"pentest review\"、\"OWASP\"、\"CSO review\" 时使用。",
       "voice_line": "Voice triggers (speech-to-text aliases): \"see-so\", \"see so\", \"security review\", \"security check\", \"vulnerability scan\", \"run security\"."
     },
     "design-consultation": {
-      "lead": "Design consultation: understands your product, researches the landscape, proposes a complete design system (aesthetic, typography, color, layout, spacing, motion), and generates font+color preview...",
-      "routing": "Creates DESIGN.md as your project's design source\nof truth. For existing sites, use /plan-design-review to infer the system instead.\nUse when asked to \"design system\", \"brand guidelines\", or \"create DESIGN.md\".\nProactively suggest when starting a new project's UI with no existing\ndesign system or DESIGN.md.",
+      "lead": "Design consultation：理解你的产品，研究 landscape，提出完整 design system （aesthetic、typography、color、layout、spacing、motion），并生成 font+color preview pages。 创建 DESIGN.md 作为项目的 design source of truth。对现有站点，请改用...",
+      "routing": "system\"、\"brand guidelines\" 或 \"create DESIGN.md\" 时使用。\n当新项目 UI 尚无现有 design system 或 DESIGN.md 时，主动建议使用。",
       "voice_line": null
     },
     "design-html": {
-      "lead": "Design finalization: generates production-quality Pretext-native HTML/CSS.",
-      "routing": "Works with approved mockups from /design-shotgun, CEO plans from /plan-ceo-review,\ndesign review context from /plan-design-review, or from scratch with a user\ndescription. Text actually reflows, heights are computed, layouts are dynamic.\n30KB overhead, zero deps. Smart API routing: picks the right Pretext patterns\nfor each design type. Use when: \"finalize this design\", \"turn this into HTML\",\n\"build me a page\", \"implement this design\", or after any planning skill.\nProactively suggest when user has approved a design or has a plan ready.",
+      "lead": "Design finalization：生成 production-quality Pretext-native HTML/CSS。可使用 /design-shotgun 的 approved mockups、/plan-ceo-review 的 CEO plans、 /plan-design-review 的 design review context，或从用户 description...",
+      "routing": "会真正 reflow，heights 会计算，layouts 是 dynamic。30KB overhead，zero deps。\nSmart API routing：为每种 design type 选择正确的 Pretext patterns。当用户说\n\"finalize this design\"、\"turn this into HTML\"、\"build me a page\"、\n\"implement this design\"，或任何 planning skill 之后使用。\n当用户已 approve design 或已有 plan ready 时主动建议使用。",
       "voice_line": "Voice triggers (speech-to-text aliases): \"build the design\", \"code the mockup\", \"make it real\"."
     },
     "design-review": {
-      "lead": "Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems, AI slop patterns, and slow interactions — then fixes them.",
-      "routing": "Iteratively fixes issues\nin source code, committing each fix atomically and re-verifying with before/after\nscreenshots. For plan-mode design review (before implementation), use /plan-design-review.\nUse when asked to \"audit the design\", \"visual QA\", \"check if it looks good\", or \"design polish\".\nProactively suggest when the user mentions visual inconsistencies or\nwants to polish the look of a live site.",
+      "lead": "Designer's eye QA：发现 visual inconsistency、spacing issues、hierarchy problems、 AI slop patterns 和 slow interactions，然后修复它们。在 source code 中迭代修复 issues， 每个 fix 都",
+      "routing": "atomic commit，并用 before/after screenshots 重新验证。Plan-mode design review\n（implementation 前）请使用 /plan-design-review。\n当用户要求 \"audit the design\"、\"visual QA\"、\"check if it looks good\" 或 \"design polish\" 时使用。\n当用户提到 visual inconsistencies，或想 polish live site 的外观时，主动建议使用。",
       "voice_line": null
     },
     "design-shotgun": {
-      "lead": "Design shotgun: generate multiple AI design variants, open a comparison board, collect structured feedback, and iterate.",
-      "routing": "Standalone design exploration you can\nrun anytime. Use when: \"explore designs\", \"show me options\", \"design variants\",\n\"visual brainstorm\", or \"I don't like how this looks\".\nProactively suggest when the user describes a UI feature but hasn't seen\nwhat it could look like.",
+      "lead": "Design shotgun：生成多个 AI design variants，打开 comparison board，收集 structured feedback，并迭代。可随时运行的 standalone design exploration。当用户说 \"explore designs\"、\"show me options\"、\"design variants\"、\"visual...",
+      "routing": "don't like how this looks\" 时使用。\n当用户描述 UI feature 但还没看到它可能长什么样时，主动建议使用。",
       "voice_line": null
     },
     "devex-review": {
-      "lead": "Live developer experience audit.",
-      "routing": "Uses the browse tool to actually TEST the\ndeveloper experience: navigates docs, tries the getting started flow, times\nTTHW, screenshots error messages, evaluates CLI help text. Produces a DX\nscorecard with evidence. Compares against /plan-devex-review scores if they\nexist (the boomerang: plan said 3 minutes, reality says 8). Use when asked to\n\"test the DX\", \"DX audit\", \"developer experience test\", or \"try the\nonboarding\". Proactively suggest after shipping a developer-facing feature.",
+      "lead": "Live developer experience audit。使用 browse tool 实际 TEST developer experience： navigate docs、尝试 getting started flow、计时 TTHW、截图 error messages、 评估 CLI",
+      "routing": "help text。产出带 evidence 的 DX scorecard。如果存在 /plan-devex-review\nscores，则进行对比（boomerang：plan 说 3 分钟，reality 是 8 分钟）。\n当用户要求 \"test the DX\"、\"DX audit\"、\"developer experience test\" 或\n\"try the onboarding\" 时使用。Shipping developer-facing feature 后主动建议。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"dx audit\", \"test the developer experience\", \"try the onboarding\", \"developer experience test\"."
     },
     "document-generate": {
-      "lead": "Generate missing documentation from scratch for a feature, module, or entire project.",
-      "routing": "Uses the Diataxis framework (tutorial / how-to / reference / explanation) to produce\ncomplete, structured documentation. Can be invoked standalone or called by\n/document-release when it finds coverage gaps. Use when asked to \"write docs\",\n\"generate documentation\", \"document this feature\", \"create a tutorial\", or\n\"explain this module\".",
+      "lead": "为 feature、module 或整个 project 从零生成缺失文档。使用 Diataxis framework （tutorial / how-to / reference / explanation）产出完整、结构化 documentation。 可 standalone 调用，也可在 /document-release 发现",
+      "routing": "coverage gaps 时由它调用。\n当用户要求 \"write docs\"、\"generate documentation\"、\"document this feature\"、\n\"create a tutorial\" 或 \"explain this module\" 时使用。（gstack）",
       "voice_line": null
     },
     "document-release": {
-      "lead": "Post-ship documentation update.",
-      "routing": "Reads all project docs, cross-references the\ndiff, builds a Diataxis coverage map (reference/how-to/tutorial/explanation),\nupdates README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md to match what shipped,\ndetects architecture diagram drift, polishes CHANGELOG voice with a sell-test\nrubric, cleans up TODOS, and optionally bumps VERSION. Surfaces documentation\ndebt in the PR body. Use when asked to \"update the docs\", \"sync documentation\",\nor \"post-ship docs\". Proactively suggest after a PR is merged or code is shipped.",
+      "lead": "Post-ship documentation update。读取所有 project docs，与 diff 交叉核对， 构建 Diataxis coverage map（reference/how-to/tutorial/explanation），更新 README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md 以匹配已 shipped 内容，检测...",
+      "routing": "polish CHANGELOG voice，\n清理 TODOS，并可选 bump VERSION。在 PR body 中呈现 documentation debt。\n适用于用户要求 \"update the docs\"、\"sync documentation\" 或 \"post-ship docs\"。\nPR merged 或 code shipped 后主动建议使用。（gstack）",
       "voice_line": null
     },
     "freeze": {
-      "lead": "Restrict file edits to a specific directory for the session.",
-      "routing": "Blocks Edit and\nWrite outside the allowed path. Use when debugging to prevent accidentally\n\"fixing\" unrelated code, or when you want to scope changes to one module.\nUse when asked to \"freeze\", \"restrict edits\", \"only edit this folder\",\nor \"lock down edits\".",
+      "lead": "将本 session 的文件编辑限制在指定目录内.",
+      "routing": "阻止允许路径之外的 Edit 和 Write。\n适用于调试时防止意外“修复”无关代码，或想把变更范围限定到一个模块内。\n用户要求 \"freeze\"、\"restrict edits\"、\"only edit this folder\" 或\n\"lock down edits\" 时使用。",
       "voice_line": null
     },
     "gstack": {
-      "lead": "Fast headless browser for QA testing and site dogfooding.",
-      "routing": "Navigate pages, interact with\nelements, verify state, diff before/after, take annotated screenshots, test responsive\nlayouts, forms, uploads, dialogs, and capture bug evidence. Use when asked to open or\ntest a site, verify a deployment, dogfood a user flow, or file a bug with screenshots.",
+      "lead": "用于 QA testing 和 site dogfooding 的快速 headless browser.",
+      "routing": "可 navigate pages、interact with\nelements、verify state、diff before/after、take annotated screenshots、test responsive\nlayouts、forms、uploads、dialogs，并 capture bug evidence。当用户要求打开或\ntest site、验证 deployment、dogfood user flow，或用 screenshots file bug 时使用。",
       "voice_line": null
     },
     "gstack-upgrade": {
-      "lead": "Upgrade gstack to the latest version.",
-      "routing": "Detects global vs vendored install,\nruns the upgrade, and shows what's new. Use when asked to \"upgrade gstack\",\n\"update gstack\", or \"get latest version\".",
+      "lead": "将 gstack 升级到最新版本。检测 global vs vendored install，执行 upgrade， 并展示 what's new。当用户要求 \"upgrade gstack\"、\"update gstack\" 或 \"get latest version\" 时使用。",
+      "routing": "",
       "voice_line": "Voice triggers (speech-to-text aliases): \"upgrade the tools\", \"update the tools\", \"gee stack upgrade\", \"g stack upgrade\"."
     },
     "guard": {
-      "lead": "Full safety mode: destructive command warnings + directory-scoped edits.",
-      "routing": "Combines /careful (warns before rm -rf, DROP TABLE, force-push, etc.) with\n/freeze (blocks edits outside a specified directory). Use for maximum safety\nwhen touching prod or debugging live systems. Use when asked to \"guard mode\",\n\"full safety\", \"lock it down\", or \"maximum safety\".",
+      "lead": "完整 safety mode：破坏性命令警告 + 目录范围内编辑.",
+      "routing": "组合 /careful\n（在 rm -rf、DROP TABLE、force-push 等操作前警告）和 /freeze\n（阻止指定目录外的编辑）。接触 prod 或调试 live systems 时用于最大安全性。\n用户要求 \"guard mode\"、\"full safety\"、\"lock it down\" 或 \"maximum safety\" 时使用。",
       "voice_line": null
     },
     "health": {
-      "lead": "Code quality dashboard.",
-      "routing": "Wraps existing project tools (type checker, linter,\ntest runner, dead code detector, shell linter), computes a weighted composite\n0-10 score, and tracks trends over time. Use when: \"health check\",\n\"code quality\", \"how healthy is the codebase\", \"run all checks\",\n\"quality score\".",
+      "lead": "Code quality dashboard。包装 existing project tools（type checker、linter、 test runner、dead code detector、shell linter），计算 weighted composite 0-10 分， 并追踪长期趋势。适用于：\"health check\"、\"code quality\"、 \"how",
+      "routing": "healthy is the codebase\"、\"run all checks\"、\"quality score\"。（gstack）",
       "voice_line": null
     },
     "investigate": {
-      "lead": "Systematic debugging with root cause investigation.",
-      "routing": "Four phases: investigate,\nanalyze, hypothesize, implement. Iron Law: no fixes without root cause.\nUse when asked to \"debug this\", \"fix this bug\", \"why is this broken\",\n\"investigate this error\", or \"root cause analysis\".\nProactively invoke this skill (do NOT debug directly) when the user reports\nerrors, 500 errors, stack traces, unexpected behavior, \"it was working\nyesterday\", or is troubleshooting why something stopped working.",
+      "lead": "带 root cause investigation 的系统化 debugging。四个阶段：investigate、 analyze、hypothesize、implement。Iron Law：没有 root cause 就不修。 当用户要求 \"debug this\"、\"fix this bug\"、\"why is this broken\"、 \"investigate",
+      "routing": "this error\" 或 \"root cause analysis\" 时使用。\n当用户报告 errors、500 errors、stack traces、unexpected behavior、\n\"it was working yesterday\"，或正在排查某物为何停止工作时，主动调用此 skill\n（不要直接 debug）。（gstack）",
       "voice_line": null
     },
     "ios-clean": {
-      "lead": "Remove the DebugBridge SPM package and all #if DEBUG wiring from an iOS app.",
-      "routing": "Cleans up StateServer, DebugOverlay, accessor codegen output, and\napp-side hooks installed by /ios-qa. This is a convenience wrapper —\nthe structural Release-build guard (Package.swift conditional + CI\nswift build -c release check) is the safety-critical path.\nUse when asked to \"clean the iOS debug bridge\", \"remove DebugBridge\",\nor \"strip the gstack iOS instrumentation\".",
+      "lead": "从 iOS app 中移除 DebugBridge SPM package 和所有 #if DEBUG wiring。 清理 StateServer、DebugOverlay、accessor codegen output，以及 /ios-qa 安装的 app-side hooks。这是 convenience",
+      "routing": "wrapper；structural Release-build guard\n（Package.swift conditional + CI swift build -c release check）才是 safety-critical path。\n当用户要求 \"clean the iOS debug bridge\"、\"remove DebugBridge\" 或\n\"strip the gstack iOS instrumentation\" 时使用。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"clean the iOS debug bridge\", \"remove DebugBridge\", \"strip the gstack iOS instrumentation\"."
     },
     "ios-design-review": {
-      "lead": "Visual design audit for iOS apps on real hardware.",
-      "routing": "Connects to a real\niPhone via the same StateServer as /ios-qa, screenshots every screen,\nevaluates against Apple HIG, DESIGN.md, and design best practices. Scores\neach dimension 0-10 with \"what would make it a 10\" framing — mirrors\n/plan-design-review for browser. For plan-stage design review (before\nimplementation), use /plan-design-review. For live web visual audits, use\n/design-review.\nUse when asked to \"review the iOS design\", \"audit the iPhone app's\nvisuals\", or \"design QA the iOS app\".",
+      "lead": "在真实硬件上对 iOS apps 做 visual design audit。通过与 /ios-qa 相同的 StateServer 连接真实 iPhone，截图每个 screen，并根据 Apple HIG、DESIGN.md 和 design best practices 评估。每个",
+      "routing": "dimension 0-10 评分，并用\n\"what would make it a 10\" framing：对应 browser 版 /plan-design-review。\nPlan-stage design review（implementation 前）使用 /plan-design-review；\nlive web visual audits 使用 /design-review。\n当用户要求 \"review the iOS design\"、\"audit the iPhone app's visuals\" 或\n\"design QA the iOS app\" 时使用。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"review the iOS design\", \"audit the iPhone app's visuals\", \"design QA the iPhone app\"."
     },
     "ios-fix": {
-      "lead": "Autonomous iOS bug fixer.",
-      "routing": "Takes a bug found by /ios-qa, reads the source,\nwrites the fix, rebuilds, redeploys, and verifies the fix on the real\ndevice. Closes the loop: find bug → fix bug → confirm fix — zero human\nintervention. Captures the pre-bug state snapshot as a regression test\nfixture, so the bug can never recur silently.\nUse when /ios-qa reports a bug and you want it fixed automatically, or\nwhen asked to \"fix this iOS bug\", \"patch the iPhone app\", or \"auto-fix\nthe iOS issue\".",
+      "lead": "Autonomous iOS bug fixer。接收 /ios-qa 发现的 bug，读取 source、写入 fix、 rebuild、redeploy，并在真实 device 上验证 fix。闭环：find bug -> fix bug -> confirm fix，",
+      "routing": "零 human intervention。捕获 pre-bug state snapshot 作为 regression test fixture，\n让 bug 不能 silent recur。当 /ios-qa 报告 bug 且你希望自动修复，或用户要求\n\"fix this iOS bug\"、\"patch the iPhone app\"、\"auto-fix the iOS issue\" 时使用。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"fix the iOS bug\", \"patch the iPhone app\", \"auto-fix the iOS issue\"."
     },
     "ios-qa": {
-      "lead": "Live-device iOS QA for SwiftUI apps.",
-      "routing": "Connects to a real iPhone via USB\nCoreDevice IPv6 tunnel, reads Swift source to understand every screen, then\nruns a vision-driven agent loop: screenshot → analyze → decide → act →\nverify → repeat. All interaction happens via HTTP to an embedded\nStateServer in the app under test. Optionally exposes the device over\nTailscale so remote agents (OpenClaw, Codex, any HTTP-capable agent) can\nrun iOS QA from anywhere without touching the hardware.\nUse when asked to \"ios qa\", \"test my iPhone app\", \"find bugs on the device\",\nor \"qa the iOS app\".",
+      "lead": "面向 SwiftUI app 的真机 iOS QA。通过 USB CoreDevice IPv6 tunnel 连接 真实 iPhone，读取 Swift source 以理解每个 screen，然后运行 vision-driven agent loop：screenshot",
+      "routing": "→ analyze → decide → act → verify → repeat。\n所有交互都通过 HTTP 发送到被测 app 内嵌的 StateServer。可选通过\nTailscale 暴露设备，让 remote agents（OpenClaw、Codex、任何支持 HTTP\n的 agent）无需接触硬件，也能从任意位置运行 iOS QA。\n当用户要求 \"ios qa\"、\"test my iPhone app\"、\"find bugs on the device\" 或\n\"qa the iOS app\" 时使用。",
       "voice_line": "Voice triggers (speech-to-text aliases): \"iOS quality check\", \"test the iPhone app\", \"run iOS QA\"."
     },
     "ios-sync": {
-      "lead": "Regenerate the iOS debug bridge against the latest upstream gstack templates.",
-      "routing": "Updates StateServer.swift, DebugOverlay.swift, Package.swift,\nand the typed @Observable state accessors. Use after you upgrade gstack\nor add new ViewModels/properties that need accessor coverage.\nUse when asked to \"resync the iOS debug bridge\", \"regenerate iOS\naccessors\", or \"update the gstack iOS instrumentation\".",
+      "lead": "基于最新 upstream gstack templates 重新生成 iOS debug bridge。更新 StateServer.swift、DebugOverlay.swift、Package.swift，以及 typed @Observable state accessors。在升级 gstack 后，或添加需要 accessor coverage 的新...",
+      "routing": "\"resync the iOS debug bridge\"、\n\"regenerate iOS accessors\" 或 \"update the gstack iOS instrumentation\" 时使用。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"resync the iOS debug bridge\", \"regenerate iOS accessors\", \"update the gstack iOS instrumentation\"."
     },
-    "land-and-deploy": {
-      "lead": "Land and deploy workflow.",
-      "routing": "Merges the PR, waits for CI and deploy,\nverifies production health via canary checks. Takes over after /ship\ncreates the PR. Use when: \"merge\", \"land\", \"deploy\", \"merge and verify\",\n\"land it\", \"ship it to production\".",
-      "voice_line": null
-    },
     "landing-report": {
-      "lead": "Read-only queue dashboard for workspace-aware ship.",
-      "routing": "Shows which VERSION slots\nare currently claimed by open PRs, which sibling Conductor workspaces have\nWIP work likely to ship soon, and what slot /ship would pick next. No\nmutations — just a snapshot. Use when asked to \"landing report\", \"what's in\nthe queue\", \"show me open PRs\", or \"which version do I claim next\".",
+      "lead": "workspace-aware ship 的 read-only queue dashboard。展示当前哪些 VERSION slots 已被 open PRs claim、哪些 sibling Conductor workspaces 有可能即将 ship 的 WIP work，",
+      "routing": "以及 /ship 下一步会选择哪个 slot。无 mutations：只是 snapshot。\n当用户要求 \"landing report\"、\"what's in the queue\"、\"show me open PRs\" 或\n\"which version do I claim next\" 时使用。（gstack）",
       "voice_line": null
     },
     "learn": {
-      "lead": "Manage project learnings.",
-      "routing": "Review, search, prune, and export what gstack\nhas learned across sessions. Use when asked to \"what have we learned\",\n\"show learnings\", \"prune stale learnings\", or \"export learnings\".\nProactively suggest when the user asks about past patterns or wonders\n\"didn't we fix this before?\"",
+      "lead": "管理 project learnings。Review、search、prune 并 export gstack 跨 sessions 学到的内容。当用户要求 \"what have we learned\"、\"show learnings\"、 \"prune stale learnings\" 或 \"export learnings\"",
+      "routing": "时使用。\n当用户询问 past patterns，或疑惑 \"didn't we fix this before?\" 时主动建议。",
       "voice_line": null
     },
     "make-pdf": {
-      "lead": "Turn any markdown file into a publication-quality PDF.",
-      "routing": "Proper 1in margins,\nintelligent page breaks, page numbers, cover pages, running headers, curly\nquotes and em dashes, clickable TOC, diagonal DRAFT watermark. Not a draft\nartifact — a finished artifact. Use when asked to \"make a PDF\", \"export to\nPDF\", \"turn this markdown into a PDF\", or \"generate a document\".",
+      "lead": "将任意 markdown file 转成 publication-quality PDF。包含正确的 1in margins、 智能 page breaks、page numbers、cover pages、running headers、curly quotes 和 em dashes、clickable TOC、diagonal DRAFT",
+      "routing": "watermark。不是 draft artifact，\n而是 finished artifact。当用户要求 \"make a PDF\"、\"export to PDF\"、\n\"turn this markdown into a PDF\" 或 \"generate a document\" 时使用。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"make this a pdf\", \"make it a pdf\", \"export to pdf\", \"turn this into a pdf\", \"turn this markdown into a pdf\", \"generate a pdf\", \"make a pdf from\", \"pdf this markdown\"."
     },
     "office-hours": {
-      "lead": "YC Office Hours — two modes.",
-      "routing": "Startup mode: six forcing questions that expose\ndemand reality, status quo, desperate specificity, narrowest wedge, observation,\nand future-fit. Builder mode: design thinking brainstorming for side projects,\nhackathons, learning, and open source. Saves a design doc.\nUse when asked to \"brainstorm this\", \"I have an idea\", \"help me think through\nthis\", \"office hours\", or \"is this worth building\".\nProactively invoke this skill (do NOT answer directly) when the user describes\na new product idea, asks whether something is worth building, wants to think\nthrough design decisions for something that doesn't exist yet, or is exploring\na concept before any code is written.\nUse before /plan-ceo-review or /plan-eng-review.",
+      "lead": "YC Office Hours - 两种模式.",
+      "routing": "Startup mode：用六个强制问题暴露需求现实、现状、\n迫切而具体的用户、最窄 wedge、观察证据和未来适配度。Builder mode：为 side project、\nhackathon、学习和开源做 design thinking 头脑风暴。会保存 design doc。\n当用户说 \"brainstorm this\"、\"I have an idea\"、\"help me think through this\"、\n\"office hours\" 或 \"is this worth building\" 时使用。\n当用户描述新产品想法、询问某件事是否值得构建、想思考尚不存在事物的设计决策，\n或在写任何代码前探索概念时，主动调用此 skill（不要直接回答）。\n在 /plan-ceo-review 或 /plan-eng-review 之前使用。",
       "voice_line": null
     },
     "open-gstack-browser": {
-      "lead": "Launch GStack Browser — AI-controlled Chromium with the sidebar extension baked in.",
-      "routing": "Opens a visible browser window where you can watch every action in real time.\nThe sidebar shows a live activity feed and chat. Anti-bot stealth built in.\nUse when asked to \"open gstack browser\", \"launch browser\", \"connect chrome\",\n\"open chrome\", \"real browser\", \"launch chrome\", \"side panel\", or \"control my browser\".",
+      "lead": "启动 GStack Browser：内置 sidebar extension、由 AI 控制的 Chromium。 打开 visible browser window，让你可以实时观看每个 action。 Sidebar 显示 live activity feed 和 chat。内置",
+      "routing": "anti-bot stealth。\n当用户要求 \"open gstack browser\"、\"launch browser\"、\"connect chrome\"、\n\"open chrome\"、\"real browser\"、\"launch chrome\"、\"side panel\" 或 \"control my browser\" 时使用。",
       "voice_line": "Voice triggers (speech-to-text aliases): \"show me the browser\"."
     },
     "pair-agent": {
-      "lead": "Pair a remote AI agent with your browser.",
-      "routing": "One command generates a setup key and\nprints instructions the other agent can follow to connect. Works with OpenClaw,\nHermes, Codex, Cursor, or any agent that can make HTTP requests. The remote agent\ngets its own tab with scoped access (read+write by default, admin on request).\nUse when asked to \"pair agent\", \"connect agent\", \"share browser\", \"remote browser\",\n\"let another agent use my browser\", or \"give browser access\".",
+      "lead": "将 remote AI agent 与你的 browser 配对。一个 command 会生成 setup key，并打印 另一个 agent 可遵循的连接 instructions。适用于 OpenClaw、Hermes、Codex、Cursor， 或任何能发 HTTP requests 的",
+      "routing": "agent。Remote agent 会获得自己的 tab 和 scoped access\n（默认 read+write，可按需 admin）。当用户要求 \"pair agent\"、\"connect agent\"、\n\"share browser\"、\"remote browser\"、\"let another agent use my browser\" 或\n\"give browser access\" 时使用。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"pair agent\", \"connect agent\", \"share my browser\", \"remote browser access\"."
     },
     "plan-ceo-review": {
       "lead": "CEO/founder-mode plan review.",
-      "routing": "Rethink the problem, find the 10-star product,\nchallenge premises, expand scope when it creates a better product. Four modes:\nSCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold scope + cherry-pick\nexpansions), HOLD SCOPE (maximum rigor), SCOPE REDUCTION (strip to essentials).\nUse when asked to \"think bigger\", \"expand scope\", \"strategy review\", \"rethink this\",\nor \"is this ambitious enough\".\nProactively suggest when the user is questioning scope or ambition of a plan,\nor when the plan feels like it could be thinking bigger.",
+      "routing": "重新思考问题，找到 10-star product，挑战 premises，\n并在能创造更好产品时扩大 scope。四种模式：SCOPE EXPANSION（dream big）、\nSELECTIVE EXPANSION（hold scope + cherry-pick expansions）、HOLD SCOPE（最大严谨度）、\nSCOPE REDUCTION（削减到 essentials）。\n当用户要求 \"think bigger\"、\"expand scope\"、\"strategy review\"、\"rethink this\"，\n或 \"is this ambitious enough\" 时使用。\n当用户质疑 plan 的 scope 或 ambition，或 plan 看起来可以想得更大时，主动建议使用。",
       "voice_line": null
     },
     "plan-design-review": {
-      "lead": "Designer's eye plan review — interactive, like CEO and Eng review.",
-      "routing": "Rates each design dimension 0-10, explains what would make it a 10,\nthen fixes the plan to get there. Works in plan mode. For live site\nvisual audits, use /design-review. Use when asked to \"review the design plan\"\nor \"design critique\".\nProactively suggest when the user has a plan with UI/UX components that\nshould be reviewed before implementation.",
+      "lead": "Designer's eye plan review - 交互式，类似 CEO 和 Eng review。 对每个 design dimension 按 0-10 评分，解释怎样才能到 10 分， 然后修正 plan",
+      "routing": "让它到达那里。适用于 plan mode。Live site visual audits\n请使用 /design-review。当用户要求 \"review the design plan\" 或 \"design critique\" 时使用。\n当用户的 plan 包含应在 implementation 前 review 的 UI/UX components 时，主动建议使用。",
       "voice_line": null
     },
     "plan-devex-review": {
-      "lead": "Interactive developer experience plan review.",
-      "routing": "Explores developer personas,\nbenchmarks against competitors, designs magical moments, and traces friction\npoints before scoring. Three modes: DX EXPANSION (competitive advantage),\nDX POLISH (bulletproof every touchpoint), DX TRIAGE (critical gaps only).\nUse when asked to \"DX review\", \"developer experience audit\", \"devex review\",\nor \"API design review\".\nProactively suggest when the user has a plan for developer-facing products\n(APIs, CLIs, SDKs, libraries, platforms, docs).",
+      "lead": "交互式 developer experience plan review。评分前先探索 developer personas、 与竞品 benchmark、设计 magical moments，并追踪 friction points。三种模式： DX EXPANSION（competitive advantage）、DX POLISH（让每个 touchpoint bulletproof）、 DX",
+      "routing": "TRIAGE（只看 critical gaps）。\n当用户要求 \"DX review\"、\"developer experience audit\"、\"devex review\"\n或 \"API design review\" 时使用。\n当用户有面向开发者产品（APIs、CLIs、SDKs、libraries、platforms、docs）的 plan 时，\n主动建议使用。",
       "voice_line": "Voice triggers (speech-to-text aliases): \"dx review\", \"developer experience review\", \"devex review\", \"devex audit\", \"API design review\", \"onboarding review\"."
     },
     "plan-eng-review": {
-      "lead": "Eng manager-mode plan review.",
-      "routing": "Lock in the execution plan — architecture,\ndata flow, diagrams, edge cases, test coverage, performance. Walks through\nissues interactively with opinionated recommendations. Use when asked to\n\"review the architecture\", \"engineering review\", or \"lock in the plan\".\nProactively suggest when the user has a plan or design doc and is about to\nstart coding — to catch architecture issues before implementation.",
+      "lead": "Eng manager-mode plan review。锁定执行计划：architecture、data flow、diagrams、 edge cases、test coverage、performance.",
+      "routing": "用 opinionated recommendations 交互式走查\nissues。当用户要求 \"review the architecture\"、\"engineering review\" 或 \"lock in the plan\" 时使用。\n当用户已有 plan 或 design doc 且即将开始 coding 时主动建议，以便在 implementation 前\n捕获 architecture issues。",
       "voice_line": "Voice triggers (speech-to-text aliases): \"tech review\", \"technical review\", \"plan engineering review\"."
     },
     "plan-tune": {
-      "lead": "Self-tuning question sensitivity + developer psychographic for gstack (v1: observational).",
-      "routing": "Review which AskUserQuestion prompts fire across gstack skills, set per-question preferences\n(never-ask / always-ask / ask-only-for-one-way), inspect the dual-track\nprofile (what you declared vs what your behavior suggests), and enable/disable\nquestion tuning. Conversational interface — no CLI syntax required.\n\nUse when asked to \"tune questions\", \"stop asking me that\", \"too many questions\",\n\"show my profile\", \"what questions have I been asked\", \"show my vibe\",\n\"developer profile\", or \"turn off question tuning\". \n\nProactively suggest when the user says the same gstack question has come up before,\nor when they explicitly override a recommendation for the Nth time.",
+      "lead": "面向 gstack 的 self-tuning question sensitivity + developer psychographic（v1: observational）。 审查哪些 AskUserQuestion prompts 会在 gstack skills 中触发，设置 per-question preferences（never-ask /",
+      "routing": "always-ask / ask-only-for-one-way），检查 dual-track\nprofile（你声明的偏好 vs 行为暗示的偏好），并启用/禁用 question tuning。\nConversational interface，不要求 CLI syntax。\n\n当用户要求 \"tune questions\"、\"stop asking me that\"、\"too many questions\"、\n\"show my profile\"、\"what questions have I been asked\"、\"show my vibe\"、\n\"developer profile\" 或 \"turn off question tuning\" 时使用。\n\n当用户说同一个 gstack question 之前已经出现过，或第 N 次明确 override recommendation\n时，主动建议使用。",
       "voice_line": null
     },
     "qa": {
-      "lead": "Systematically QA test a web application and fix bugs found.",
-      "routing": "Runs QA testing,\nthen iteratively fixes bugs in source code, committing each fix atomically and\nre-verifying. Use when asked to \"qa\", \"QA\", \"test this site\", \"find bugs\",\n\"test and fix\", or \"fix what's broken\".\nProactively suggest when the user says a feature is ready for testing\nor asks \"does this work?\". Three tiers: Quick (critical/high only),\nStandard (+ medium), Exhaustive (+ cosmetic). Produces before/after health scores,\nfix evidence, and a ship-readiness summary. For report-only mode, use /qa-only.",
+      "lead": "系统化 QA test 一个 web application，并修复发现的 bugs.",
+      "routing": "先运行 QA testing，\n然后迭代修复 source code 中的 bugs，每个 fix atomic commit，并重新验证。\n当用户要求 \"qa\"、\"QA\"、\"test this site\"、\"find bugs\"、\"test and fix\"\n或 \"fix what's broken\" 时使用。\n当用户说 feature 已 ready for testing，或询问 \"does this work?\" 时主动建议。\n三个 tiers：Quick（critical/high only）、Standard（+ medium）、Exhaustive（+ cosmetic）。\n产出 before/after health scores、fix evidence 和 ship-readiness summary。\nReport-only mode 使用 /qa-only。",
       "voice_line": "Voice triggers (speech-to-text aliases): \"quality check\", \"test the app\", \"run QA\"."
     },
     "qa-only": {
-      "lead": "Report-only QA testing.",
-      "routing": "Systematically tests a web application and produces a\nstructured report with health score, screenshots, and repro steps — but never\nfixes anything. Use when asked to \"just report bugs\", \"qa report only\", or\n\"test but don't fix\". For the full test-fix-verify loop, use /qa instead.\nProactively suggest when the user wants a bug report without any code changes.",
+      "lead": "Report-only QA testing。系统化测试 web application，并产出包含 health score、 screenshots 和 repro steps 的 structured report，但绝不修复任何东西。 当用户要求 \"just report bugs\"、\"qa report only\"",
+      "routing": "或 \"test but don't fix\" 时使用。\n完整 test-fix-verify loop 请改用 /qa。当用户想要 bug report 且不希望有任何代码变更时主动建议。（gstack）",
       "voice_line": "Voice triggers (speech-to-text aliases): \"bug report\", \"just check for bugs\"."
     },
     "retro": {
-      "lead": "Weekly engineering retrospective.",
-      "routing": "Analyzes commit history, work patterns,\nand code quality metrics with persistent history and trend tracking.\nTeam-aware: breaks down per-person contributions with praise and growth areas.\nUse when asked to \"weekly retro\", \"what did we ship\", or \"engineering retrospective\".\nProactively suggest at the end of a work week or sprint.",
+      "lead": "每周 engineering retrospective。分析 commit history、work patterns 和 code quality metrics，并带有 persistent history 与 trend tracking。 Team-aware：按成员拆解 contributions、praise 和 growth areas。",
+      "routing": "当用户要求 \"weekly retro\"、\"what did we ship\" 或 \"engineering retrospective\"\n时使用。在 work week 或 sprint 结束时主动建议使用。",
       "voice_line": null
     },
     "review": {
       "lead": "Pre-landing PR review.",
-      "routing": "Analyzes diff against the base branch for SQL safety, LLM trust\nboundary violations, conditional side effects, and other structural issues. Use when\nasked to \"review this PR\", \"code review\", \"pre-landing review\", or \"check my diff\".\nProactively suggest when the user is about to merge or land code changes.",
+      "routing": "分析当前 diff 相对 base branch 的 SQL safety、LLM trust\nboundary violations、conditional side effects 和其他结构性问题。当用户要求\n\"review this PR\"、\"code review\"、\"pre-landing review\" 或 \"check my diff\" 时使用。\n当用户准备 merge 或 land code changes 时主动建议。",
       "voice_line": null
     },
     "scrape": {
-      "lead": "Pull data from a web page.",
-      "routing": "First call on a new intent prototypes the flow\nvia $B primitives and returns JSON. Subsequent calls on a matching intent\nroute to a codified browser-skill and return in ~200ms. Read-only — for\nmutating flows (form fills, clicks, submissions), use /automate.\nUse when asked to \"scrape\", \"get data from\", \"pull\", \"extract from\", or\n\"what's on\" a page.",
+      "lead": "从 web page 拉取数据。对新 intent 的首次调用会通过 $B primitives prototype flow， 并返回 JSON。后续匹配同一 intent 的调用会 route 到 codified browser-skill， 约 200ms",
+      "routing": "返回。Read-only：mutating flows（form fills、clicks、submissions）\n请使用 /automate。当用户要求 \"scrape\"、\"get data from\"、\"pull\"、\n\"extract from\" 或 \"what's on\" 某 page 时使用。（gstack）",
       "voice_line": null
     },
     "setup-browser-cookies": {
-      "lead": "Import cookies from your real Chromium browser into the headless browse session.",
-      "routing": "Opens an interactive picker UI where you select which cookie domains to import.\nUse before QA testing authenticated pages. Use when asked to \"import cookies\",\n\"login to the site\", or \"authenticate the browser\".",
+      "lead": "将你真实 Chromium browser 中的 cookies 导入 headless browse session。 打开 interactive picker UI，让你选择要导入哪些 cookie domains。 在 QA testing authenticated pages",
+      "routing": "前使用。当用户要求 \"import cookies\"、\n\"login to the site\" 或 \"authenticate the browser\" 时使用。（gstack）",
       "voice_line": null
     },
     "setup-deploy": {
-      "lead": "Configure deployment settings for /land-and-deploy.",
-      "routing": "Detects your deploy\nplatform (Fly.io, Render, Vercel, Netlify, Heroku, GitHub Actions, custom),\nproduction URL, health check endpoints, and deploy status commands. Writes\nthe configuration to CLAUDE.md so all future deploys are automatic.\nUse when: \"setup deploy\", \"configure deployment\", \"set up land-and-deploy\",\n\"how do I deploy with gstack\", \"add deploy config\".",
+      "lead": "为 /land-and-deploy 配置部署设置。检测你的 deploy platform（Fly.io、Render、 Vercel、Netlify、Heroku、GitHub Actions、custom）、production URL、 health check endpoints 和 deploy status commands。将配置写入 CLAUDE.md， 让后续...",
+      "routing": "\"setup deploy\"、\"configure deployment\"、\"set up land-and-deploy\"、\n\"how do I deploy with gstack\"、\"add deploy config\" 时使用。",
       "voice_line": null
     },
     "setup-gbrain": {
-      "lead": "Set up gbrain for this coding agent: install the CLI, initialize a local PGLite or Supabase brain, register MCP, capture per-remote trust policy.",
-      "routing": "One command from zero to \"gbrain is running, and this agent\ncan call it.\" Use when: \"setup gbrain\", \"connect gbrain\", \"start\ngbrain\", \"install gbrain\", \"configure gbrain for this machine\".",
+      "lead": "为这个 coding agent 设置 gbrain：安装 CLI、初始化 local PGLite 或 Supabase brain、注册 MCP，并记录 per-remote trust policy。一条命令从零到 \"gbrain 正在运行，并且这个 agent 可以调用它\"。适用于：\"setup gbrain\"、",
+      "routing": "\"connect gbrain\"、\"start gbrain\"、\"install gbrain\"、\n\"configure gbrain for this machine\"。（gstack）",
       "voice_line": null
     },
     "ship": {
-      "lead": "Ship workflow: detect + merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR.",
-      "routing": "Use when asked to \"ship\", \"deploy\",\n\"push to main\", \"create a PR\", \"merge and push\", or \"get it deployed\".\nProactively invoke this skill (do NOT push/PR directly) when the user says code\nis ready, asks about deploying, wants to push code up, or asks to create a PR.",
+      "lead": "Ship workflow.",
+      "routing": "检测并 merge base branch、运行 tests、review diff、bump VERSION、\n更新 CHANGELOG、commit、push、create PR。当用户要求 \"ship\"、\"deploy\"、\n\"push to main\"、\"create a PR\"、\"merge and push\" 或 \"get it deployed\" 时使用。\n当用户说 code ready、询问 deploying、想 push code up，或要求 create PR 时，\n主动调用此 skill（不要直接 push/PR）。",
       "voice_line": null
     },
     "skillify": {
-      "lead": "Codify the most recent successful /scrape flow into a permanent browser-skill on disk.",
-      "routing": "Future /scrape calls with the same intent run\nthe codified script in ~200ms instead of re-driving the page. Walks\nback through the conversation, synthesizes script.ts + script.test.ts\n+ fixture, runs the test in a temp dir, and asks before committing.\nUse when asked to \"skillify\", \"codify\", \"save this scrape\", or\n\"make this permanent\".",
+      "lead": "将最近一次 successful /scrape flow codify 成磁盘上的 permanent browser-skill。 之后相同 intent 的 /scrape calls 会运行 codified script，约 200ms 返回， 而不是重新驱动 page。回溯",
+      "routing": "conversation，合成 script.ts + script.test.ts + fixture，\n在 temp dir 中运行 test，并在 committing 前询问用户。\n当用户要求 \"skillify\"、\"codify\"、\"save this scrape\" 或\n\"make this permanent\" 时使用。（gstack）",
       "voice_line": null
     },
     "spec": {
-      "lead": "Turn vague intent into a precise, executable spec in five phases.",
-      "routing": "Files the issue,\noptionally spawns a Claude Code agent in a fresh worktree, and lets /ship close\nthe source issue on merge. Use when asked to \"spec this out\", \"file an issue\",\n\"write up a ticket\", \"make this a GitHub issue\", or \"turn this into a backlog item\".",
+      "lead": "用五个 phase 将模糊意图转成 precise、executable spec.",
+      "routing": "创建 issue，\n可选地在 fresh worktree 中启动 Claude Code agent，并让 /ship 在 merge 时关闭\nsource issue。当用户要求 \"spec this out\"、\"file an issue\"、\"write up a ticket\"、\n\"make this a GitHub issue\" 或 \"turn this into a backlog item\" 时使用。",
       "voice_line": null
     },
     "sync-gbrain": {
-      "lead": "Keep gbrain current with this repo's code and refresh agent search guidance in CLAUDE.md. Wraps the gstack-gbrain-sync orchestrator with state",
-      "routing": "probing, native code-surface registration, capability checks,\nand a verdict block. Re-runnable, idempotent. Use when: \"sync gbrain\",\n\"refresh gbrain\", \"re-index this repo\", \"gbrain search isn't finding\nthings\".",
+      "lead": "让 gbrain 与此 repo 的代码保持同步，并刷新 CLAUDE.md 中的 agent search guidance。 包装 gstack-gbrain-sync orchestrator，包含 state probing、native code-surface registration、capability checks 和 verdict",
+      "routing": "block。可重复运行，idempotent。\n当用户说 \"sync gbrain\"、\"refresh gbrain\"、\"re-index this repo\"、\n\"gbrain search isn't finding things\" 时使用。（gstack）",
       "voice_line": null
     },
     "unfreeze": {
-      "lead": "Clear the freeze boundary set by /freeze, allowing edits to all directories again.",
-      "routing": "Use when you want to widen edit scope without ending the session.\nUse when asked to \"unfreeze\", \"unlock edits\", \"remove freeze\", or\n\"allow all edits\".",
+      "lead": "清除 /freeze 设置的 freeze boundary.",
+      "routing": "重新允许编辑所有目录。适用于想在不结束 session\n的情况下扩大编辑范围。用户要求 \"unfreeze\"、\"unlock edits\"、\"remove freeze\"\n或 \"allow all edits\" 时使用。",
       "voice_line": null
     }
   }

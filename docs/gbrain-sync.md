@@ -1,120 +1,110 @@
-# Cross-machine memory with GBrain sync
+# 使用 GBrain sync 实现跨机器 memory
 
-gstack writes a lot of useful state to `~/.gstack/` — learnings, retros, CEO
-plans, design docs, developer profile. By default, all of that dies when you
-switch laptops. **GBrain sync** pushes a curated subset to a private git
-repo so your memory follows you across machines and becomes indexable by
-GBrain.
+gstack 会把大量有用 state 写到 `~/.gstack/`：learnings、retros、CEO plans、design
+docs、developer profile。默认情况下，换 laptop 后这些都会留在原机器上。**GBrain
+sync** 会把 curated subset push 到 private git repo，让你的 memory 跨机器跟随你，
+并被 GBrain index。
 
-## What you get
+## 你会得到什么
 
-- Work on machine A, pick up seamlessly on machine B.
-- Your learnings, plans, and designs are visible in GBrain (if you use it).
-- A clean off-ramp (`gstack-brain-uninstall`) that never touches your data.
-- No daemon, no system service, no background process.
+- 在 machine A 工作，在 machine B seamless pick up。
+- Learnings、plans 和 designs 在 GBrain 中可见（如果你使用它）。
+- 干净的 off-ramp（`gstack-brain-uninstall`），永远不触碰你的 data。
+- 无 daemon、无 system service、无 background process。
 
-## What does NOT leave your machine
+## 哪些内容不会离开你的机器
 
-By design, these stay local even when sync is on:
+By design，即使 sync 开启，这些也保持 local：
 
-- Credentials: `.auth.json`, `auth-token.json`, `sidebar-sessions/`,
+- Credentials：`.auth.json`, `auth-token.json`, `sidebar-sessions/`,
   `security/device-salt`, consumer tokens in `config.yaml`
-- Machine-specific state: Chromium profiles, ONNX model weights,
-  caches, eval-cache, CDP-profile, one-time prompt markers
+- Machine-specific state：Chromium profiles、ONNX model weights、
+  caches、eval-cache、CDP-profile、one-time prompt markers
   (`.welcome-seen`, `.telemetry-prompted`, `.vendoring-warned-*`, etc.)
-- Question-preferences: per-machine UX preferences
+- Question-preferences：per-machine UX preferences
   (`question-preferences.json`, `question-log.jsonl`, `question-events.jsonl`).
 
-The exact allowlist lives in `~/.gstack/.brain-allowlist`. The CLI manages
-it; you can append your own entries below the marker line.
+精确 allowlist 位于 `~/.gstack/.brain-allowlist`。CLI 会管理它；你可以在 marker line
+下方 append 自己的 entries。
 
-## First-run setup (30–90 seconds)
+## 首次 setup（30-90 秒）
 
 ```bash
 gstack-brain-init
 ```
 
-The command:
+该命令会：
 
-1. Turns `~/.gstack/` into a git repo.
-2. Asks for a remote URL (default: `gh repo create --private
-   gstack-brain-$USER`). Any git remote works — GitHub, GitLab, Gitea,
+1. 把 `~/.gstack/` 变成 git repo。
+2. 询问 remote URL（默认：`gh repo create --private
+   gstack-brain-$USER`）。任何 git remote 都可以：GitHub、GitLab、Gitea、
    self-hosted.
-3. Pushes an initial commit with just the config.
-4. Writes `~/.gstack-brain-remote.txt` (URL-only, no secrets —
-   safe to copy to another machine).
-5. Wires the gstack-brain repo into your local gbrain as a federated
-   source (via `gbrain sources add` + `git worktree`) so `gbrain search`
-   can index your synced learnings, plans, and designs. Implementation
-   lives in `bin/gstack-gbrain-source-wireup`. The old
-   `gstack-brain-reader add --ingest-url ...` HTTP path was removed in
-   v1.15.1.0 — it depended on a `/ingest-repo` endpoint gbrain never
-   shipped.
+3. Push 一个只包含 config 的 initial commit。
+4. 写入 `~/.gstack-brain-remote.txt`（URL-only，无 secrets，可安全 copy 到另一台机器）。
+5. 把 gstack-brain repo 接入你的 local gbrain，作为 federated source（通过
+   `gbrain sources add` + `git worktree`），让 `gbrain search` 可以 index 已同步的
+   learnings、plans 和 designs。实现位于 `bin/gstack-gbrain-source-wireup`。旧的
+   `gstack-brain-reader add --ingest-url ...` HTTP path 已在 v1.15.1.0 移除，
+   因为它依赖 gbrain 从未 shipped 的 `/ingest-repo` endpoint。
 
-After init, the **next skill you run** will ask you ONE question about
-privacy mode:
+Init 后，**下一次运行 skill** 会问你一个 privacy mode 问题：
 
-- **Everything allowlisted (recommended)**: learnings, reviews, plans,
-  designs, retros, timelines, and developer profile all sync.
-- **Only artifacts**: plans, designs, retros, learnings — skip
-  behavioral data (timelines, developer profile).
-- **Decline**: keep everything local. You can turn sync on later with
+- **Everything allowlisted（recommended）**：learnings、reviews、plans、designs、
+  retros、timelines 和 developer profile 都会 sync。
+- **Only artifacts**：plans、designs、retros、learnings，跳过 behavioral data
+  （timelines、developer profile）。
+- **Decline**：全部保持 local。之后可用
   `gstack-config set artifacts_sync_mode full`.
 
-Your answer is persisted. You won't be asked again.
+你的答案会持久化。之后不会再次询问。
 
-## Cross-machine workflow
+## 跨机器工作流
 
-On machine A: run `gstack-brain-init` once. That's it — every skill
-invocation now drains the sync queue at its start and end boundaries
-(~200–800 ms network pause per skill).
+在 machine A：运行一次 `gstack-brain-init`。就这样。之后每次 skill invocation 都会在
+开始和结束边界 drain sync queue（每个 skill 约 200-800 ms network pause）。
 
-On machine B:
+在 machine B：
 
-1. Copy `~/.gstack-brain-remote.txt` from machine A to machine B
-   (password manager, dotfile repo, USB stick — your call).
-2. Run any gstack skill. The preamble sees the URL file and prints:
+1. 把 `~/.gstack-brain-remote.txt` 从 machine A copy 到 machine B
+   （password manager、dotfile repo、USB stick，任选）。
+2. 运行任意 gstack skill。Preamble 看到 URL file 后会打印：
    ```
    BRAIN_SYNC: brain repo detected: <url>
    BRAIN_SYNC: run 'gstack-brain-restore' to pull your cross-machine memory
    ```
-3. Run `gstack-brain-restore`. That clones the repo, rehydrates your
-   learnings/plans/retros, and re-registers the git merge drivers.
-4. Re-enter consumer tokens (they're machine-local and NOT synced —
+3. 运行 `gstack-brain-restore`。它会 clone repo，rehydrate 你的
+   learnings/plans/retros，并重新注册 git merge drivers。
+4. 重新输入 consumer tokens（它们是 machine-local，且不会同步：
    `gstack-config set gbrain_token <your-token>`).
-5. Next skill: your yesterday-on-machine-A learning surfaces. That's the
-   magical moment.
+5. 下一个 skill：你昨天在 machine A 上得到的 learning 会浮现。这就是 magical moment。
 
-## Status, health, and queue depth
+## Status、health 和 queue depth
 
 ```bash
 gstack-brain-sync --status
 ```
 
-Shows: last successful push, pending queue depth, any sync blocks, and the
-current privacy mode.
+显示：last successful push、pending queue depth、任何 sync blocks，以及 current privacy mode。
 
-Every skill run prints a `BRAIN_SYNC:` line near the top of the preamble
-output. Scan it for problems.
+每次 skill run 都会在 preamble output 顶部附近打印一行 `BRAIN_SYNC:`。扫一眼看是否有问题。
 
-## Privacy modes in detail
+## Privacy modes 详情
 
-| Mode | What syncs |
+| Mode | 同步内容 |
 |------|------------|
-| `off` | Nothing (default). |
-| `artifacts-only` | Plans, designs, retros, learnings, reviews. Skips timelines + developer-profile. |
-| `full` | Everything in the allowlist, including behavioral state. |
+| `off` | Nothing（默认）。 |
+| `artifacts-only` | Plans、designs、retros、learnings、reviews。跳过 timelines + developer-profile。 |
+| `full` | Allowlist 中的一切，包括 behavioral state。 |
 
-Change anytime with:
+随时修改：
 ```bash
 gstack-config set artifacts_sync_mode full
 gstack-config set artifacts_sync_mode off
 ```
 
-## Secret protection
+## Secret 保护
 
-Every commit is scanned for credential-shaped content before it leaves
-your machine. Blocked patterns include:
+每个 commit 离开机器前都会扫描 credential-shaped content。Blocked patterns 包括：
 
 - AWS access keys (`AKIA…`)
 - GitHub tokens (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`, `github_pat_`)
@@ -123,70 +113,63 @@ your machine. Blocked patterns include:
 - JWTs (`eyJ…`)
 - Bearer tokens in JSON (`"authorization": "…"`, `"api_key": "…"`, etc.)
 
-If a scan hits, sync stops, the queue is preserved, and your preamble
-prints:
+如果 scan hit，sync 会停止，queue 会保留，preamble 会打印：
 
 ```
 BRAIN_SYNC: blocked: <pattern-family>:<snippet>
 ```
 
-To remediate:
+修复方式：
 
-1. Review the offending file.
-2. If the match is a false positive on content you explicitly want to
-   sync, run `gstack-brain-sync --skip-file <path>` to permanently
-   exclude that path.
-3. Otherwise, edit the file to remove the secret and re-run any skill.
+1. Review offending file。
+2. 如果 match 是 false positive，且内容是你明确想 sync 的，运行
+   `gstack-brain-sync --skip-file <path>` 永久 exclude 该 path。
+3. 否则，编辑 file 移除 secret，然后重新运行任意 skill。
 
-There's a defense-in-depth hook at `~/.gstack/.git/hooks/pre-commit` that
-runs the same scan if you manually `git commit` against the repo.
+`~/.gstack/.git/hooks/pre-commit` 有 defense-in-depth hook。如果你在该 repo 中手动
+`git commit`，它会运行同样 scan。
 
-## Two-machine conflicts
+## 双机器冲突
 
-If you write on machine A and machine B the same day, both will push
-append commits. Git's default would conflict at the file tail, but the
-`.jsonl` and markdown files are registered with custom merge drivers:
+如果同一天在 machine A 和 machine B 写入，两边都会 push append commits。Git 默认会在
+file tail conflict，但 `.jsonl` 和 markdown files 已注册 custom merge drivers：
 
-- JSONL files use a sort-and-dedup driver that orders appends by ISO
-  timestamp (falls back to SHA-256 hash of each line for determinism).
-- Markdown artifacts (retros, plans, designs) use a union merge driver
-  that concatenates both sides.
+- JSONL files 使用 sort-and-dedup driver，按 ISO timestamp 排序 appends
+  （为 determinism，会 fallback 到每行 SHA-256 hash）。
+- Markdown artifacts（retros、plans、designs）使用 union merge driver，
+  concatenate both sides。
 
-You shouldn't see conflict prompts. If you do (a real semantic conflict,
-like two machines editing the same plan), git will stop and prompt.
+你通常不应看到 conflict prompts。如果看到（真正 semantic conflict，例如两台机器编辑同一个 plan），git 会停止并 prompt。
 
-## Cross-machine pull cadence
+## 跨机器 pull 节奏
 
-The preamble runs `git fetch` + `git merge --ff-only` once per 24 hours
-(cached via `~/.gstack/.brain-last-pull`). You don't need to think about
-this — it happens automatically at the first skill invocation each day.
+Preamble 每 24 小时运行一次 `git fetch` + `git merge --ff-only`
+（通过 `~/.gstack/.brain-last-pull` cached）。你不需要考虑它：每天第一次 skill invocation
+会自动发生。
 
-## Uninstall
+## 卸载
 
 ```bash
 gstack-brain-uninstall
 ```
 
-This:
+这会：
 
-- Removes `~/.gstack/.git/` and all `.brain-*` config files.
-- Clears `artifacts_sync_mode` in `gstack-config`.
-- Does NOT touch your learnings, plans, retros, or developer profile.
+- 移除 `~/.gstack/.git/` 和所有 `.brain-*` config files。
+- 清除 `gstack-config` 中的 `artifacts_sync_mode`。
+- 不会触碰你的 learnings、plans、retros 或 developer profile。
 
-Add `--delete-remote` to also delete the private GitHub repo (GitHub only,
-uses `gh repo delete`).
+添加 `--delete-remote` 也会删除 private GitHub repo（仅 GitHub，使用 `gh repo delete`）。
 
-Re-init anytime with `gstack-brain-init`.
+随时可用 `gstack-brain-init` 重新 init。
 
-## Troubleshooting
+## 故障排查
 
-See [gbrain-sync-errors.md](gbrain-sync-errors.md) for an index of every
-error message gstack-brain may print, with problem / cause / fix for each.
+每条 gstack-brain 可能打印的 error message 索引见
+[gbrain-sync-errors.md](gbrain-sync-errors.md)，其中包含 problem / cause / fix。
 
-## Under the hood
+## 底层实现
 
-For the architectural decisions behind this feature (allowlist vs
-denylist, daemon vs preamble-boundary sync, JSONL merge driver, privacy
-stop-gate), see the
-[approved plan](../system-instruction-you-are-working-jaunty-kahn.md) in
-the gstack plans directory.
+这个 feature 背后的 architectural decisions（allowlist vs denylist、daemon vs
+preamble-boundary sync、JSONL merge driver、privacy stop-gate）见 gstack plans
+directory 中的 [approved plan](../system-instruction-you-are-working-jaunty-kahn.md)。

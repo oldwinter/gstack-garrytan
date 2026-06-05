@@ -1,24 +1,32 @@
-## Step 8: Plan Completion Audit
+## Step 8：Plan Completion Audit（计划完成度审计）
 
-**Dispatch this step as a subagent** using the Agent tool with `subagent_type: "general-purpose"`. The subagent reads the plan file and every referenced code file in its own fresh context. Parent gets only the conclusion.
+**使用 Agent tool 以 `subagent_type: "general-purpose"` 将此 step dispatch 为 subagent。**
+Subagent 在自己的 fresh context 中读取 plan file 和每个 referenced code file。Parent 只获得 conclusion。
 
-**Subagent prompt:** Pass these instructions to the subagent:
+**Subagent prompt：**将这些 instructions 传给 subagent：
 
-> You are running a ship-workflow plan completion audit. The base branch is `<base>`. Use `git diff <base>...HEAD` to see what shipped. Do not commit or push — report only.
+> 你正在运行 ship-workflow plan completion audit。Base branch 是 `<base>`。使用 `git diff <base>...HEAD` 查看已 ship 内容。不要 commit 或 push，只 report。
 >
 > {{PLAN_COMPLETION_AUDIT_SHIP}}
 >
-> After your analysis, output a single JSON object on the LAST LINE of your response (no other text after it):
+> 分析完成后，在 response 的 LAST LINE 输出单个 JSON object（之后不要再输出其他 text）：
 > `{"total_items":N,"done":N,"changed":N,"deferred":N,"unverifiable":N,"summary":"<markdown checklist for PR body>"}`
 
-**Parent processing:**
+**Parent processing（父流程处理）：**
 
-1. Parse the LAST line of the subagent's output as JSON.
-2. Store `done`, `deferred`, `unverifiable` for Step 20 metrics; use `summary` in PR body.
-3. If `deferred > 0` or `unverifiable > 0` and no user override, present the items via the appropriate AskUserQuestion (see Gate Logic priority order above) before continuing.
-4. Embed `summary` in PR body's `## Plan Completion` section (Step 19). If `unverifiable > 0` and the user picked option A in the UNVERIFIABLE gate, also embed `## Plan Completion — Manual Verifications` listing each user-confirmed item.
+1. 将 subagent output 的 LAST line parse 为 JSON。
+2. 存储 `done`、`deferred`、`unverifiable`，用于 Step 20 metrics；在 PR body 中使用 `summary`。
+3. 如果 `deferred > 0` 或 `unverifiable > 0`，且没有 user override，继续前通过适当的
+   AskUserQuestion 呈现这些 items（见上方 Gate Logic priority order）。
+4. 将 `summary` 嵌入 PR body 的 `## Plan Completion` section（Step 19）。如果
+   `unverifiable > 0` 且用户在 UNVERIFIABLE gate 中选择 option A，也嵌入
+   `## Plan Completion — Manual Verifications`，列出每个 user-confirmed item。
 
-**If the subagent fails or returns invalid JSON:** Fall back to running the audit inline (parent processes the same plan-extraction + classification logic). If the inline fallback also fails (e.g., plan file unreadable, parser error), do NOT silently pass — surface the failure as an explicit AskUserQuestion: "Plan Completion audit could not run ({reason}). Options: (A) Skip audit and ship anyway — record that the audit was skipped in PR body and Step 20 metrics; (B) Stop and fix the audit." Default and recommended option is (B). Silent fail-open is the failure shape that VAS-449 surfaced.
+**如果 subagent fails 或返回 invalid JSON：**fallback 到 inline 运行 audit（parent 处理相同的
+plan-extraction + classification logic）。如果 inline fallback 也失败（例如 plan file unreadable、
+parser error），不要 silent pass：通过明确 AskUserQuestion 暴露 failure：
+"Plan Completion audit 无法运行（{reason}）。Options: (A) 跳过 audit 并继续 ship — 在 PR body 和 Step 20 metrics 中记录 audit 已跳过；(B) 停下并修复 audit。"
+默认且推荐 option 是 (B)。Silent fail-open 正是 VAS-449 暴露的 failure shape。
 
 ---
 

@@ -1,44 +1,44 @@
-# On the LOC controversy
+# 关于 LOC 争议
 
-Or: what happened when I mentioned how many lines of code I've been shipping, and what the numbers actually say.
+或者说：当我提到自己 shipped 了多少 lines of code 后发生了什么，以及数字实际说明了什么。
 
-## The critique is right. And it doesn't matter.
+## 批评是对的。但这不重要。
 
-LOC is a garbage metric. Every senior engineer knows it. Dijkstra wrote in 1988 that lines of code shouldn't be counted as "lines produced" but as "lines spent" ([*On the cruelty of really teaching computing science*, EWD1036](https://www.cs.utexas.edu/~EWD/transcriptions/EWD10xx/EWD1036.html)). The old line (widely attributed to Bill Gates, sourcing murky) puts it more memorably: measuring programming progress by LOC is like measuring aircraft building progress by weight. If you measure programmer productivity in lines of code, you're measuring the wrong thing. This has been true for 40 years and it's still true.
+LOC 是垃圾 metric。每个 senior engineer 都知道。Dijkstra 在 1988 年写过，lines of code 不应被计为 "lines produced"，而应计为 "lines spent"（[*On the cruelty of really teaching computing science*, EWD1036](https://www.cs.utexas.edu/~EWD/transcriptions/EWD10xx/EWD1036.html)）。那句老话（广泛归于 Bill Gates，source 有些模糊）说得更好记：用 LOC 衡量 programming progress，就像用重量衡量 aircraft building progress。如果你用 lines of code 衡量 programmer productivity，你衡量的就是错东西。这 40 年来一直是真的，现在仍然是真的。
 
-I posted that in the last 60 days I'd shipped 600,000 lines of production code. The replies came in fast:
+我发帖说，过去 60 天里我 shipped 了 600,000 lines of production code。Replies 很快来了：
 
-- "That's just AI slop."
-- "LOC is a meaningless metric. Every senior engineer in the last 40 years said so."
-- "Of course you produced 600K lines. You had an AI writing boilerplate."
-- "More lines is bad, not good."
-- "You're confusing volume with productivity. Classic PM brain."
-- "Where are your error rates? Your DAUs? Your revert counts?"
-- "This is embarrassing."
+- “那只是 AI slop。”
+- “LOC 是 meaningless metric。过去 40 年每个 senior engineer 都这么说。”
+- “你当然能产出 600K lines。你有 AI 写 boilerplate。”
+- “More lines 是 bad，不是 good。”
+- “你把 volume 和 productivity 混淆了。Classic PM brain。”
+- “你的 error rates 呢？DAUs 呢？Revert counts 呢？”
+- “这很 embarrassing。”
 
-Some of those are right. Here's what happens when you take the smart version of the critique seriously and do the math anyway.
+其中一些是对的。下面是当你认真对待这个 critique 的聪明版本，并且仍然做数学时会发生什么。
 
-## Three branches of the AI coding critique
+## AI coding critique 的三个分支
 
-They get collapsed into one, but they're different arguments.
+它们经常被压成一个观点，但其实是不同 arguments。
 
-**Branch 1: LOC doesn't measure quality.** True. Always has been. A 50-line well-factored library beats a 5,000-line bloated one. This was true before AI and it's true now. It was never a killer argument. It was a reminder to think about what you're measuring.
+**Branch 1：LOC 不衡量 quality。** True。一直如此。50-line well-factored library 胜过 5,000-line bloated one。AI 出现前如此，现在也如此。这从来不是 killer argument。它只是提醒你思考自己在 measuring 什么。
 
-**Branch 2: AI inflates LOC.** True. LLMs generate verbose code by default. More boilerplate. More defensive checks. More comments. More tests. Raw line counts go up even when "real work done" didn't.
+**Branch 2：AI inflates LOC。** True。LLMs 默认生成 verbose code。更多 boilerplate。更多 defensive checks。更多 comments。更多 tests。即使 “real work done” 没变，raw line counts 也会上升。
 
-**Branch 3: Therefore bragging about LOC is embarrassing.** This is where the argument jumps the track.
+**Branch 3：因此 bragging about LOC 很 embarrassing。** Argument 在这里跳轨了。
 
-Branch 2 is the interesting one. If raw LOC is inflated by some factor, the honest thing is to compute the deflation and report the deflated number. That's what this post does.
+Branch 2 才是有趣的那个。如果 raw LOC 被某个 factor inflated，诚实做法是计算 deflation 并报告 deflated number。这就是本文要做的事。
 
-## The math
+## 数学
 
-### Raw numbers
+### Raw numbers（原始数字）
 
-I wrote a script ([`scripts/garry-output-comparison.ts`](../scripts/garry-output-comparison.ts)) that enumerates every commit I authored across all 41 repos owned by `garrytan/*` on GitHub — 15 public, 26 private — in 2013 and 2026. For each commit, it counts logical lines added (non-blank, non-comment). The 2013 corpus includes Bookface, the YC-internal social network I built that year.
+我写了一个 script（[`scripts/garry-output-comparison.ts`](../scripts/garry-output-comparison.ts)），枚举 GitHub 上 `garrytan/*` 拥有的全部 41 个 repos（15 public、26 private）中我在 2013 和 2026 authored 的每个 commit。对每个 commit，它统计 added logical lines（non-blank、non-comment）。2013 corpus 包含 Bookface，也就是我那年做的 YC-internal social network。
 
-One repo excluded from 2026: `tax-app` (demo for a YC video, not production work). Baked into the script's `EXCLUDED_REPOS` constant. Run it yourself.
+2026 排除一个 repo：`tax-app`（YC video demo，不是 production work）。它 baked into script 的 `EXCLUDED_REPOS` constant。你可以自己运行。
 
-2013 was a full year. 2026 is day 108 as of this writing (April 18).
+2013 是完整一年。本文写作时（April 18），2026 是第 108 天。
 
 |                  | 2013 (full year) | 2026 (108 days) | Multiple |
 |------------------|----------------:|----------------:|---------:|
@@ -48,39 +48,39 @@ One repo excluded from 2026: `tax-app` (demo for a YC video, not production work
 | Files touched    |             290 |          13,629 |      47x |
 | Active repos     |               4 |              15 |    3.75x |
 
-### "14 lines per day? That's pathetic."
+### “14 lines per day？太 pathetic 了。”
 
-It was. That's the point.
+是的。这就是重点。
 
-In 2013 I was a YC partner, then a cofounder at Posterous shipping code nights and weekends. 14 logical lines per day was my actual part-time output while holding down a real job. Historical research puts professional full-time programmer output in a wide band depending on project size and study: Fred Brooks cited ~10 lines/day for systems programming in *The Mythical Man-Month* (OS/360 observations), Capers Jones measured roughly 16-38 LOC/day across thousands of projects, and Steve McConnell's *Code Complete* reports 20-125 LOC/day for small projects (10K LOC) down to 1.5-25 for large projects (10M LOC) — it's size-dependent, not a single number.
+2013 年我是 YC partner，后来是 Posterous cofounder，晚上和周末写 code。14 logical lines per day 是我一边做真正 day job、一边 part-time shipping code 的实际 output。Historical research 对 professional full-time programmer output 给出的范围很宽，取决于 project size 和 study：Fred Brooks 在 *The Mythical Man-Month* 中引用 systems programming 约 10 lines/day（OS/360 observations），Capers Jones 在数千 projects 中测得约 16-38 LOC/day，Steve McConnell 的 *Code Complete* 报告 small projects（10K LOC）为 20-125 LOC/day，large projects（10M LOC）则降到 1.5-25。这取决于 size，不是单一数字。
 
-My 2013 baseline isn't cherry-picked. It's normal for a part-time coder with a day job. If you think the right baseline is 50 (3.5x higher), the 2026 multiple drops from 810x to 228x. Still high.
+我的 2013 baseline 不是 cherry-picked。对于有 day job 的 part-time coder 来说很正常。如果你认为正确 baseline 是 50（高 3.5x），2026 multiple 会从 810x 降到 228x。仍然很高。
 
-### Two deflations
+### 两次 deflation
 
-The standard response to "raw LOC is garbage" is **logical SLOC** (source lines of code, non-comment non-blank). Tools like `cloc` and `scc` have computed this for 20 years. Same code, fluff stripped: no blank lines, no single-line comments, no comment block bodies, no trailing whitespace.
+对 “raw LOC is garbage” 的 standard response 是 **logical SLOC**（source lines of code，non-comment non-blank）。`cloc` 和 `scc` 这类 tools 已经这样算了 20 年。同样 code，去掉 fluff：没有 blank lines，没有 single-line comments，没有 comment block bodies，没有 trailing whitespace。
 
-But logical SLOC doesn't eliminate AI inflation entirely. AI writes 2-3 defensive null checks where a senior engineer would write zero. AI inlines try/catch around things that don't throw. AI spells out `const result = foo(); return result` instead of `return foo()`.
+但 logical SLOC 不能完全消除 AI inflation。AI 会写 2-3 个 defensive null checks，而 senior engineer 会写零个。AI 会 inline try/catch around 不会 throw 的东西。AI 会写 `const result = foo(); return result`，而不是 `return foo()`。
 
-So let's apply a **second deflation**. Assume AI-generated code is 2x more verbose than senior hand-crafted code at the logical level. That's aggressive — most measurements I've seen put the multiplier at 1.3-1.8x — but it's the upper bound a skeptic would demand.
+所以我们应用 **second deflation**。假设 AI-generated code 在 logical level 上比 senior hand-crafted code verbose 2x。这很 aggressive，绝大多数我见过的 measurements 都把 multiplier 放在 1.3-1.8x，但这是 skeptic 会要求的 upper bound。
 
-- My 2026 per-day rate, NCLOC: **11,417**
-- With 2x AI-verbosity deflation: **5,708** logical lines per day
-- Multiple on daily pace with both deflations: **408x**
+- 我的 2026 per-day rate，NCLOC：**11,417**
+- 加上 2x AI-verbosity deflation：**5,708** logical lines per day
+- 同时应用两次 deflations 后的 daily pace multiple：**408x**
 
-Now pick your priors:
+现在选择你的 priors：
 
-- At 5x deflation (unfounded but let's go): **162x**
-- At 10x (pathological): **81x**
-- At 100x (impossible — that's one line per minute sustained): **8x**
+- 5x deflation（没有根据，但先这样算）：**162x**
+- 10x（pathological）：**81x**
+- 100x（impossible，因为那是一分钟 sustained 一行）：**8x**
 
-The argument about the size of the coefficient doesn't change the conclusion. The number is large regardless.
+Coefficient size 的争论不会改变 conclusion。无论如何，数字都很大。
 
-### Weekly distribution
+### Weekly distribution（周分布）
 
-"Your per-day number assumes uniform output. Show the distribution. If it's a single burst, your run-rate is bogus."
+“你的 per-day number 假设 uniform output。Show the distribution。如果只是 single burst，你的 run-rate 就 bogus。”
 
-Fair.
+Fair。
 
 ```
 Week 1-4  (Jan):  ████████░░░░░░░░░  ~8,800/day
@@ -89,56 +89,56 @@ Week 9-12 (Mar):  ██████████░░░░░░░  ~10,900/d
 Week 13-15 (Apr): █████████████░░░░  ~13,200/day
 ```
 
-It's not a spike. The rate has been approximately consistent and slightly increasing. Run the script yourself.
+这不是 spike。Rate 大致 consistent，而且 slightly increasing。自己运行 script。
 
-## The quality question
+## Quality question（质量问题）
 
-This is the most legitimate critique, channeled through the [David Cramer](https://x.com/zeeg) voice: OK, you're pushing more lines. Where are your error rates? Your post-merge reverts? Your bug density? If you're typing at 10x speed but shipping 20x more bugs, you're not leveraged, you're making noise at scale.
+这是最 legitimate 的 critique，经由 [David Cramer](https://x.com/zeeg) voice 提出：OK，你 push 了更多 lines。你的 error rates 呢？Post-merge reverts 呢？Bug density 呢？如果你以 10x speed typing，但 shipping 20x more bugs，你不是 leveraged，你是在 scale 上制造 noise。
 
-Fair. Here's the data:
+Fair。下面是 data：
 
-**Reverts.** `git log --grep="^revert" --grep="^Revert" -i` across the 15 active repos: 7 reverts in 351 commits = **2.0% revert rate**. For context, mature OSS codebases typically run 1-3%. Run the same command on whatever you consider the bar and compare.
+**Reverts。** 对 15 active repos 运行 `git log --grep="^revert" --grep="^Revert" -i`：351 commits 中 7 reverts = **2.0% revert rate**。作为 context，mature OSS codebases 通常在 1-3%。在任何你认为是 bar 的项目上运行同样 command 对比。
 
-**Post-merge fixes.** Commits matching `^fix:` that reference a prior commit on the same branch: 22 of 351 = **6.3%**. Healthy fix cycle. A zero-fix rate would mean I'm not catching my own mistakes.
+**Post-merge fixes。** 匹配 `^fix:` 且 reference 同一 branch 上 prior commit 的 commits：351 个中 22 个 = **6.3%**。Healthy fix cycle。Zero-fix rate 反而意味着我没有 catch 自己的 mistakes。
 
-**Tests.** This is the thing that actually matters, and it's the thing that changed everything for me. Early in 2026, I was shipping without tests and getting destroyed in bug land. Then I hit 30% test-to-code ratio, then 100% coverage on critical paths, and suddenly I could fly. Tests went from ~100 across all repos in January to **over 2,000 now**. They run in CI. They catch regressions. Every gstack PR has a coverage audit in the PR body.
+**Tests。** 这是真正重要的东西，也是对我改变一切的东西。2026 早期，我 shipping without tests，然后在 bug land 被摧毁。后来我达到 30% test-to-code ratio，再到 critical paths 上 100% coverage，然后突然就能飞了。Tests 从 January 全部 repos 加起来约 100 个增长到**现在超过 2,000 个**。它们在 CI 中运行。它们 catch regressions。每个 gstack PR 都在 PR body 中有 coverage audit。
 
-The real insight: testing at multiple levels is what makes AI-assisted coding actually work. Unit tests, E2E tests, LLM-as-judge evals, smoke tests, slop scans. Without those layers, you're just generating confident garbage at high speed. With them, you have a verification loop that lets the AI iterate until the code is actually correct.
+真正 insight：multi-level testing 才是让 AI-assisted coding 真正 work 的东西。Unit tests、E2E tests、LLM-as-judge evals、smoke tests、slop scans。没有这些 layers，你只是在高速生成 confident garbage。有了它们，你有 verification loop，让 AI iterate 到 code 真的 correct。
 
-gstack's core real-code feature — the thing that isn't just markdown prompts — is a **Playwright-based CLI browser** I wrote specifically so I could stop manually black-box testing my stuff. `/qa` opens a real browser, navigates your staging URL, and runs automated checks. That's 2,000+ lines of real systems code (server, CDP inspector, snapshot engine, content security, cookie management) that exists because testing is the unlock, not the overhead.
+gstack 的核心 real-code feature，也就是不只是 markdown prompts 的那个东西，是一个 **Playwright-based CLI browser**，我专门写它，是为了停止手动 black-box testing 自己的东西。`/qa` 会打开真实 browser、navigate staging URL 并运行 automated checks。这是 2,000+ lines of real systems code（server、CDP inspector、snapshot engine、content security、cookie management），它存在是因为 testing 是 unlock，不是 overhead。
 
-**Slop scan.** A third party — [Ben Vinegar](https://x.com/bentlegen), founding engineer at Sentry — built a tool called [slop-scan](https://github.com/benvinegar/slop-scan) specifically to measure AI code patterns. Deterministic rules, calibrated against mature OSS baselines. Higher score = more slop. He ran it on gstack and we scored 5.24, the worst he'd measured at the time. I took the findings seriously, refactored, and cut the score by 62% in one session. Run `bun test` and watch 2,000+ tests pass.
+**Slop scan。** 一个第三方，[Ben Vinegar](https://x.com/bentlegen)，Sentry founding engineer，构建了 [slop-scan](https://github.com/benvinegar/slop-scan)，专门测量 AI code patterns。Deterministic rules，calibrated against mature OSS baselines。Higher score = more slop。他在 gstack 上运行，我们得分 5.24，是他当时测过的最差。我认真对待 findings，refactor，并在一个 session 中把 score 降低 62%。运行 `bun test`，看 2,000+ tests pass。
 
-**Review rigor.** Every gstack branch goes through CEO review, Codex outside-voice review, DX review, and eng review. Often 2-3 passes of each. The `/plan-tune` skill I just shipped had a scope ROLLBACK from the CEO expansion plan because Codex's outside-voice review surfaced 15+ findings my four Claude reviews missed. The review infrastructure catches the slop. It's visible in the repo. Anyone can read it.
+**Review rigor。** 每个 gstack branch 都会经过 CEO review、Codex outside-voice review、DX review 和 eng review。通常每个做 2-3 passes。我刚 shipped 的 `/plan-tune` skill 出现过 CEO expansion plan 的 scope ROLLBACK，因为 Codex outside-voice review surfaced 15+ findings，而我的四个 Claude reviews 漏掉了它们。Review infrastructure catches the slop。它在 repo 中可见。任何人都可以读。
 
-## What I'll concede
+## 我愿意 conceded 的东西
 
-I'm going to steelman harder than the critics steelmanned themselves:
+我会比 critics 自己 steelman 得更 hard：
 
-**Greenfield vs maintenance.** 2026 numbers are dominated by new-project code. Mature-codebase maintenance produces fewer lines per day. If you're asking "can Garry 100x the team maintaining 10 million lines of legacy Java at a bank," my number doesn't prove that. Someone else will have to run their own script on a different context.
+**Greenfield vs maintenance。** 2026 numbers 主要由 new-project code 主导。Mature-codebase maintenance 每天产生的 lines 更少。如果你问 “Garry 能不能 100x 维护 bank 里 10 million lines legacy Java 的 team”，我的数字不能证明。其他人需要在不同 context 上运行自己的 script。
 
-**The 2013 baseline has survivorship bias.** My 2013 public activity was low. This analysis includes Bookface (private, 22 active weeks) which was my biggest project that year, so the bias is smaller than it looks. It's not zero. If the true 2013 rate was 50/day instead of 14, the multiple at current pace is 228x instead of 810x. Still high.
+**2013 baseline 有 survivorship bias。** 我的 2013 public activity 很低。这个 analysis 包含 Bookface（private，22 active weeks），那是我那年最大的 project，所以 bias 比看起来小。但不是 zero。如果真实 2013 rate 是 50/day 而不是 14，当前 pace multiple 是 228x 而不是 810x。仍然很高。
 
-**Quality-adjusted productivity isn't fully proven.** I don't have a clean bug-density comparison between 2013-me and 2026-me. What I can say: revert rate is in the normal band, fix rate is healthy, test coverage is real, and the adversarial review process caught 15+ issues on the most recent plan. That's evidence, not proof. A skeptic can discount it.
+**Quality-adjusted productivity 尚未 fully proven。** 我没有 2013-me 和 2026-me 之间 clean bug-density comparison。我能说的是：revert rate 在 normal band，fix rate healthy，test coverage real，adversarial review process 在最近 plan 上 catch 了 15+ issues。这是 evidence，不是 proof。Skeptic 可以 discount it。
 
-**"Shipped" means different things across eras.** Some 2013 products shipped and died. Some 2026 products may share that fate. If two years from now 80% of what I shipped this year is dead, the critique "you built a bunch of unused stuff" will have teeth. I accept that reality check.
+**"Shipped" 在不同时代含义不同。** 一些 2013 products shipped 然后 died。一些 2026 products 也可能同样。如果两年后我今年 shipped 的东西 80% dead，那么 critique “you built a bunch of unused stuff” 就有 teeth。我接受这种 reality check。
 
-**Time to first user is the metric that matters, not LOC.** The 60-day cycle from "I wish this existed" to "it exists and someone is using it" is the real shift. LOC is downstream evidence. The right metric is "shipped products per quarter" or "working features per week." Those went up by a similar multiple.
+**Time to first user 才是重要 metric，不是 LOC。** 从 “I wish this existed” 到 “it exists and someone is using it” 的 60-day cycle 才是真正 shift。LOC 是 downstream evidence。正确 metric 是 “shipped products per quarter” 或 “working features per week”。这些也以类似 multiple 上升了。
 
-## What those lines became
+## 这些 lines 变成了什么
 
-gstack is not a hypothetical. It's a product with real users:
+gstack 不是 hypothetical。它是有真实 users 的 product：
 
 - **75,000+ GitHub stars** in 5 weeks
-- **14,965 unique installations** (opt-in telemetry)
+- **14,965 unique installations**（opt-in telemetry）
 - **305,309 skill invocations** recorded since January 2026
-- **~7,000 weekly active users** at peak
-- **95.2% success rate** across all skill runs (290,624 successes / 305,309 total)
-- **57,650 /qa runs**, **28,014 /plan-eng-review runs**, **24,817 /office-hours sessions**, **18,899 /ship workflows**
-- **27,157 sessions used the browser** (real Playwright, not toy)
-- Median session duration: **2 minutes**. Average: **6.4 minutes**.
+- Peak 时 **~7,000 weekly active users**
+- Across all skill runs 的 **95.2% success rate**（290,624 successes / 305,309 total）
+- **57,650 /qa runs**、**28,014 /plan-eng-review runs**、**24,817 /office-hours sessions**、**18,899 /ship workflows**
+- **27,157 sessions used the browser**（real Playwright，不是 toy）
+- Median session duration：**2 minutes**。Average：**6.4 minutes**。
 
-Top skills by usage:
+Top skills by usage：
 
 ```
 /qa               57,650  ████████████████████████████
@@ -150,20 +150,20 @@ Top skills by usage:
 /plan-ceo-review  12,357  ██████
 ```
 
-These aren't scaffolds sitting in a drawer. Thousands of developers run these skills every day.
+这些不是躺在 drawer 里的 scaffolds。Thousands of developers 每天运行这些 skills。
 
-## What this means
+## 这意味着什么
 
-I am not saying engineers are going away. Nobody serious thinks that.
+我不是说 engineers 要消失。Nobody serious thinks that。
 
-I am saying engineers can fly now. One engineer in 2026 has the output of a small team in 2013, working the same hours, at the same day job, with the same brain. The code-generation cost curve collapsed by two orders of magnitude.
+我是在说 engineers 现在可以飞了。2026 年的一个 engineer，用同样 hours、同样 day job、同样 brain，拥有 2013 年一个 small team 的 output。Code-generation cost curve collapsed by two orders of magnitude。
 
-The interesting part of the number isn't the volume. It's the rate. And the rate isn't a statement about me. It's a statement about the ground underneath all software engineering.
+数字里有趣的部分不是 volume，而是 rate。而这个 rate 不是关于我的 statement，而是关于所有 software engineering 脚下地面的 statement。
 
-2013 me shipped about 14 logical lines per day. Normal for a part-time coder with a real job. 2026 me is shipping 11,417 logical lines per day. While still running YC full-time. Same day job. Same free time. Same person.
+2013 年的我每天 shipped 约 14 logical lines。对一个有 real job 的 part-time coder 来说正常。2026 年的我每天 shipping 11,417 logical lines，同时仍 full-time running YC。同样 day job。同样 free time。同一个人。
 
-The delta isn't that I became a better programmer. If anything, my mental model of coding has atrophied. The delta is that AI let me actually ship the things I always wanted to build. Small tools. Personal products. Experiments that used to die in my notebook because the time cost to build them was too high. The gap between "I want this tool" and "this tool exists and I'm using it" collapsed from 3 weeks to 3 hours.
+Delta 不是我变成了更好的 programmer。如果说有什么，我的 mental model of coding 反而 atrophied。Delta 是 AI 让我真的 ship 了那些我一直想 build 的东西。Small tools。Personal products。过去会死在 notebook 里的 experiments，因为 build them 的 time cost 太高。从 “I want this tool” 到 “this tool exists and I'm using it” 的 gap，从 3 weeks collapsed 到 3 hours。
 
-Here's the script: [`scripts/garry-output-comparison.ts`](../scripts/garry-output-comparison.ts). Run it on your own repos. Show me your numbers. The argument isn't about me — it's about whether the ground moved.
+Script 在这里：[`scripts/garry-output-comparison.ts`](../scripts/garry-output-comparison.ts)。在你自己的 repos 上运行。Show me your numbers。Argument 不是关于我，而是关于 ground 是否 moved。
 
-I'm betting it did for you too.
+我赌它对你也 moved 了。

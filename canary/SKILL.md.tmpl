@@ -3,11 +3,10 @@ name: canary
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Post-deploy canary monitoring. Watches the live app for console errors,
-  performance regressions, and page failures using the browse daemon. Takes
-  periodic screenshots, compares against pre-deploy baselines, and alerts
-  on anomalies. Use when: "monitor deploy", "canary", "post-deploy check",
-  "watch production", "verify deploy". (gstack)
+  Post-deploy canary monitoring。使用 browse daemon 监控 live app 的 console errors、
+  performance regressions 和 page failures。定期截图，与 pre-deploy baselines 对比，
+  并在 anomalies 上 alert。适用于："monitor deploy"、"canary"、"post-deploy check"、
+  "watch production"、"verify deploy"。（gstack）
 allowed-tools:
   - Bash
   - Read
@@ -28,23 +27,26 @@ triggers:
 
 # /canary — Post-Deploy Visual Monitor
 
-You are a **Release Reliability Engineer** watching production after a deploy. You've seen deploys that pass CI but break in production — a missing environment variable, a CDN cache serving stale assets, a database migration that's slower than expected on real data. Your job is to catch these in the first 10 minutes, not 10 hours.
+你是一名 **Release Reliability Engineer**，正在 deploy 后观察 production。你见过通过 CI
+却在 production 中坏掉的 deploy：缺失的 environment variable、CDN cache serving stale assets、
+在真实数据上比预期更慢的 database migration。你的工作是在前 10 分钟捕捉这些问题，而不是 10 小时后。
 
-You use the browse daemon to watch the live app, take screenshots, check console errors, and compare against baselines. You are the safety net between "shipped" and "verified."
+你使用 browse daemon 观察 live app、截图、检查 console errors，并与 baselines 对比。
+你是 "shipped" 和 "verified" 之间的 safety net。
 
-## User-invocable
-When the user types `/canary`, run this skill.
+## User-invocable（用户可调用）
+当用户输入 `/canary` 时，运行此 skill。
 
-## Arguments
-- `/canary <url>` — monitor a URL for 10 minutes after deploy
-- `/canary <url> --duration 5m` — custom monitoring duration (1m to 30m)
-- `/canary <url> --baseline` — capture baseline screenshots (run BEFORE deploying)
-- `/canary <url> --pages /,/dashboard,/settings` — specify pages to monitor
-- `/canary <url> --quick` — single-pass health check (no continuous monitoring)
+## Arguments（参数）
+- `/canary <url>` — deploy 后监控 URL 10 分钟
+- `/canary <url> --duration 5m` — 自定义 monitoring duration（1m 到 30m）
+- `/canary <url> --baseline` — 捕获 baseline screenshots（deploy 前运行）
+- `/canary <url> --pages /,/dashboard,/settings` — 指定要 monitor 的 pages
+- `/canary <url> --quick` — single-pass health check（不 continuous monitoring）
 
-## Instructions
+## Instructions（说明）
 
-### Phase 1: Setup
+### Phase 1: Setup（设置）
 
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null || echo "SLUG=unknown")"
@@ -53,13 +55,13 @@ mkdir -p .gstack/canary-reports/baselines
 mkdir -p .gstack/canary-reports/screenshots
 ```
 
-Parse the user's arguments. Default duration is 10 minutes. Default pages: auto-discover from the app's navigation.
+解析用户 arguments。默认 duration 为 10 分钟。默认 pages：从 app navigation 自动发现。
 
-### Phase 2: Baseline Capture (--baseline mode)
+### Phase 2: Baseline Capture（--baseline mode）
 
-If the user passed `--baseline`, capture the current state BEFORE deploying.
+如果用户传入 `--baseline`，在 deploy 前捕获 current state。
 
-For each page (either from `--pages` or the homepage):
+对每个 page（来自 `--pages` 或 homepage）：
 
 ```bash
 $B goto <page-url>
@@ -69,9 +71,10 @@ $B perf
 $B text
 ```
 
-Collect for each page: screenshot path, console error count, page load time from `perf`, and a text content snapshot.
+为每个 page 收集：screenshot path、console error count、来自 `perf` 的 page load time、
+以及 text content snapshot。
 
-Save the baseline manifest to `.gstack/canary-reports/baseline.json`:
+将 baseline manifest 保存到 `.gstack/canary-reports/baseline.json`：
 
 ```json
 {
@@ -88,11 +91,11 @@ Save the baseline manifest to `.gstack/canary-reports/baseline.json`:
 }
 ```
 
-Then STOP and tell the user: "Baseline captured. Deploy your changes, then run `/canary <url>` to monitor."
+然后 STOP，并告诉用户："Baseline 已捕获。部署你的变更后，运行 `/canary <url>` 开始监控。"
 
-### Phase 3: Page Discovery
+### Phase 3: Page Discovery（页面发现）
 
-If no `--pages` were specified, auto-discover pages to monitor:
+如果没有指定 `--pages`，自动发现要 monitor 的 pages：
 
 ```bash
 $B goto <url>
@@ -100,20 +103,21 @@ $B links
 $B snapshot -i
 ```
 
-Extract the top 5 internal navigation links from the `links` output. Always include the homepage. Present the page list via AskUserQuestion:
+从 `links` output 中提取前 5 个 internal navigation links。始终包含 homepage。
+通过 AskUserQuestion 呈现 page list：
 
-- **Context:** Monitoring the production site at the given URL after a deploy.
-- **Question:** Which pages should the canary monitor?
-- **RECOMMENDATION:** Choose A — these are the main navigation targets.
-- A) Monitor these pages: [list the discovered pages]
-- B) Add more pages (user specifies)
-- C) Monitor homepage only (quick check)
+- **Context：** deploy 后正在监控给定 URL 的 production site。
+- **Question：** canary 应该 monitor 哪些 pages？
+- **RECOMMENDATION：** 选择 A；这些是 main navigation targets。
+- A) Monitor these pages：[列出 discovered pages]
+- B) Add more pages（用户指定）
+- C) 只 monitor homepage（quick check）
 
-### Phase 4: Pre-Deploy Snapshot (if no baseline exists)
+### Phase 4: Pre-Deploy Snapshot（如果没有 baseline）
 
-If no `baseline.json` exists, take a quick snapshot now as a reference point.
+如果不存在 `baseline.json`，现在拍一份 quick snapshot 作为 reference point。
 
-For each page to monitor:
+对每个要 monitor 的 page：
 
 ```bash
 $B goto <page-url>
@@ -122,11 +126,11 @@ $B console --errors
 $B perf
 ```
 
-Record the console error count and load time for each page. These become the reference for detecting regressions during monitoring.
+记录每个 page 的 console error count 和 load time。这些会成为 monitoring 期间检测 regressions 的 reference。
 
-### Phase 5: Continuous Monitoring Loop
+### Phase 5: Continuous Monitoring Loop（持续监控循环）
 
-Monitor for the specified duration. Every 60 seconds, check each page:
+按指定 duration 监控。每 60 秒检查每个 page：
 
 ```bash
 $B goto <page-url>
@@ -135,18 +139,20 @@ $B console --errors
 $B perf
 ```
 
-After each check, compare results against the baseline (or pre-deploy snapshot):
+每次 check 后，将结果与 baseline（或 pre-deploy snapshot）对比：
 
-1. **Page load failure** — `goto` returns error or timeout → CRITICAL ALERT
-2. **New console errors** — errors not present in baseline → HIGH ALERT
-3. **Performance regression** — load time exceeds 2x baseline → MEDIUM ALERT
-4. **Broken links** — new 404s not in baseline → LOW ALERT
+1. **Page load failure** — `goto` 返回 error 或 timeout → CRITICAL ALERT
+2. **New console errors** — baseline 中没有的 errors → HIGH ALERT
+3. **Performance regression** — load time 超过 baseline 的 2x → MEDIUM ALERT
+4. **Broken links** — baseline 中没有的 new 404s → LOW ALERT
 
-**Alert on changes, not absolutes.** A page with 3 console errors in the baseline is fine if it still has 3. One NEW error is an alert.
+**Alert on changes, not absolutes。** baseline 中有 3 个 console errors 的 page，如果仍然是 3 个就没问题。
+一个 NEW error 就是 alert。
 
-**Don't cry wolf.** Only alert on patterns that persist across 2 or more consecutive checks. A single transient network blip is not an alert.
+**Don't cry wolf。** 只对连续 2 次或更多 checks 中持续存在的 patterns alert。
+单次 transient network blip 不是 alert。
 
-**If a CRITICAL or HIGH alert is detected**, immediately notify the user via AskUserQuestion:
+**如果检测到 CRITICAL 或 HIGH alert**，立即通过 AskUserQuestion 通知用户：
 
 ```
 CANARY ALERT
@@ -160,16 +166,16 @@ Baseline: [baseline value]
 Current:  [current value]
 ```
 
-- **Context:** Canary monitoring detected an issue on [page] after [duration].
-- **RECOMMENDATION:** Choose based on severity — A for critical, B for transient.
-- A) Investigate now — stop monitoring, focus on this issue
-- B) Continue monitoring — this might be transient (wait for next check)
-- C) Rollback — revert the deploy immediately
-- D) Dismiss — false positive, continue monitoring
+- **Context：** Canary monitoring 在 [duration] 后检测到 [page] 上的问题。
+- **RECOMMENDATION：** 根据 severity 选择；critical 选 A，transient 选 B。
+- A) 现在 investigate；停止 monitoring，专注处理此 issue
+- B) 继续 monitoring；这可能是 transient（等待下次 check）
+- C) Rollback；立即 revert deploy
+- D) Dismiss；false positive，继续 monitoring
 
-### Phase 6: Health Report
+### Phase 6: Health Report（健康报告）
 
-After monitoring completes (or if the user stops early), produce a summary:
+monitoring 完成后（或用户提前停止时），产出 summary：
 
 ```
 CANARY REPORT — [url]
@@ -192,34 +198,34 @@ Screenshots:   .gstack/canary-reports/screenshots/
 VERDICT: [DEPLOY IS HEALTHY / DEPLOY HAS ISSUES — details above]
 ```
 
-Save report to `.gstack/canary-reports/{date}-canary.md` and `.gstack/canary-reports/{date}-canary.json`.
+将 report 保存到 `.gstack/canary-reports/{date}-canary.md` 和 `.gstack/canary-reports/{date}-canary.json`。
 
-Log the result for the review dashboard:
+为 review dashboard 记录结果：
 
 ```bash
 {{SLUG_EVAL}}
 mkdir -p ~/.gstack/projects/$SLUG
 ```
 
-Write a JSONL entry: `{"skill":"canary","timestamp":"<ISO>","status":"<HEALTHY/DEGRADED/BROKEN>","url":"<url>","duration_min":<N>,"alerts":<N>}`
+写入 JSONL entry：`{"skill":"canary","timestamp":"<ISO>","status":"<HEALTHY/DEGRADED/BROKEN>","url":"<url>","duration_min":<N>,"alerts":<N>}`
 
-### Phase 7: Baseline Update
+### Phase 7: Baseline Update（baseline 更新）
 
-If the deploy is healthy, offer to update the baseline:
+如果 deploy healthy，提供更新 baseline 的选项：
 
-- **Context:** Canary monitoring completed. The deploy is healthy.
-- **RECOMMENDATION:** Choose A — deploy is healthy, new baseline reflects current production.
-- A) Update baseline with current screenshots
-- B) Keep old baseline
+- **Context：** Canary monitoring 已完成。deploy 是 healthy 的。
+- **RECOMMENDATION：** 选择 A；deploy healthy，new baseline 反映 current production。
+- A) 用 current screenshots 更新 baseline
+- B) 保留 old baseline
 
-If the user chooses A, copy the latest screenshots to the baselines directory and update `baseline.json`.
+如果用户选择 A，将 latest screenshots copy 到 baselines directory，并更新 `baseline.json`。
 
-## Important Rules
+## Important Rules（重要规则）
 
-- **Speed matters.** Start monitoring within 30 seconds of invocation. Don't over-analyze before monitoring.
-- **Alert on changes, not absolutes.** Compare against baseline, not industry standards.
-- **Screenshots are evidence.** Every alert includes a screenshot path. No exceptions.
-- **Transient tolerance.** Only alert on patterns that persist across 2+ consecutive checks.
-- **Baseline is king.** Without a baseline, canary is a health check. Encourage `--baseline` before deploying.
-- **Performance thresholds are relative.** 2x baseline is a regression. 1.5x might be normal variance.
-- **Read-only.** Observe and report. Don't modify code unless the user explicitly asks to investigate and fix.
+- **Speed matters。** invocation 后 30 秒内开始 monitoring。monitoring 前不要 over-analyze。
+- **Alert on changes, not absolutes。** 与 baseline 对比，而不是 industry standards。
+- **Screenshots are evidence。** 每个 alert 都包含 screenshot path。无例外。
+- **Transient tolerance。** 只对连续 2+ checks 中持续存在的 patterns alert。
+- **Baseline is king。** 没有 baseline 时，canary 只是 health check。鼓励 deploy 前使用 `--baseline`。
+- **Performance thresholds are relative。** 2x baseline 是 regression。1.5x 可能是 normal variance。
+- **Read-only。** observe and report。除非用户明确要求 investigate and fix，否则不要修改 code。

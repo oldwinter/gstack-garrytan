@@ -2,11 +2,11 @@
 name: landing-report
 version: 0.1.0
 description: |
-  Read-only queue dashboard for workspace-aware ship. Shows which VERSION slots
-  are currently claimed by open PRs, which sibling Conductor workspaces have
-  WIP work likely to ship soon, and what slot /ship would pick next. No
-  mutations — just a snapshot. Use when asked to "landing report", "what's in
-  the queue", "show me open PRs", or "which version do I claim next". (gstack)
+  workspace-aware ship 的 read-only queue dashboard。展示当前哪些 VERSION slots
+  已被 open PRs claim、哪些 sibling Conductor workspaces 有可能即将 ship 的 WIP work，
+  以及 /ship 下一步会选择哪个 slot。无 mutations：只是 snapshot。
+  当用户要求 "landing report"、"what's in the queue"、"show me open PRs" 或
+  "which version do I claim next" 时使用。（gstack）
 triggers:
   - landing report
   - version queue
@@ -25,19 +25,18 @@ sensitive: false
 
 ---
 
-## Why this skill exists
+## 为什么存在此 skill
 
-When you're running 5-10 parallel Conductor workspaces, it helps to see — at a
-glance — which version numbers are claimed, by whom, and what slot your next
-`/ship` would land in. This skill is a read-only call into the same
-`bin/gstack-next-version` utility `/ship` uses, but with nothing mutating.
-Think of it as `gh pr list` for VERSION numbers.
+当你同时运行 5-10 个 parallel Conductor workspaces 时，一眼看清哪些 version numbers
+被谁 claim、以及你的下一个 `/ship` 会落在哪个 slot，会非常有帮助。此 skill 是对
+`/ship` 使用的同一个 `bin/gstack-next-version` utility 的 read-only call，但不会 mutate 任何东西。
+可以把它理解成 VERSION numbers 的 `gh pr list`。
 
 ---
 
-## Step 1: Detect platform and base branch
+## Step 1：检测 platform 和 base branch
 
-Same detection as other gstack skills.
+使用与其他 gstack skills 相同的 detection。
 
 ```bash
 BASE_BRANCH=$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || \
@@ -48,7 +47,7 @@ echo "Base branch: $BASE_BRANCH"
 
 ---
 
-## Step 2: Read current state
+## Step 2：读取 current state
 
 ```bash
 CURRENT_VERSION=$(cat VERSION 2>/dev/null | tr -d '[:space:]' || echo "0.0.0.0")
@@ -60,10 +59,10 @@ echo "branch HEAD VERSION: $CURRENT_VERSION"
 
 ---
 
-## Step 3: Query the queue
+## Step 3：查询 queue
 
-Call the util three times — once for each bump level — so the user sees what
-they'd claim for micro/patch/minor/major. Cheap (same gh call cached by bun).
+调用 util 三次：每个 bump level 一次，让用户看到 micro/patch/minor/major 分别会 claim 什么。
+成本很低（相同 gh call 会被 bun cache）。
 
 ```bash
 for LEVEL in micro patch minor major; do
@@ -77,20 +76,19 @@ done
 
 ---
 
-## Step 4: Render the dashboard
+## Step 4：Render dashboard
 
-Build a single table output. Use the `patch`-level JSON as canonical for
-queue + siblings (they're identical across bump levels; only `.version`
-differs).
+构建单个 table output。使用 `patch`-level JSON 作为 queue + siblings 的 canonical source
+（它们在不同 bump levels 间相同；只有 `.version` 不同）。
 
-Use `jq` to extract:
+使用 `jq` 提取：
 - `.host` — github | gitlab | unknown
 - `.offline` — did the query fail?
 - `.claimed` — array of {pr, branch, version, url}
 - `.siblings` — all sibling worktrees found
 - `.active_siblings` — subset that's likely about to ship
 
-Render in this exact format:
+以此 exact format render：
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
@@ -114,17 +112,17 @@ Sibling Conductor worktrees (<workspace_root>):
   ../melbourne                feat/review            v1.6.0.0    12d ago        none
   ../osaka                    feat/payments          v1.8.0.0    5h ago         #1155
 
-★ active = has VERSION ahead of base AND last commit < 24h AND no open PR.
-  These are the ones likely to ship soon.
+★ active = VERSION ahead of base，且 last commit < 24h，且没有 open PR。
+  这些 worktrees 最可能很快 ship。
 
-If you ran /ship right now, you'd claim:
+如果现在运行 /ship，你会 claim：
   micro bump:  v1.6.3.1   (queue-advance: none)
   patch bump:  v1.7.1.0   (bumped past claimed 1.7.0.0)
   minor bump:  v1.8.0.0   (bumped past claimed 1.7.0.0)
   major bump:  v2.0.0.0   (no major collisions)
 ```
 
-For offline / unknown-host output, print a shorter block:
+对于 offline / unknown-host output，打印较短 block：
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
@@ -134,30 +132,30 @@ For offline / unknown-host output, print a shorter block:
 ║ Reason:  <offline reason from warnings>                          ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-Fallback: local VERSION bumps still work, but collisions cannot be detected.
+Fallback：local VERSION bumps 仍然可用，但无法检测 collisions。
 ```
 
 ---
 
-## Step 5: Suggest next action
+## Step 5：建议 next action
 
-After rendering the table, suggest ONE of:
+Render table 后，建议以下其中一项：
 
-1. **If there are collisions in the queue** (two open PRs claim the same version):
+1. **如果 queue 中有 collisions**（两个 open PRs claim 同一 version）：
    "⚠ Two open PRs collide on v<X>. Whoever merges second will either overwrite
    the first's CHANGELOG entry or land a duplicate. Consider asking one author
    to rerun /ship to pick up the next free slot."
 
-2. **If an active sibling outranks the user's branch version:**
+2. **如果 active sibling outranks 用户的 branch version：**
    "Sibling worktree <path> has v<X> committed <N>h ago and hasn't PR'd yet.
    If that work ships first, your branch will need to rebump at land time."
 
-3. **If everything looks clean:**
+3. **如果一切看起来 clean：**
    "Queue is clean. Next /ship will claim a slot without conflict."
 
 ---
 
-## Plan Mode
+## Plan Mode（Plan mode）
 
-PLAN MODE EXCEPTION — ALWAYS RUN. This skill is entirely read-only: no file
-writes, no git mutations, no network state changes. Safe to run in plan mode.
+PLAN MODE EXCEPTION：ALWAYS RUN。此 skill 完全 read-only：无 file writes、无 git mutations、
+无 network state changes。可在 plan mode 中安全运行。
