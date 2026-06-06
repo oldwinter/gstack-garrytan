@@ -125,8 +125,8 @@ describe('gen-skill-docs', () => {
 
   test('command table is sorted alphabetically within categories', () => {
     const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
-    // Extract command names from the Navigation section as a test.
-    const navSection = content.match(/### Navigation（导航）\n\|.*\n\|.*\n([\s\S]*?)(?=\n###|\n## )/);
+    // Extract command names from the Navigation section as a test
+    const navSection = content.match(/### Navigation\n\|.*\n\|.*\n([\s\S]*?)(?=\n###|\n## )/);
     expect(navSection).not.toBeNull();
     const rows = navSection![1].trim().split('\n');
     const commands = rows.map(r => {
@@ -329,7 +329,7 @@ describe('gen-skill-docs', () => {
     const content = fs.readFileSync(path.join(ROOT, 'cso', 'SKILL.md'), 'utf-8');
     expect(content).toContain('ELI10');
     expect(content).toContain('plain English');
-    expect(content).toContain('不使用函数名');
+    expect(content).toContain('not function names');
   });
 
   test('tier 1 skills do NOT contain AskUserQuestion format', () => {
@@ -383,7 +383,7 @@ describe('gen-skill-docs', () => {
   });
 
   test('voice and writing-style preamble sections stay compact', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
     const voice = extractMarkdownSection(content, '## Voice');
     const writingStyle = extractMarkdownSection(content, '## Writing Style');
 
@@ -392,15 +392,15 @@ describe('gen-skill-docs', () => {
   });
 
   test('slim voice section preserves the gstack voice contract', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
     const voice = extractMarkdownSection(content, '## Voice');
 
     expect(voice).toMatch(/lead with the point|direct/i);
     expect(voice).toMatch(/file|function|line|command|real numbers/i);
-    expect(voice).toMatch(/用户结果|真实用户|user.*outcome|user.*experience|real user/i);
+    expect(voice).toMatch(/user.*outcome|user.*experience|real user/i);
     expect(voice).toMatch(/corporate|academic|PR|hype/i);
     expect(voice).toMatch(/AI vocabulary|delve|crucial|robust/i);
-    expect(voice).toMatch(/由用户决定|用户拥有你没有的 context|user decides|user.*context|sovereignty|recommendation, not a decision/i);
+    expect(voice).toMatch(/user decides|user.*context|sovereignty|recommendation, not a decision/i);
   });
 
   test('preamble .pending-* glob is zsh-safe (uses find, not shell glob)', () => {
@@ -498,8 +498,8 @@ describe('gen-skill-docs', () => {
 
   test('qa-only has no-fix guardrails', () => {
     const qaOnlyContent = fs.readFileSync(path.join(ROOT, 'qa-only', 'SKILL.md'), 'utf-8');
-    expect(qaOnlyContent).toContain('绝不修复任何东西');
-    expect(qaOnlyContent).toContain('不希望有任何代码变更');
+    expect(qaOnlyContent).toContain('Never fix bugs');
+    expect(qaOnlyContent).toContain('NEVER fix anything');
     // Should not have Edit, Glob, or Grep in allowed-tools.
     // Scope to frontmatter (between the first two --- lines) — the body can
     // legitimately mention these tool names in prose (e.g., Claude model
@@ -541,7 +541,7 @@ describe('BASE_BRANCH_DETECT resolver', () => {
   });
 
   test('resolver output contains fallback to main', () => {
-    expect(shipContent).toContain('fallback 到 `main`');
+    expect(shipContent).toMatch(/fall\s*back\s+to\s+`main`/i);
   });
 
   test('resolver output uses "the base branch" phrasing', () => {
@@ -672,7 +672,7 @@ describe('REVIEW_DASHBOARD resolver', () => {
 
   for (const skill of REVIEW_SKILLS) {
     test(`review dashboard appears in ${skill} generated file`, () => {
-      const content = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
+      const content = readSkillUnion(skill); // carved skills: union skeleton + sections
       expect(content).toContain('gstack-review');
       expect(content).toContain('REVIEW READINESS DASHBOARD');
     });
@@ -686,48 +686,48 @@ describe('REVIEW_DASHBOARD resolver', () => {
 
   test('dashboard treats review as a valid Eng Review source', () => {
     const content = readShipUnion();
-    expect(content).toContain('plan-ceo-review、plan-eng-review、review、plan-design-review');
-    expect(content).toContain('`review`（diff-scoped pre-landing review）');
-    expect(content).toContain('`plan-eng-review`（plan-stage architecture review）');
-    expect(content).toContain('来自 \\`review\\` 或 \\`plan-eng-review\\`');
+    expect(content).toContain('plan-eng-review, review, plan-design-review');
+    expect(content).toContain('`review` (diff-scoped pre-landing review)');
+    expect(content).toContain('`plan-eng-review` (plan-stage architecture review)');
+    expect(content).toContain('from either \\`review\\` or \\`plan-eng-review\\`');
   });
 
   test('shared dashboard propagates review source to plan-eng-review', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('plan-ceo-review、plan-eng-review、review、plan-design-review');
-    expect(content).toContain('`review`（diff-scoped pre-landing review）');
+    const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
+    expect(content).toContain('plan-eng-review, review, plan-design-review');
+    expect(content).toContain('`review` (diff-scoped pre-landing review)');
   });
 
   test('resolver output contains key dashboard elements', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-ceo-review'); // carved: dashboard moved to section
     expect(content).toContain('VERDICT');
     expect(content).toContain('CLEARED');
     expect(content).toContain('Eng Review');
-    expect(content).toContain('7 天');
+    expect(content).toContain('7 days');
     expect(content).toContain('Design Review');
     expect(content).toContain('skip_eng_review');
   });
 
   test('dashboard bash block includes git HEAD for staleness detection', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-ceo-review'); // carved: dashboard moved to section
     expect(content).toContain('git rev-parse --short HEAD');
     expect(content).toContain('---HEAD---');
   });
 
   test('dashboard includes staleness detection prose', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-ceo-review'); // carved: dashboard moved to section
     expect(content).toContain('Staleness detection');
     expect(content).toContain('commit');
   });
 
   for (const skill of REVIEW_SKILLS) {
     test(`${skill} contains review chaining section`, () => {
-      const content = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
+      const content = readSkillUnion(skill); // carved skills: union skeleton + sections
       expect(content).toContain('Review Chaining');
     });
 
     test(`${skill} Review Log includes commit field`, () => {
-      const content = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
+      const content = readSkillUnion(skill); // carved skills: union skeleton + sections
       expect(content).toContain('"commit"');
     });
   }
@@ -739,13 +739,13 @@ describe('REVIEW_DASHBOARD resolver', () => {
   });
 
   test('plan-eng-review chaining mentions design and ceo reviews', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
     expect(content).toContain('/plan-design-review');
     expect(content).toContain('/plan-ceo-review');
   });
 
   test('plan-design-review chaining mentions eng, ceo, and design skills', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-design-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-design-review');
     expect(content).toContain('/plan-eng-review');
     expect(content).toContain('/plan-ceo-review');
     expect(content).toContain('/design-shotgun');
@@ -761,7 +761,7 @@ describe('REVIEW_DASHBOARD resolver', () => {
 // ─── Test Coverage Audit Resolver Tests ─────────────────────
 
 describe('TEST_COVERAGE_AUDIT placeholders', () => {
-  const planSkill = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
+  const planSkill = readSkillUnion('plan-eng-review'); // carved
   const shipSkill = readShipUnion();
   const reviewSkill = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
 
@@ -818,15 +818,15 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
   });
 
   test('plan mode adds tests to plan + includes test plan artifact', () => {
-    expect(planSkill).toContain('将 missing tests 添加到 plan');
+    expect(planSkill).toContain('Add missing tests to the plan');
     expect(planSkill).toContain('eng-review-test-plan');
     expect(planSkill).toContain('Test Plan Artifact');
   });
 
   test('ship mode auto-generates tests + includes before/after count', () => {
-    expect(shipSkill).toContain('为 uncovered paths 生成 tests');
+    expect(shipSkill).toContain('Generate tests for uncovered paths');
     expect(shipSkill).toContain('Before/after test count');
-    expect(shipSkill).toContain('最多 30 code paths');
+    expect(shipSkill).toContain('30 code paths max');
     expect(shipSkill).toContain('ship-test-plan');
   });
 
@@ -840,7 +840,7 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
 
   test('plan mode does NOT include ship-specific content', () => {
     expect(planSkill).not.toContain('Before/after test count');
-    expect(planSkill).not.toContain('最多 30 code paths');
+    expect(planSkill).not.toContain('30 code paths max');
     expect(planSkill).not.toContain('ship-test-plan');
   });
 
@@ -872,7 +872,7 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
     for (const f of files) {
       const content = fs.readFileSync(path.join(specDir, f), 'utf-8');
       // All specialist files must have Scope and Output/JSON in header
-      expect(content).toMatch(/Scope[:：]/);
+      expect(content).toContain('Scope:');
       expect(content.toLowerCase()).toMatch(/output|json/);
       // Must define NO FINDINGS behavior
       expect(content).toContain('NO FINDINGS');
@@ -911,8 +911,8 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
   });
 
   test('ship SKILL.md contains re-run idempotency behavior', () => {
-    expect(shipSkill).toContain('重跑行为（idempotency）');
-    expect(shipSkill).toContain('永远不要因为之前 `/ship` 已经执行过某个 verification step 就跳过它');
+    expect(shipSkill).toContain('Re-run behavior (idempotency)');
+    expect(shipSkill).toContain('Never skip a verification step');
   });
 });
 
@@ -969,7 +969,7 @@ describe('PLAN_FILE_REVIEW_REPORT resolver', () => {
   }
 
   test('resolver output contains key report elements', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-ceo-review'); // carved: report writer moved to section
     expect(content).toContain('Trigger');
     expect(content).toContain('Findings');
     expect(content).toContain('VERDICT');
@@ -1144,7 +1144,7 @@ describe('Retro plan completion section', () => {
 describe('Plan status footer in preamble', () => {
   test('preamble contains plan status footer as neutral forward reference to EXIT PLAN MODE GATE', () => {
     // Read any skill that uses PREAMBLE
-    const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('office-hours'); // carved: Phase 5/6 prose moved to section
     expect(content).toContain('Plan Status Footer');
     expect(content).toContain('GSTACK REVIEW REPORT');
     expect(content).toContain('ExitPlanMode');
@@ -1160,11 +1160,11 @@ describe('Plan status footer in preamble', () => {
 describe('make-pdf setup ordering', () => {
   test('MAKE-PDF SETUP appears before generic preamble footer sections', () => {
     const content = fs.readFileSync(path.join(ROOT, 'make-pdf', 'SKILL.md'), 'utf-8');
-    const preambleIdx = content.indexOf('## Preamble (run first)（Preamble，先运行）');
+    const preambleIdx = content.indexOf('## Preamble (run first)');
     const setupIdx = content.indexOf('## MAKE-PDF SETUP');
-    const planModeIdx = content.indexOf('## Plan Mode Safe Operations（Plan mode 安全操作）');
-    const telemetryIdx = content.indexOf('## Telemetry (run last)（Telemetry，最后运行）');
-    const workflowIdx = content.indexOf('# make-pdf：从 markdown 生成 publication-quality PDFs');
+    const planModeIdx = content.indexOf('## Plan Mode Safe Operations');
+    const telemetryIdx = content.indexOf('## Telemetry (run last)');
+    const workflowIdx = content.indexOf('# make-pdf: publication-quality PDFs from markdown');
 
     expect(preambleIdx).toBeGreaterThanOrEqual(0);
     expect(setupIdx).toBeGreaterThan(preambleIdx);
@@ -1179,18 +1179,18 @@ describe('make-pdf setup ordering', () => {
 
 describe('Skill invocation during plan mode in preamble', () => {
   test('preamble contains skill invocation plan mode section', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('office-hours'); // carved: Phase 5/6 prose moved to section
     expect(content).toContain('Skill Invocation During Plan Mode');
-    expect(content).toContain('优先于通用 plan mode 行为');
-    expect(content).toContain('不要继续工作流');
-    expect(content).toContain('取消 skill / 离开 plan mode');
+    expect(content).toContain('precedence over generic plan mode behavior');
+    expect(content).toContain('Do not continue the workflow');
+    expect(content).toContain('cancel the skill or leave plan mode');
   });
 });
 
 // --- {{SPEC_REVIEW_LOOP}} resolver tests ---
 
 describe('SPEC_REVIEW_LOOP resolver', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
+  const content = readSkillUnion('office-hours'); // carved: Phase 5/6 prose moved to section
 
   test('contains all 5 review dimensions', () => {
     for (const dim of ['Completeness', 'Consistency', 'Clarity', 'Scope', 'Feasibility']) {
@@ -1226,7 +1226,7 @@ describe('SPEC_REVIEW_LOOP resolver', () => {
 // --- {{DESIGN_SKETCH}} resolver tests ---
 
 describe('DESIGN_SKETCH resolver', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
+  const content = readSkillUnion('office-hours'); // carved: Phase 5/6 prose moved to section
 
   test('references DESIGN.md for design system constraints', () => {
     expect(content).toContain('DESIGN.md');
@@ -1256,7 +1256,7 @@ describe('DESIGN_SKETCH resolver', () => {
 // --- {{CODEX_SECOND_OPINION}} resolver tests ---
 
 describe('CODEX_SECOND_OPINION resolver', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
+  const content = readSkillUnion('office-hours'); // carved: Phase 5/6 prose moved to section
   const codexContent = fs.readFileSync(path.join(ROOT, '.agents', 'skills', 'gstack-office-hours', 'SKILL.md'), 'utf-8');
 
   test('Phase 3.5 section appears in office-hours SKILL.md', () => {
@@ -1273,7 +1273,7 @@ describe('CODEX_SECOND_OPINION resolver', () => {
 
   test('contains cross-model synthesis instructions', () => {
     expect(content).toMatch(/[Ss]ynthesis/);
-    expect(content).toContain('Claude 与 second opinion 一致之处');
+    expect(content).toContain('Where Claude agrees with the second opinion');
   });
 
   test('contains Claude subagent fallback', () => {
@@ -1329,13 +1329,13 @@ describe('Codex filesystem boundary', () => {
 
   test('codex skill has Filesystem Boundary section', () => {
     const content = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('## Filesystem Boundary（文件系统边界）');
+    expect(content).toContain('## Filesystem Boundary');
     expect(content).toContain('skill definitions meant for a different AI system');
   });
 
   test('codex skill has rabbit-hole detection rule', () => {
     const content = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('检测 skill-file rabbit holes');
+    expect(content).toContain('Detect skill-file rabbit holes');
     expect(content).toContain('gstack-update-check');
     expect(content).toContain('Consider retrying');
   });
@@ -1369,7 +1369,7 @@ describe('Codex filesystem boundary', () => {
 
 describe('BENEFITS_FROM resolver', () => {
   const ceoContent = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
-  const engContent = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
+  const engContent = readSkillUnion('plan-eng-review'); // carved
 
   test('plan-ceo-review contains prerequisite skill offer', () => {
     expect(ceoContent).toContain('Prerequisite Skill Offer');
@@ -1402,9 +1402,9 @@ describe('BENEFITS_FROM resolver', () => {
 
   test('BENEFITS_FROM delegates to INVOKE_SKILL pattern', () => {
     // Should contain the INVOKE_SKILL-style loading prose (not the old manual skip list)
-    expect(engContent).toContain('从上到下执行其中的说明');
-    expect(engContent).toContain('跳过以下 sections');
-    expect(ceoContent).toContain('从上到下执行其中的说明');
+    expect(engContent).toContain('Follow its instructions from top to bottom');
+    expect(engContent).toContain('skipping these sections');
+    expect(ceoContent).toContain('Follow its instructions from top to bottom');
   });
 });
 
@@ -1416,17 +1416,17 @@ describe('INVOKE_SKILL resolver', () => {
   test('plan-ceo-review uses INVOKE_SKILL for mid-session office-hours fallback', () => {
     // The mid-session detection path should use INVOKE_SKILL-generated prose
     expect(ceoContent).toContain('office-hours/SKILL.md');
-    expect(ceoContent).toContain('从上到下执行其中的说明');
+    expect(ceoContent).toContain('Follow its instructions from top to bottom');
   });
 
   test('INVOKE_SKILL output includes default skip list', () => {
-    expect(ceoContent).toContain('Preamble (run first)（Preamble，先运行）');
-    expect(ceoContent).toContain('Telemetry (run last)（Telemetry，最后运行）');
-    expect(ceoContent).toContain('AskUserQuestion Format（AskUserQuestion 格式）');
+    expect(ceoContent).toContain('Preamble (run first)');
+    expect(ceoContent).toContain('Telemetry (run last)');
+    expect(ceoContent).toContain('AskUserQuestion Format');
   });
 
   test('INVOKE_SKILL output includes error handling', () => {
-    expect(ceoContent).toContain('如果无法读取');
+    expect(ceoContent).toContain('If unreadable');
     expect(ceoContent).toContain('Could not load');
   });
 
@@ -1529,20 +1529,20 @@ describe('preamble routing injection', () => {
   });
 
   test('routing section content includes key routing rules', () => {
-    expect(shipContent).toContain('调用 /office-hours');
-    expect(shipContent).toContain('调用 /investigate');
-    expect(shipContent).toContain('调用 /ship');
-    expect(shipContent).toContain('调用 /qa');
+    expect(shipContent).toContain('invoke /office-hours');
+    expect(shipContent).toContain('invoke /investigate');
+    expect(shipContent).toContain('invoke /ship');
+    expect(shipContent).toContain('invoke /qa');
   });
 
   test('routing section uses renamed checkpoint skills (not stale /checkpoint)', () => {
-    expect(shipContent).toContain('调用 /context-save');
-    expect(shipContent).toContain('调用 /context-restore');
+    expect(shipContent).toContain('invoke /context-save');
+    expect(shipContent).toContain('invoke /context-restore');
     expect(shipContent).not.toContain('invoke checkpoint');
   });
 
   test('routing section uses soft "when in doubt" policy, not hard "ALWAYS invoke"', () => {
-    expect(shipContent).toContain('不确定时，也调用对应 skill');
+    expect(shipContent).toContain('When in doubt, invoke the skill');
     expect(shipContent).not.toContain('Do NOT answer directly');
   });
 });
@@ -1551,7 +1551,7 @@ describe('preamble routing injection', () => {
 
 describe('DESIGN_OUTSIDE_VOICES resolver', () => {
   test('plan-design-review contains outside voices section', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-design-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-design-review');
     expect(content).toContain('Design Outside Voices');
     expect(content).toContain('CODEX_AVAILABLE');
     expect(content).toContain('LITMUS SCORECARD');
@@ -1570,7 +1570,7 @@ describe('DESIGN_OUTSIDE_VOICES resolver', () => {
   });
 
   test('branches correctly per skillName — different prompts', () => {
-    const planContent = fs.readFileSync(path.join(ROOT, 'plan-design-review', 'SKILL.md'), 'utf-8');
+    const planContent = readSkillUnion('plan-design-review');
     const consultContent = fs.readFileSync(path.join(ROOT, 'design-consultation', 'SKILL.md'), 'utf-8');
     // plan-design-review uses analytical prompt (high reasoning)
     expect(planContent).toContain('model_reasoning_effort="high"');
@@ -1583,7 +1583,7 @@ describe('DESIGN_OUTSIDE_VOICES resolver', () => {
 
 describe('DESIGN_HARD_RULES resolver', () => {
   test('plan-design-review Pass 4 contains hard rules', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-design-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-design-review');
     expect(content).toContain('Design Hard Rules');
     expect(content).toContain('Classifier');
     expect(content).toContain('MARKETING/LANDING PAGE');
@@ -1596,26 +1596,26 @@ describe('DESIGN_HARD_RULES resolver', () => {
   });
 
   test('includes all 3 rule sets', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-design-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-design-review');
     expect(content).toContain('Landing page rules');
     expect(content).toContain('App UI rules');
     expect(content).toContain('Universal rules');
   });
 
   test('references shared AI slop blacklist items', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-design-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-design-review');
     expect(content).toContain('3-column feature grid');
     expect(content).toContain('Purple/violet/indigo');
   });
 
   test('includes OpenAI hard rejection criteria', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-design-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-design-review');
     expect(content).toContain('Generic SaaS card grid');
     expect(content).toContain('Carousel with no narrative purpose');
   });
 
   test('includes OpenAI litmus checks', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-design-review', 'SKILL.md'), 'utf-8');
+    const content = readSkillUnion('plan-design-review');
     expect(content).toContain('Brand/product unmistakable');
     expect(content).toContain('premium with all decorative shadows removed');
   });
@@ -1624,7 +1624,7 @@ describe('DESIGN_HARD_RULES resolver', () => {
 // --- Extended DESIGN_SKETCH resolver tests ---
 
 describe('DESIGN_SKETCH extended with outside voices', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
+  const content = readSkillUnion('office-hours'); // carved: Phase 5/6 prose moved to section
 
   test('contains outside design voices step', () => {
     expect(content).toContain('Outside design voices');
@@ -2649,8 +2649,8 @@ describe('community fixes wave', () => {
 
   // #510 — Context warnings: plan-eng-review has explicit anti-warning
   test('plan-eng-review/SKILL.md contains "Do not preemptively warn"', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('不要主动 warning context limits');
+    const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
+    expect(content).toContain('Do not preemptively warn');
   });
 
   // #474 — Safety Net: no SKILL.md uses find with -delete
@@ -3083,13 +3083,13 @@ describe('plan-mode-info resolver (handshake-replacement)', () => {
 
   test('0C-bis STOP block present in plan-ceo-review/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
-    const presentIdx = content.indexOf('通过 AskUserQuestion 呈现这些 approach options');
+    const presentIdx = content.indexOf('Present these approach options via AskUserQuestion');
     const preludeIdx = content.indexOf('### 0D-prelude');
     expect(presentIdx).toBeGreaterThan(0);
     expect(preludeIdx).toBeGreaterThan(presentIdx);
     const between = content.slice(presentIdx, preludeIdx);
-    expect(between).toContain('**STOP。**');
-    expect(between).toContain('在用户回应 0C-bis 前，不要进入 Step 0D 或 0F');
+    expect(between).toContain('**STOP.**');
+    expect(between).toContain('Do NOT proceed to Step 0D or 0F until the user responds to 0C-bis');
   });
 });
 
@@ -3112,12 +3112,14 @@ describe('GSTACK REVIEW REPORT delete-then-append flow', () => {
 
   for (const skill of PLAN_REVIEW_SKILLS) {
     test(`${skill}/SKILL.md prescribes delete-then-append, not in-place replace`, () => {
-      const content = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
+      // Carved skills (v2 plan Phase B) relocate the review-report prose into
+      // sections/*.md; readSkillUnion follows the content wherever the carve put it.
+      const content = readSkillUnion(skill);
 
       // The new (correct) instruction must be present.
       expect(content).toContain('delete-then-append flow');
-      expect(content).toContain('永远不要放在 mid-file');
-      expect(content).toContain('不要 in-place replace 该 section');
+      expect(content).toContain('never mid-file');
+      expect(content).toContain('Do NOT replace the section in place');
 
       // The old contradictory bullets must be gone. The signature phrase
       // from the buggy prompt was 'replace it entirely using the Edit tool'
@@ -3130,8 +3132,8 @@ describe('GSTACK REVIEW REPORT delete-then-append flow', () => {
   test('scripts/resolvers/review.ts source has the rewritten flow', () => {
     const src = fs.readFileSync(path.join(ROOT, 'scripts', 'resolvers', 'review.ts'), 'utf-8');
     expect(src).toContain('delete-then-append flow');
-    expect(src).toContain('永远不要放在 mid-file');
-    expect(src).toContain('不要 in-place replace 该 section');
+    expect(src).toContain('never mid-file');
+    expect(src).toContain('Do NOT replace the section in place');
     // Old contradictory bullets are gone from the source resolver.
     expect(src).not.toContain('replace it** entirely using the Edit tool');
     expect(src).not.toContain('If it was found mid-file, move it');
@@ -3202,13 +3204,13 @@ describe('EXIT PLAN MODE GATE placement', () => {
       const headings = [...stripped.matchAll(/^## .+$/gm)].map(m => m[0]);
       const lastH2 = headings.at(-1);
       expect(lastH2, `${skill}/SKILL.md last ## heading (fences stripped)`).toBe('## EXIT PLAN MODE GATE (BLOCKING)');
-      expect(md, `${skill}/SKILL.md gate body`).toContain('未通过此 gate 却调用 ExitPlanMode 是 contract violation');
+      expect(md, `${skill}/SKILL.md gate body`).toContain('Failing this gate and calling ExitPlanMode anyway is a contract violation');
     }
   });
 
   test('codex/SKILL.md contains gate (mid-file per D5; Step 2B/2C follow)', () => {
     const codex = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
     expect(codex).toContain('## EXIT PLAN MODE GATE (BLOCKING)');
-    expect(codex).toContain('未通过此 gate 却调用 ExitPlanMode 是 contract violation');
+    expect(codex).toContain('Failing this gate and calling ExitPlanMode anyway is a contract violation');
   });
 });

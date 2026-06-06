@@ -1,0 +1,14 @@
+{
+  "$schema": "https://gstack.dev/schemas/section-manifest.json",
+  "skill": "plan-ceo-review",
+  "version": 1,
+  "note": "PASSIVE registry（v2 plan T9 / CM2）。字段仅包含 IDs、file paths、human titles 和 human-readable trigger text。只有 skeleton 的 decision-tree prose 决定何时读取 section；required-reads 位于 E2E fixtures。这里没有 machine predicate；见 docs/designs/v2_PLAN.md:663。",
+  "sections": [
+    {
+      "id": "review-sections",
+      "file": "review-sections.md",
+      "title": "11-section deep review、required outputs + review report",
+      "trigger": "运行 11-section deep review、required outputs 和 review report（仅在 Step 0 scope 和 mode 达成一致后）"
+    }
+  ]
+}

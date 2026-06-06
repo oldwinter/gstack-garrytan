@@ -1,0 +1,481 @@
+## Review Sections（scope 和 mode 达成一致后，共 11 个 sections）
+
+**Anti-skip rule（防跳过规则）：** 无论 plan type（strategy、spec、code、infra）是什么，都绝不要压缩、缩写或跳过任何 review section（1-11）。此 skill 中每个 section 都有存在理由。“这是 strategy doc，所以 implementation sections 不适用”永远是错的，implementation details 正是 strategy 崩溃的地方。如果某个 section 真的没有 findings，就说“没有发现问题”并继续，但你必须评估它。
+
+{{ANTI_SHORTCUT_CLAUSE}}
+
+### Section 1: Architecture Review（architecture review）
+评估并画 diagram：
+* Overall system design 和 component boundaries。画 dependency graph。
+* Data flow - 全部四条路径。对每个新 data flow，用 ASCII diagram 表示：
+    * Happy path（data flows correctly）
+    * Nil path（input 为 nil/missing 时会发生什么？）
+    * Empty path（input 存在但 empty/zero-length 时会发生什么？）
+    * Error path（upstream call fails 时会发生什么？）
+* State machines。对每个新的 stateful object 画 ASCII diagram。包含 impossible/invalid transitions，以及是什么阻止它们。
+* Coupling concerns。哪些 components 现在产生了此前没有的 coupling？这种 coupling 是否合理？画 before/after dependency graph。
+* Scaling characteristics。10x load 下最先坏什么？100x 呢？
+* Single points of failure。映射它们。
+* Security architecture。Auth boundaries、data access patterns、API surfaces。对每个新 endpoint 或 data mutation：谁能调用、他们得到什么、能改变什么？
+* Production failure scenarios。对每个新 integration point，描述一个现实 production failure（timeout、cascade、data corruption、auth failure），以及 plan 是否考虑到它。
+* Rollback posture。如果 ship 后立刻坏掉，rollback procedure 是什么？Git revert？Feature flag？DB migration rollback？需要多久？
+
+**EXPANSION 和 SELECTIVE EXPANSION additions：**
+* 什么会让这个 architecture 变得 beautiful？不只是 correct，而是 elegant。有没有一种 design 会让 6 个月后加入的新 engineer 说 "oh, that's clever and obvious at the same time"？
+* 什么 infrastructure 会让这个 feature 成为其他 features 可构建其上的 platform？
+
+**SELECTIVE EXPANSION：** 如果 Step 0D 中任何 accepted cherry-picks 影响 architecture，在这里评估它们的 architectural fit。标记任何制造 coupling concerns 或无法干净集成的内容；这是用新信息重新审视 decision 的机会。
+
+Required ASCII diagram：完整 system architecture，展示 new components 及其与 existing ones 的关系。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 2: Error & Rescue Map（错误与 rescue map）
+这是捕获 silent failures 的 section。它不是可选项。
+对每个可能失败的新 method、service 或 codepath，填写此表：
+```
+  METHOD/CODEPATH          | WHAT CAN GO WRONG           | EXCEPTION CLASS
+  -------------------------|-----------------------------|-----------------
+  ExampleService#call      | API timeout                 | TimeoutError
+                           | API returns 429             | RateLimitError
+                           | API returns malformed JSON  | JSONParseError
+                           | DB connection pool exhausted| ConnectionPoolExhausted
+                           | Record not found            | RecordNotFound
+  -------------------------|-----------------------------|-----------------
+
+  EXCEPTION CLASS              | RESCUED?  | RESCUE ACTION          | USER SEES
+  -----------------------------|-----------|------------------------|------------------
+  TimeoutError                 | Y         | Retry 2x, then raise   | "Service temporarily unavailable"
+  RateLimitError               | Y         | Backoff + retry         | Nothing (transparent)
+  JSONParseError               | N ← GAP   | —                      | 500 error ← BAD
+  ConnectionPoolExhausted      | N ← GAP   | —                      | 500 error ← BAD
+  RecordNotFound               | Y         | Return nil, log warning | "Not found" message
+```
+此 section 的规则：
+* Catch-all error handling（`rescue StandardError`、`catch (Exception e)`、`except Exception`）永远是 smell。点名具体 exceptions。
+* 只用 generic log message 捕获 error 不够。记录完整 context：正在尝试什么、使用哪些 arguments、针对哪个 user/request。
+* 每个 rescued error 必须要么：带 backoff retry、用 user-visible message graceful degrade、或带新增 context re-raise。"Swallow and continue" 几乎永远不可接受。
+* 对每个 GAP（应被 rescued 但未 rescued 的 error）：指定 rescue action 和用户应该看到什么。
+* 特别针对 LLM/AI service calls：response malformed 时怎样？empty 时怎样？hallucinate invalid JSON 时怎样？model returns a refusal 时怎样？每个都是独立 failure mode。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 3: Security & Threat Model（安全与威胁模型）
+Security 不是 architecture 的 sub-bullet。它拥有自己的 section。
+评估：
+* Attack surface expansion。此 plan 引入了哪些新 attack vectors？New endpoints、new params、new file paths、new background jobs？
+* Input validation。对每个新 user input：是否 validated、sanitized，并在 failure 时 loudly rejected？以下情况会怎样：nil、empty string、期望 integer 时传 string、string exceeding max length、unicode edge cases、HTML/script injection attempts？
+* Authorization。对每个新 data access：是否 scoped 到正确 user/role？是否存在 direct object reference vulnerability？User A 能否通过操纵 IDs 访问 user B 的数据？
+* Secrets and credentials。New secrets？是否在 env vars 中，而不是 hardcoded？是否 rotatable？
+* Dependency risk。New gems/npm packages？Security track record？
+* Data classification。PII、payment data、credentials？处理是否与 existing patterns 一致？
+* Injection vectors。SQL、command、template、LLM prompt injection 全部检查。
+* Audit logging。对 sensitive operations：是否有 audit trail？
+
+对每个 finding：说明 threat、likelihood（High/Med/Low）、impact（High/Med/Low），以及 plan 是否 mitigates it。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 4: Data Flow & Interaction Edge Cases（data flow 与 interaction edge cases）
+此 section 以 adversarial thoroughness 追踪 data 如何穿过系统，以及 interactions 如何穿过 UI。
+
+**Data Flow Tracing：** 对每个新 data flow，产出显示以下内容的 ASCII diagram：
+```
+  INPUT ──▶ VALIDATION ──▶ TRANSFORM ──▶ PERSIST ──▶ OUTPUT
+    │            │              │            │           │
+    ▼            ▼              ▼            ▼           ▼
+  [nil?]    [invalid?]    [exception?]  [conflict?]  [stale?]
+  [empty?]  [too long?]   [timeout?]    [dup key?]   [partial?]
+  [wrong    [wrong type?] [OOM?]        [locked?]    [encoding?]
+   type?]
+```
+对每个 node：每条 shadow path 会发生什么？是否有测试？
+
+**Interaction Edge Cases：** 对每个新的 user-visible interaction，评估：
+```
+  INTERACTION          | EDGE CASE              | HANDLED? | HOW?
+  ---------------------|------------------------|----------|--------
+  Form submission      | Double-click submit    | ?        |
+                       | Submit with stale CSRF | ?        |
+                       | Submit during deploy   | ?        |
+  Async operation      | User navigates away    | ?        |
+                       | Operation times out    | ?        |
+                       | Retry while in-flight  | ?        |
+  List/table view      | Zero results           | ?        |
+                       | 10,000 results         | ?        |
+                       | Results change mid-page| ?        |
+  Background job       | Job fails after 3 of   | ?        |
+                       | 10 items processed     |          |
+                       | Job runs twice (dup)   | ?        |
+                       | Queue backs up 2 hours | ?        |
+```
+将任何 unhandled edge case 标记为 gap。对每个 gap，指定 fix。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 5: Code Quality Review（代码质量 review）
+评估：
+* Code organization 和 module structure。New code 是否符合 existing patterns？如果偏离，是否有理由？
+* DRY violations。要 aggressive。如果相同 logic 已存在别处，标记它并引用 file 和 line。
+* Naming quality。New classes、methods 和 variables 是否按它们做什么命名，而不是按如何做命名？
+* Error handling patterns。（与 Section 2 cross-reference；此 section review patterns，Section 2 映射 specifics。）
+* Missing edge cases。明确列出："What happens when X is nil?" "When the API returns 429?" 等。
+* Over-engineering check。是否有新 abstraction 在解决一个还不存在的问题？
+* Under-engineering check。是否有脆弱、只假设 happy path、或缺少明显 defensive checks 的东西？
+* Cyclomatic complexity。标记任何分支超过 5 次的新 method。提出 refactor。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 6: Test Review（测试 review）
+为此 plan 引入的每个新东西制作完整 diagram：
+```
+  NEW UX FLOWS:
+    [list each new user-visible interaction]
+
+  NEW DATA FLOWS:
+    [list each new path data takes through the system]
+
+  NEW CODEPATHS:
+    [list each new branch, condition, or execution path]
+
+  NEW BACKGROUND JOBS / ASYNC WORK:
+    [list each]
+
+  NEW INTEGRATIONS / EXTERNAL CALLS:
+    [list each]
+
+  NEW ERROR/RESCUE PATHS:
+    [list each — cross-reference Section 2]
+```
+对 diagram 中每个 item：
+* 哪种 test 覆盖它？（Unit / Integration / System / E2E）
+* plan 中是否已有对应 test？如果没有，写出 test spec header。
+* happy path test 是什么？
+* failure path test 是什么？（具体说明是哪种 failure。）
+* edge case test 是什么？（nil、empty、boundary values、concurrent access）
+
+Test ambition check（所有 modes）：对每个新 feature，回答：
+* 哪个 test 会让你有信心在周五凌晨 2 点 ship？
+* hostile QA engineer 会写哪个 test 来打破它？
+* chaos test 是什么？
+
+Test pyramid check：许多 unit、较少 integration、少量 E2E？还是倒置？
+Flakiness risk：标记任何依赖 time、randomness、external services 或 ordering 的 test。
+Load/stress test requirements：对任何频繁调用或处理大量数据的新 codepath。
+
+对于 LLM/prompt changes：检查 CLAUDE.md 中 "Prompt/LLM changes" 的 file patterns。如果此 plan touches 任何这些 patterns，说明必须运行哪些 eval suites、应添加哪些 cases、以及与哪些 baselines 比较。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 7: Performance Review（性能 review）
+评估：
+* N+1 queries。对每个新的 ActiveRecord association traversal：是否有 includes/preload？
+* Memory usage。对每个新 data structure：production 中最大 size 是多少？
+* Database indexes。对每个新 query：是否有 index？
+* Caching opportunities。对每个 expensive computation 或 external call：是否应该 cached？
+* Background job sizing。对每个新 job：worst-case payload、runtime、retry behavior？
+* Slow paths。最慢的 3 条新 codepaths 和估算 p99 latency。
+* Connection pool pressure。新的 DB connections、Redis connections、HTTP connections？
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 8: Observability & Debuggability Review（可观测性与可调试性 review）
+New systems 会坏。此 section 确保你能看到原因。
+评估：
+* Logging。对每个新 codepath：entry、exit 和每个 significant branch 是否有 structured log lines？
+* Metrics。对每个新 feature：什么 metric 告诉你它在工作？什么告诉你它坏了？
+* Tracing。对新的 cross-service 或 cross-job flows：trace IDs 是否 propagated？
+* Alerting。应该有哪些 new alerts？
+* Dashboards。Day 1 想要哪些 new dashboard panels？
+* Debuggability。如果 bug 在 ship 后 3 周被报告，仅凭 logs 能否 reconstruct 发生了什么？
+* Admin tooling。是否有新的 operational tasks 需要 admin UI 或 rake tasks？
+* Runbooks。对每个新 failure mode：operational response 是什么？
+
+**EXPANSION 和 SELECTIVE EXPANSION addition：**
+* 哪些 observability 会让这个 feature 操作起来是一种 joy？（对 SELECTIVE EXPANSION，包含任何 accepted cherry-picks 的 observability。）
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 9: Deployment & Rollout Review（部署与 rollout review）
+评估：
+* Migration safety。对每个新 DB migration：是否 backward-compatible？Zero-downtime？Table locks？
+* Feature flags。是否有任何部分应放在 feature flag 后？
+* Rollout order。正确顺序：先 migrate，再 deploy？
+* Rollback plan。明确 step-by-step。
+* Deploy-time risk window。Old code 和 new code 同时运行时，什么会坏？
+* Environment parity。是否在 staging 测试？
+* Post-deploy verification checklist。前 5 分钟？前 1 小时？
+* Smoke tests。哪些 automated checks 应在 post-deploy 立即运行？
+
+**EXPANSION 和 SELECTIVE EXPANSION addition：**
+* 哪些 deploy infrastructure 会让 shipping this feature 变成 routine？（对 SELECTIVE EXPANSION，评估 accepted cherry-picks 是否改变 deployment risk profile。）
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 10: Long-Term Trajectory Review（长期轨迹 review）
+评估：
+* Technical debt introduced。Code debt、operational debt、testing debt、documentation debt。
+* Path dependency。这是否让未来 changes 更难？
+* Knowledge concentration。Documentation 对新 engineer 是否足够？
+* Reversibility。评分 1-5：1 = one-way door，5 = easily reversible。
+* Ecosystem fit。是否与 Rails/JS ecosystem direction 对齐？
+* The 1-year question。作为 12 个月后的新 engineer 阅读此 plan，它是否 obvious？
+
+**EXPANSION 和 SELECTIVE EXPANSION additions：**
+* 这 ship 后下一步是什么？Phase 2？Phase 3？architecture 是否支持那条 trajectory？
+* Platform potential。这是否创造了其他 features 可 leverage 的 capabilities？
+* （仅 SELECTIVE EXPANSION）Retrospective：是否接受了正确的 cherry-picks？是否有 rejected expansions 结果对 accepted ones 是 load-bearing？
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+### Section 11: Design & UX Review（无 UI scope 时跳过）
+CEO 叫来 designer。不是 pixel-level audit，那是 /plan-design-review 和 /design-review 的工作。这里是确保 plan 有 design intentionality。
+
+评估：
+* Information architecture - 用户先看见什么、第二看见什么、第三看见什么？
+* Interaction state coverage map：
+  FEATURE | LOADING | EMPTY | ERROR | SUCCESS | PARTIAL
+* User journey coherence - 将 emotional arc 画成 storyboard
+* AI slop risk - plan 是否描述 generic UI patterns？
+* DESIGN.md alignment - plan 是否匹配 stated design system？
+* Responsive intention - mobile 是被认真设计，还是 afterthought？
+* Accessibility basics - keyboard nav、screen readers、contrast、touch targets
+
+**EXPANSION 和 SELECTIVE EXPANSION additions：**
+* 什么会让这个 UI 感觉 *inevitable*？
+* 哪些 30-minute UI touches 会让用户觉得 "oh nice, they thought of that"？
+
+Required ASCII diagram：展示 screens/states 和 transitions 的 user flow。
+
+如果此 plan 有 significant UI scope，推荐："建议在 implementation 前运行 /plan-design-review，对这个 plan 做一次 deep design review。"
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出推荐并说明原因。如果此 section 没有 findings，说明“没有发现问题，继续”并继续。如果此 section 有 findings，必须调用 AskUserQuestion 作为 tool_use；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。用户回应前不要继续。
+**提醒：不要做任何代码改动。只 review。**
+
+{{CODEX_PLAN_REVIEW}}
+
+### Outside Voice Integration Rule（outside voice 集成规则）
+
+Outside voice findings 在用户明确批准每一项前都只是 INFORMATIONAL。
+不要在未通过 AskUserQuestion 呈现每个 finding 并获得明确批准前，将 outside voice recommendations 纳入 plan。即使你同意 outside voice，也适用此规则。Cross-model consensus 是强信号，要按强信号呈现，但由用户做决定。
+
+## Post-Implementation Design Audit（检测到 UI scope 时）
+implementation 后，在 live site 上运行 `/design-review`，捕获只能通过 rendered output 评估的 visual issues。
+
+## 关键规则 — 如何提问
+遵循上方 Preamble 的 AskUserQuestion 格式。Plan reviews 的额外规则：
+* **一个 issue = 一次 AskUserQuestion 调用。** 绝不要把多个 issues 合并成一个 question。
+* 具体描述问题，并附 file 和 line references。
+* 呈现 2-3 个 options，在合理时包含 "do nothing"。
+* 每个 option 用一行说明 effort、risk 和 maintenance burden。
+* **把推理映射到我上面的 engineering preferences。** 用一句话把 recommendation 连接到某个具体 preference。
+* 用 issue NUMBER + option LETTER 标记（例如 "3A"、"3B"）。
+* **Zero findings（零 findings）：** 如果某个 section 没有 findings，说“没有发现问题，继续”并继续。否则，对每个 finding 使用 AskUserQuestion；即使 finding 有“显而易见的修复”，它仍是 finding，仍需用户批准后才能进入 plan。
+
+## 必需输出
+
+### "NOT in scope" section（不在范围内）
+列出已考虑并明确 deferred 的 work，每项附一行 rationale。
+
+### "What already exists" section（已有内容）
+列出现有部分解决 sub-problems 的 code/flows，以及 plan 是否复用它们。
+
+### "Dream state delta" section
+说明相对于 12-month ideal，此 plan 会把我们带到哪里。
+
+### Error & Rescue Registry（来自 Section 2）
+完整表格：每个可能失败的 method、每个 exception class、rescued status、rescue action、user impact。
+
+### Failure Modes Registry（failure modes 注册表）
+```
+  CODEPATH | FAILURE MODE   | RESCUED? | TEST? | USER SEES?     | LOGGED?
+  ---------|----------------|----------|-------|----------------|--------
+```
+任何 RESCUED=N、TEST=N、USER SEES=Silent 的行 -> **CRITICAL GAP**。
+
+### TODOS.md updates（TODOS.md 更新）
+把每个潜在 TODO 作为独立 AskUserQuestion 呈现。绝不要 batch TODOs，一次一个问题。绝不要静默跳过此步骤。遵循 `.claude/skills/review/TODOS-format.md` 的格式。
+
+对每个 TODO，描述：
+* **What（做什么）：** work 的一行描述。
+* **Why（为什么）：** 它解决的具体问题或 unlock 的 value。
+* **Pros：** 做这项 work 会获得什么。
+* **Cons：** 成本、复杂性或风险。
+* **Context：** 足够细节，让 3 个月后接手的人理解动机、当前状态和从哪里开始。
+* **Effort estimate（工作量估算）：** S/M/L/XL（human team）-> with CC+gstack: S->S, M->S, L->M, XL->L
+* **Priority（优先级）：** P1/P2/P3
+* **Depends on / blocked by（依赖 / 阻塞）：** 任何 prerequisites 或 ordering constraints。
+
+然后呈现选项：**A)** 添加到 TODOS.md **B)** 跳过，价值不够 **C)** 不 defer，在这个 PR 中现在构建它。
+
+### Scope Expansion Decisions（仅 EXPANSION 和 SELECTIVE EXPANSION）
+对于 EXPANSION 和 SELECTIVE EXPANSION modes：expansion opportunities 和 delight items 已在 Step 0D（opt-in/cherry-pick ceremony）中浮现并决策。Decisions 已持久化到 CEO plan document。完整记录引用 CEO plan。不要在这里重新浮现它们，只为完整性列出 accepted expansions：
+* Accepted（已接受）：{list items added to scope}
+* Deferred（已延后）：{list items sent to TODOS.md}
+* Skipped（已跳过）：{list items rejected}
+
+### Diagrams（强制，产出所有适用项）
+1. System architecture
+2. Data flow (including shadow paths)
+3. State machine
+4. Error flow
+5. Deployment sequence
+6. Rollback flowchart
+
+### Stale Diagram Audit（过时 diagram audit）
+列出此 plan touches 的 files 中每个 ASCII diagram。它们仍然准确吗？
+
+{{TASKS_SECTION_EMIT:ceo-review}}
+
+### Completion Summary（完成摘要）
+```
+  +====================================================================+
+  |            MEGA PLAN REVIEW — 完成摘要                              |
+  +====================================================================+
+  | 已选 mode           | EXPANSION / SELECTIVE / HOLD / REDUCTION     |
+  | System Audit         | [关键 findings]                              |
+  | Step 0               | [mode + 关键 decisions]                      |
+  | Section 1  (Arch)    | 发现 ___ 个 issues                           |
+  | Section 2  (Errors)  | 映射 ___ 条 error paths，___ 个 GAPS          |
+  | Section 3  (Security)| 发现 ___ 个 issues，___ 个 High severity      |
+  | Section 4  (Data/UX) | 映射 ___ 个 edge cases，___ 个未处理          |
+  | Section 5  (Quality) | 发现 ___ 个 issues                           |
+  | Section 6  (Tests)   | 已产出 diagram，___ 个 gaps                  |
+  | Section 7  (Perf)    | 发现 ___ 个 issues                           |
+  | Section 8  (Observ)  | 发现 ___ 个 gaps                             |
+  | Section 9  (Deploy)  | 标记 ___ 个 risks                            |
+  | Section 10 (Future)  | 可逆性：_/5，debt items：___                 |
+  | Section 11 (Design)  | ___ 个 issues / SKIPPED（无 UI scope）       |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | 已写（___ items）                            |
+  | What already exists  | 已写                                        |
+  | Dream state delta    | 已写                                        |
+  | Error/rescue registry| ___ 个 methods，___ 个 CRITICAL GAPS         |
+  | Failure modes        | 共 ___ 个，___ 个 CRITICAL GAPS              |
+  | TODOS.md updates     | 提出 ___ 个 items                            |
+  | Scope proposals      | 提出 ___ 个，接受 ___ 个（EXP + SEL）        |
+  | CEO plan             | 已写 / 已跳过（HOLD/REDUCTION）              |
+  | Outside voice        | 已运行（codex/claude）/ 已跳过               |
+  | Lake Score           | X/Y 个 recommendations 选择完整 option       |
+  | Diagrams produced    | ___（列出 types）                            |
+  | Stale diagrams found | ___                                         |
+  | Unresolved decisions | ___（见下方列表）                            |
+  +====================================================================+
+```
+
+### Unresolved Decisions（未解决决策）
+如果任何 AskUserQuestion 未被回答，在这里记录。绝不要静默默认。
+
+## Handoff Note Cleanup（清理 handoff note）
+
+产出 Completion Summary 后，清理此 branch 的任何 handoff notes：review 已完成，不再需要该 context。
+
+```bash
+setopt +o nomatch 2>/dev/null || true  # zsh compat
+{{SLUG_EVAL}}
+rm -f ~/.gstack/projects/$SLUG/*-$BRANCH-ceo-handoff-*.md 2>/dev/null || true
+```
+
+## Review Log（review 日志）
+
+产出上方 Completion Summary 后，持久化 review result。
+
+**PLAN MODE EXCEPTION - ALWAYS RUN：** 此命令将 review metadata 写入 `~/.gstack/`（user config directory，不是 project files）。skill preamble 已经写入 `~/.gstack/sessions/` 和 `~/.gstack/analytics/`，这是同一模式。Review dashboard 依赖此数据。跳过此命令会破坏 /ship 中的 review readiness dashboard。
+
+```bash
+~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-ceo-review","timestamp":"TIMESTAMP","status":"STATUS","unresolved":N,"critical_gaps":N,"mode":"MODE","scope_proposed":N,"scope_accepted":N,"scope_deferred":N,"commit":"COMMIT"}'
+```
+
+运行此命令前，用你刚产出的 Completion Summary 中的值替换 placeholders：
+- **TIMESTAMP**：当前 ISO 8601 datetime（例如 2026-03-16T14:30:00）
+- **STATUS**：如果 unresolved decisions 为 0 且 critical gaps 为 0，则为 "clean"；否则为 "issues_open"
+- **unresolved**：summary 中 "Unresolved decisions" 的数字
+- **critical_gaps**：summary 中 "Failure modes: ___ CRITICAL GAPS" 的数字
+- **MODE**：用户选择的 mode（SCOPE_EXPANSION / SELECTIVE_EXPANSION / HOLD_SCOPE / SCOPE_REDUCTION）
+- **scope_proposed**：summary 中 "Scope proposals: ___ proposed" 的数字（HOLD/REDUCTION 为 0）
+- **scope_accepted**：summary 中 "Scope proposals: ___ accepted" 的数字（HOLD/REDUCTION 为 0）
+- **scope_deferred**：scope decisions 中 deferred to TODOS.md 的 items 数量（HOLD/REDUCTION 为 0）
+- **COMMIT**：`git rev-parse --short HEAD` 的输出
+
+{{REVIEW_DASHBOARD}}
+
+{{PLAN_FILE_REVIEW_REPORT}}
+
+## Next Steps — Review Chaining（下一步 review 链接）
+
+显示 Review Readiness Dashboard 后，基于此 CEO review 的发现推荐下一步 review。读取 dashboard output，看看哪些 reviews 已运行，以及它们是否 stale。
+
+**如果 eng review 未被全局跳过，推荐 /plan-eng-review** - 检查 dashboard output 中的 `skip_eng_review`。如果为 `true`，表示 eng review 已 opt out，不要推荐。否则，eng review 是 required shipping gate。如果此 CEO review expanded scope、changed architectural direction 或 accepted scope expansions，强调需要 fresh eng review。如果 dashboard 中已有 eng review，但 commit hash 显示它早于此 CEO review，说明它可能 stale，应重新运行。
+
+**如果检测到 UI scope，推荐 /plan-design-review** - 具体来说，如果 Section 11（Design & UX Review）没有被跳过，或 accepted scope expansions 包含 UI-facing features。如果现有 design review stale（commit hash drift），说明这一点。在 SCOPE REDUCTION mode 中跳过此 recommendation，因为 design review 对 scope cuts 可能不相关。
+
+**如果两者都需要，先推荐 eng review**（required gate），再推荐 design review。
+
+使用 AskUserQuestion 呈现下一步。只包含适用 options：
+- **A)** 接下来运行 /plan-eng-review（required gate）
+- **B)** 接下来运行 /plan-design-review（仅在检测到 UI scope 时）
+- **C)** 跳过，我会手动处理 reviews
+
+## docs/designs Promotion（仅 EXPANSION 和 SELECTIVE EXPANSION）
+
+review 结束时，如果 vision 产生了 compelling feature direction，提出将 CEO plan promote 到 project repo。AskUserQuestion：
+
+"这次 review 的 vision 产生了 {N} 个 accepted scope expansions。要把它 promote 成 repo 中的 design doc 吗？"
+- **A)** Promote 到 `docs/designs/{FEATURE}.md`（committed to repo，team 可见）
+- **B)** 只保留在 `~/.gstack/projects/`（local，personal reference）
+- **C)** 跳过
+
+如果 promoted，将 CEO plan 内容复制到 `docs/designs/{FEATURE}.md`（如需要则创建目录），并将 original CEO plan 中的 `status` 字段从 `ACTIVE` 更新为 `PROMOTED`。
+
+## Formatting Rules（格式规则）
+* issues 用 NUMBER（1、2、3...），options 用 LETTERS（A、B、C...）。
+* 使用 NUMBER + LETTER 标记（例如 "3A"、"3B"）。
+* 每个 option 最多一句话。
+* 每个 section 后暂停并等待反馈。
+* 使用 **CRITICAL GAP** / **WARNING** / **OK** 提升可扫读性。
+
+{{LEARNINGS_LOG}}
+
+{{GBRAIN_SAVE_RESULTS}}
+
+{{BRAIN_WRITE_BACK}}
+
+{{BRAIN_CACHE_REFRESH}}
+
+## Mode Quick Reference（mode 快速参考）
+```
+  ┌────────────────────────────────────────────────────────────────────────────────┐
+  │                            MODE 对比                                           │
+  ├─────────────┬──────────────┬──────────────┬──────────────┬────────────────────┤
+  │             │  EXPANSION   │  SELECTIVE   │  HOLD SCOPE  │  REDUCTION         │
+  ├─────────────┼──────────────┼──────────────┼──────────────┼────────────────────┤
+  │ Scope       │ 向上扩展     │ 保持并提供   │ 保持         │ 向下收缩           │
+  │             │ (opt-in)     │              │              │                    │
+  │ 推荐姿态    │ 热情推荐     │ 中立         │ N/A          │ N/A                │
+  │             │              │              │              │                    │
+  │ 10x check   │ 强制         │ 作为         │ 可选         │ 跳过               │
+  │             │              │ cherry-pick  │              │                    │
+  │ Platonic    │ 是           │ 否           │ 否           │ 否                 │
+  │ ideal       │              │              │              │                    │
+  │ Delight     │ opt-in       │ cherry-pick  │ 看到则记录   │ 跳过               │
+  │ opps        │ ceremony     │ ceremony     │              │                    │
+  │ Complexity  │ “够大吗？”   │ “方向对吗，  │ “太复杂吗？” │ “这是最低限度吗？” │
+  │ question    │              │  还有什么    │              │                    │
+  │             │              │  值得心动？” │              │                    │
+  │ Taste       │ 是           │ 是           │ 否           │ 否                 │
+  │ calibration │              │              │              │                    │
+  │ Temporal    │ 完整(hr 1-6) │ 完整(hr 1-6) │ 关键决策     │ 跳过               │
+  │ interrogate │              │              │  only        │                    │
+  │ Observ.     │ “操作起来    │ “操作起来    │ “能否        │ “坏了能否          │
+  │ standard    │  愉悦”       │  愉悦”       │  debug？”    │  看见？”           │
+  │ Deploy      │ infra 作为   │ 安全 deploy  │ 安全 deploy  │ 最简单可行         │
+  │ standard    │ feature scope│ + cherry-pick│  + rollback  │  deploy            │
+  │             │              │  risk check  │              │                    │
+  │ Error map   │ 完整+chaos   │ 完整+chaos   │ 完整         │ critical paths     │
+  │             │  scenarios   │ for accepted │              │  only              │
+  │ CEO plan    │ 已写         │ 已写         │ 已跳过       │ 已跳过             │
+  │ Phase 2/3   │ 映射 accepted│ 映射 accepted│ 记录         │ 跳过               │
+  │ planning    │              │ cherry-picks │              │                    │
+  │ Design      │ “Inevitable” │ 若有 UI scope│ 若有 UI scope│ 跳过               │
+  │ (Sec 11)    │  UI review   │  detected    │  detected    │                    │
+  └─────────────┴──────────────┴──────────────┴──────────────┴────────────────────┘
+```

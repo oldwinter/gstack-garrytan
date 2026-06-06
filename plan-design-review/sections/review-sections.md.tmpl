@@ -1,0 +1,214 @@
+## Review Sections（7 passes，scope 达成一致后）
+
+**Anti-skip rule（防跳过规则）：** 无论 plan type（strategy、spec、code、infra）是什么，都绝不要压缩、缩写或跳过任何 review pass（1-7）。此 skill 中每个 pass 都有存在理由。“这是 strategy doc，所以 design passes 不适用”永远是错的，design gaps 正是 implementation 崩溃的地方。如果某个 pass 真的没有 findings，就说“没有发现问题”并继续，但你必须评估它。
+
+{{ANTI_SHORTCUT_CLAUSE}}
+
+{{LEARNINGS_SEARCH}}
+
+### Pass 1: Information Architecture（信息架构）
+评分 0-10：plan 是否定义用户先看见什么、第二看见什么、第三看见什么？
+修到 10 分：向 plan 添加 information hierarchy。包含 screen/page structure 和 navigation flow 的 ASCII diagram。应用 "constraint worship"：如果只能展示 3 件事，哪 3 件最重要？
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出 recommendation + WHY。如果没有 issues，就说明并继续。用户回应前不要继续。
+
+### Pass 2: Interaction State Coverage（交互状态覆盖）
+评分 0-10：plan 是否指定 loading、empty、error、success、partial states？
+修到 10 分：向 plan 添加 interaction state table：
+```
+  FEATURE              | LOADING | EMPTY | ERROR | SUCCESS | PARTIAL
+  ---------------------|---------|-------|-------|---------|--------
+  [each UI feature]    | [spec]  | [spec]| [spec]| [spec]  | [spec]
+```
+对每个 state：描述用户看到什么，而不是 backend behavior。
+Empty states 是 features：指定 warmth、primary action、context。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出 recommendation + WHY。
+
+### Pass 3: User Journey & Emotional Arc（用户旅程与情绪弧线）
+评分 0-10：plan 是否考虑用户的 emotional experience？
+修到 10 分：添加 user journey storyboard：
+```
+  STEP | USER DOES        | USER FEELS      | PLAN SPECIFIES?
+  -----|------------------|-----------------|----------------
+  1    | Lands on page    | [what emotion?] | [what supports it?]
+  ...
+```
+应用 time-horizon design：5-sec visceral、5-min behavioral、5-year reflective。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出 recommendation + WHY。
+
+### Pass 4: AI Slop Risk（AI slop 风险）
+评分 0-10：plan 描述的是 specific、intentional UI，还是 generic patterns？
+修到 10 分：用 specific alternatives 重写模糊 UI descriptions。
+
+{{DESIGN_HARD_RULES}}
+- "Cards with icons" -> 这些与每个 SaaS template 有何区别？
+- "Hero section" -> 什么让这个 hero 感觉属于 THIS product？
+- "Clean, modern UI" -> 没意义。替换为实际 design decisions。
+- "Dashboard with widgets" -> 什么让它不是 every other dashboard？
+如果 Step 0.5 生成了 visual mockups，就用上面的 AI slop blacklist 评估它们。用 Read tool 读取每张 mockup image。mockup 是否落入 generic patterns（3-column grid、centered hero、stock-photo feel）？如果是，标记它，并提出用 `$D iterate --feedback "..."` 加更具体 direction 重新生成。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出 recommendation + WHY。
+
+### Pass 5: Design System Alignment（设计系统对齐）
+评分 0-10：plan 是否与 DESIGN.md 对齐？
+修到 10 分：如果 DESIGN.md 存在，用 specific tokens/components 注释。如果没有 DESIGN.md，标记 gap 并推荐 `/design-consultation`。
+标记任何 new component：它是否 fit existing vocabulary？
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出 recommendation + WHY。
+
+### Pass 6: Responsive & Accessibility（响应式与无障碍）
+评分 0-10：plan 是否指定 mobile/tablet、keyboard nav、screen readers？
+修到 10 分：为每个 viewport 添加 responsive specs，不是 "stacked on mobile"，而是 intentional layout changes。添加 a11y：keyboard nav patterns、ARIA landmarks、touch target sizes（44px min）、color contrast requirements。
+**STOP。** 每个 issue 调用一次 AskUserQuestion。不要 batch。给出 recommendation + WHY。
+
+### Pass 7: Unresolved Design Decisions（未解决设计决策）
+浮现会 haunt implementation 的 ambiguities：
+```
+  需要决策                     | 如果 defer，会发生什么
+  -----------------------------|---------------------------
+  Empty state 长什么样？       | Engineer ship "No items found."
+  Mobile nav pattern？         | Desktop nav 藏进 hamburger
+  ...
+```
+如果 Step 0.5 生成了 visual mockups，在浮现 unresolved decisions 时引用它们作为 evidence。Mockup 让 decisions 具体，例如："你批准的 mockup 展示了 sidebar nav，但 plan 没有指定 mobile behavior。这个 sidebar 在 375px 下会发生什么？"
+每个 decision = 一个带 recommendation + WHY + alternatives 的 AskUserQuestion。每做出一个 decision，就编辑 plan。
+
+### Post-Pass: Update Mockups（如果已生成）
+
+如果 Step 0.5 生成了 mockups，且 review passes 改变了 significant design decisions（information architecture restructure、new states、layout changes），提出 regenerate（one-shot，不是 loop）：
+
+AskUserQuestion: "review passes 改变了 [list major design changes]。要我重新生成 mockups 来反映 updated plan 吗？这样可以确保 visual reference 和我们实际要构建的内容一致。"
+
+如果 yes，使用 `$D iterate` 并用 feedback 总结 changes，或用 updated brief 调用 `$D variants`。保存到同一个 `$_DESIGN_DIR` 目录。
+
+## CRITICAL RULE — How to ask questions（关键规则：如何提问）
+遵循上方 Preamble 的 AskUserQuestion 格式。Plan design reviews 的额外规则：
+* **一个 issue = 一次 AskUserQuestion 调用。** 绝不要把多个 issues 合并成一个 question。
+* 具体描述 design gap：缺什么，如果不指定，用户会体验到什么。
+* 呈现 2-3 个 options。对每个说明：现在 specify 的 effort、defer 的 risk。
+* **映射到上方 Design Principles。** 用一句话把 recommendation 连接到某个具体 principle。
+* 用 issue NUMBER + option LETTER 标记（例如 "3A"、"3B"）。
+* **Zero findings（零 findings）：** 如果某个 section 没有 findings，说 "No issues, moving on" 并继续。否则，对每个 gap 使用 AskUserQuestion；即使 gap 有 "obvious fix"，它仍是 gap，仍需用户批准后才能进入 plan。
+* **绝不要用 AskUserQuestion 询问用户喜欢哪个 variant。** 始终先创建 comparison board（`$D compare --serve`）并在浏览器打开。Board 有 rating controls、comments、remix/regenerate buttons 和 structured feedback output。AskUserQuestion 只用于通知用户 board 已打开并等待他们完成，不用于 inline 呈现 variants 并问 "which do you prefer?" 那是 degraded experience。
+
+## Required Outputs（必需输出）
+
+### "NOT in scope" section（不在范围内）
+列出已考虑并明确 deferred 的 design decisions，每项附一行 rationale。
+
+### "What already exists" section（已有内容）
+列出现有 DESIGN.md、UI patterns 和 plan 应复用的 components。
+
+### TODOS.md updates（TODOS.md 更新）
+所有 review passes 完成后，把每个潜在 TODO 作为独立 AskUserQuestion 呈现。绝不要 batch TODOs，一次一个问题。绝不要静默跳过此步骤。
+
+对于 design debt：missing a11y、unresolved responsive behavior、deferred empty states。每个 TODO 包含：
+* **What：** work 的一行描述。
+* **Why：** 它解决的具体问题或 unlock 的 value。
+* **Pros：** 做这项 work 会获得什么。
+* **Cons：** 成本、复杂性或风险。
+* **Context：** 足够细节，让 3 个月后接手的人理解动机。
+* **Depends on / blocked by：** 任何 prerequisites。
+
+然后呈现选项：**A)** 添加到 TODOS.md **B)** 跳过，价值不够 **C)** 不 defer，在这个 PR 中现在构建它。
+
+{{TASKS_SECTION_EMIT:design-review}}
+
+### Completion Summary（完成摘要）
+```
+  +====================================================================+
+  |         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
+  +====================================================================+
+  | System Audit         | [DESIGN.md status, UI scope]                |
+  | Step 0               | [initial rating, focus areas]               |
+  | Pass 1  (Info Arch)  | ___/10 → ___/10 after fixes                |
+  | Pass 2  (States)     | ___/10 → ___/10 after fixes                |
+  | Pass 3  (Journey)    | ___/10 → ___/10 after fixes                |
+  | Pass 4  (AI Slop)    | ___/10 → ___/10 after fixes                |
+  | Pass 5  (Design Sys) | ___/10 → ___/10 after fixes                |
+  | Pass 6  (Responsive) | ___/10 → ___/10 after fixes                |
+  | Pass 7  (Decisions)  | ___ resolved, ___ deferred                 |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (___ items)                         |
+  | What already exists  | written                                     |
+  | TODOS.md updates     | ___ items proposed                          |
+  | Approved Mockups     | ___ generated, ___ approved                  |
+  | Decisions made       | ___ added to plan                           |
+  | Decisions deferred   | ___ (listed below)                          |
+  | Overall design score | ___/10 → ___/10                             |
+  +====================================================================+
+```
+
+如果所有 passes 都是 8+："Plan is design-complete. Run /design-review after implementation for visual QA."
+如果任何 pass 低于 8：记录未解决内容及原因（用户选择 defer）。
+
+### Unresolved Decisions（未解决决策）
+如果任何 AskUserQuestion 未被回答，在这里记录。绝不要静默 default 到某个 option。
+
+### Approved Mockups（已批准 mockups）
+
+如果此 review 期间生成了 visual mockups，向 plan file 添加：
+
+```
+## Approved Mockups（已批准 mockups）
+
+| Screen/Section | Mockup Path | Direction | Notes |
+|----------------|-------------|-----------|-------|
+| [screen name]  | ~/.gstack/projects/$SLUG/designs/[folder]/[filename].png | [brief description] | [constraints from review] |
+```
+
+包含每个 approved mockup 的完整路径（用户选择的 variant）、direction 的一行描述和任何 constraints。Implementer 读取此内容，就能确切知道该按哪个 visual 构建。这些内容会跨 conversations 和 workspaces 持久存在。如果没有生成 mockups，省略此 section。
+
+## Review Log（评审日志）
+
+产出上方 Completion Summary 后，持久化 review result。
+
+**PLAN MODE EXCEPTION - ALWAYS RUN：** 此命令将 review metadata 写入 `~/.gstack/`（user config directory，不是 project files）。skill preamble 已经写入 `~/.gstack/sessions/` 和 `~/.gstack/analytics/`，这是同一模式。Review dashboard 依赖此数据。跳过此命令会破坏 /ship 中的 review readiness dashboard。
+
+```bash
+~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-design-review","timestamp":"TIMESTAMP","status":"STATUS","initial_score":N,"overall_score":N,"unresolved":N,"decisions_made":N,"commit":"COMMIT"}'
+```
+
+用 Completion Summary 中的值替换：
+- **TIMESTAMP**：当前 ISO 8601 datetime
+- **STATUS**：如果 overall score 8+ 且 unresolved 为 0，则为 "clean"；否则为 "issues_open"
+- **initial_score**：fix 前的 initial overall design score（0-10）
+- **overall_score**：fix 后的 final overall design score（0-10）
+- **unresolved**：unresolved design decisions 数量
+- **decisions_made**：加入 plan 的 design decisions 数量
+- **COMMIT**：`git rev-parse --short HEAD` 的输出
+
+{{REVIEW_DASHBOARD}}
+
+{{PLAN_FILE_REVIEW_REPORT}}
+
+{{LEARNINGS_LOG}}
+
+{{GBRAIN_SAVE_RESULTS}}
+
+{{BRAIN_WRITE_BACK}}
+
+{{BRAIN_CACHE_REFRESH}}
+
+## Next Steps — Review Chaining（下一步：review 链接）
+
+显示 Review Readiness Dashboard 后，基于此 design review 的发现推荐下一步 review。读取 dashboard output，看看哪些 reviews 已运行，以及它们是否 stale。
+
+**如果 eng review 未被全局跳过，推荐 /plan-eng-review** - 检查 dashboard output 中的 `skip_eng_review`。如果为 `true`，表示 eng review 已 opt out，不要推荐。否则，eng review 是 required shipping gate。如果此 design review 添加了 significant interaction specifications、new user flows，或改变了 information architecture，强调 eng review 需要验证 architectural implications。如果已有 eng review，但 commit hash 显示它早于此 design review，说明它可能 stale，应重新运行。
+
+**考虑推荐 /plan-ceo-review** - 但只在此 design review 揭示 fundamental product direction gaps 时。具体来说：overall design score 起始低于 4/10、information architecture 有 major structural problems，或 review 浮现了是否在解决正确问题的疑问。并且 dashboard 中没有 CEO review。这是 selective recommendation；多数 design reviews 不应触发 CEO review。
+
+**如果两者都需要，先推荐 eng review**（required gate）。
+
+**在适当时推荐 design exploration skills** - /design-shotgun 和 /design-html 产出 design artifacts（mockups、HTML previews），不是 application code。它们与 reviews 一样属于 plan mode。如果此 design review 发现 visual issues，且探索新方向会有帮助，推荐 /design-shotgun。如果存在 approved mockups 且需要转换成 working HTML，推荐 /design-html。
+
+使用 AskUserQuestion 呈现下一步。只包含适用 options：
+- **A)** 接下来运行 /plan-eng-review（required gate）
+- **B)** 运行 /plan-ceo-review（仅当发现 fundamental product gaps 时）
+- **C)** 运行 /design-shotgun：为发现的问题探索 visual design variants
+- **D)** 运行 /design-html：根据 approved mockups 生成 Pretext-native HTML
+- **E)** 跳过，我会手动处理 next steps
+
+## Formatting Rules（格式规则）
+* issues 用 NUMBER（1、2、3...），options 用 LETTERS（A、B、C...）。
+* 使用 NUMBER + LETTER 标记（例如 "3A"、"3B"）。
+* 每个 option 最多一句话。
+* 每个 pass 后暂停并等待反馈。
+* 每个 pass 前后都评分，提升可扫读性。

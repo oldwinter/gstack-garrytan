@@ -1,0 +1,14 @@
+{
+  "$schema": "https://gstack.dev/schemas/section-manifest.json",
+  "skill": "plan-design-review",
+  "version": 1,
+  "note": "PASSIVE registry（v2 plan T9 / CM2）。仅包含 id/file/title/trigger text。Skeleton 的 decision-tree prose 决定何时读取。见 docs/designs/v2_PLAN.md。",
+  "sections": [
+    {
+      "id": "review-sections",
+      "file": "review-sections.md",
+      "title": "7 design passes、required outputs + review report",
+      "trigger": "运行 7 个 design passes、required outputs 和 review report（仅在 Step 0 scope 达成一致后）"
+    }
+  ]
+}

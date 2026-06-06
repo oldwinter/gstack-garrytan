@@ -21,6 +21,38 @@ v1.46.0.0 / v1.47.0.0 baselines 保留在 `test/fixtures/` 中，作为 v1→v2
 audit trail。Captured skill bytes 与 `origin/main` 完全一致（rebasing branch
 没有触碰任何 SKILL.md）。`bun test` 重新变绿。
 
+## Token-reduction follow-ups（Phase B，通过 /plan-eng-review 在 plan-ceo-review carve 中记录）
+
+### P3: 将 always-loaded `{{PREAMBLE}}` reference blocks carve 成按需 doc
+
+**What（内容）：** Per-skill section carves（`/ship` v1.54、`/plan-ceo-review`
+v1.56）已经产生真实但有边界的收益（carved skill 上 -42% 到 -59%），因为共享
+`{{PREAMBLE}}`（每个 tier-3/4 skill 约 40-50KB）仍是主要的 always-loaded 成本，
+并且仍然 inline。将很少需要的 preamble REFERENCE blocks（AskUserQuestion
+split-rules，以及 CJK / lone-surrogate escaping reference）移动到按需读取的
+section-style doc；agent 只有遇到这些 edge cases 时才读取，而 hot path
+（voice、completeness principle、recommendation format）继续 inline。
+
+**Why（原因）：** 这是剩余 token target 中 ROI 最高的一项。一次 preamble carve
+能同时帮助所有 tier-≥2 skills，而不是每个 PR 只帮助一个 skill。Plan-ceo carve
+上的 eng-review 已指出，per-skill carves 收益保持 modest，正是因为 preamble
+主导了 always-loaded surface。
+
+**Pros（优点）：** 一次改动降低整个 skill pack 的 always-loaded cost。
+**Cons（缺点）：** Preamble 是 load-bearing 且共享的；carve 做坏会回归每个 skill。
+需要与 section carves 相同的 union-parity 和 per-push freshness guards，并且要应用到
+整个 corpus。
+
+**Context（上下文）：** 基于 v2 section pipeline（`scripts/resolvers/sections.ts`、
+`{{SECTION:id}}` / `{{SECTION_INDEX}}`）。Preamble source 是
+`scripts/resolvers/preamble.ts`。切分前先测量哪些 sub-blocks 是 cold（escaping
+reference、split-rules），哪些是 hot（voice、recommendation format）。先在一个
+skill 上验证，再扩展到整个 corpus。
+
+**Effort estimate:** L（human team）→ M（CC+gstack）
+**Priority:** P3
+**Depends on / blocked by:** Section pipeline（已在 v1.54 ship）。没有 hard blocker。
+
 ## gbrowser memory follow-ups（通过 /plan-eng-review + /codex 在 v1.49 leak-fix PR 中记录）
 
 这四项来自已经 ship `$B memory` diagnostic + 四个 leak fixes 的 memory-leak

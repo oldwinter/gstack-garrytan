@@ -367,20 +367,22 @@ split chains 的 question_ids：`<skill>-split-<option-slug>`（kebab-case ASCII
 `docs/askuserquestion-split.md`。N>4 时按需读取。
 
 **Non-ASCII characters — 直接写入，绝不 \u-escape。**当任何
-    string field（question、option label、option description）包含
-    中文（繁體/簡體）、Japanese、Korean 或其他 non-ASCII text 时，在 JSON string 中输出
-    literal UTF-8 characters。**绝不要 escape 成 `\uXXXX`。**Claude Code 的 tool parameter pipe
-    原生支持 UTF-8，会原样传递字符。手工 escaping 需要从训练中回忆每个 codepoint，
-    对长 CJK strings 不可靠；model 经常输出错误 codepoint（例如把 `\u3103`
-    当成 管 U+7BA1，但 `\u3103` 实际是 ㄃，用户看到的 `管理工具`
-    会渲染成 `㄃3用箱`）。触发场景通常是包含数百个 CJK characters 的长 multi-line questions：
-    这正是 reflexive escaping 最容易发生、miscoding 破坏性最大的时候。Long != escape。
-    保持 characters literal。
+string field（question、option label、option description）包含中文（繁體/簡體）、
+Japanese、Korean 或其他 non-ASCII text 时，在 JSON string 中输出 literal UTF-8
+characters。**绝不要 escape 成 `\uXXXX`。**Claude Code 的 tool parameter pipe
+原生支持 UTF-8，会原样传递字符。手工 escaping 需要从训练中回忆每个 codepoint，
+对长 CJK strings 不可靠；model 经常输出错误 codepoint（例如把 `\u3103`
+当成 管 U+7BA1，但 `\u3103` 实际是 ㄃，用户看到的 `管理工具`
+会渲染成 `㄃3用箱`）。触发场景通常是包含数百个 CJK characters 的 long
+multi-line questions：这正是 reflexive escaping 最容易发生、miscoding 破坏性最大的时候。
+Long != escape。保持 characters literal。
 
-    Wrong: `"question": "請選擇\uXXXX\uXXXX\uXXXX\uXXXX"`
-    Right: `"question": "請選擇管理工具"`
+Wrong: `"question": "請選擇\uXXXX\uXXXX\uXXXX\uXXXX"`
+Right: `"question": "請選擇管理工具"`
 
-    只有 JSON-mandatory escapes 仍允许：`\n`、`\t`、`\"`、`\\`。
+只有 JSON-mandatory escapes 仍允许：`\n`、`\t`、`\"`、`\\`。
+完整 rationale + worked example 见 `docs/askuserquestion-cjk.md`。当 question
+包含 CJK 时按需读取。
 
 ### Self-check before emitting（发出前自检）
 

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://gstack.dev/schemas/section-manifest.json",
+  "skill": "office-hours",
+  "version": 1,
+  "note": "PASSIVE registry（v2 plan T9 / CM2）。字段仅包含 IDs、file paths、human titles 和 human-readable trigger text。只有 skeleton 的 decision-tree prose 决定何时读取 section。这里没有 machine predicate；见 docs/designs/v2_PLAN.md。",
+  "sections": [
+    {
+      "id": "design-and-handoff",
+      "file": "design-and-handoff.md",
+      "title": "Phase 5 design doc + Phase 6 relationship handoff",
+      "trigger": "写 design doc 并运行分层 relationship handoff（Phases 5-6，在 conversation 和 alternatives 完成之后）"
+    }
+  ]
+}
