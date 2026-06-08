@@ -120,6 +120,19 @@ Conductor 会通过 `--disallowedTools` 禁用 native `AskUserQuestion`，
 （PostToolUse hooks 也可以设置 `additionalContext` 追加到 tool result；
 v1 capture 不需要这个。）
 
+## PostToolUse on tool error (AUQ-failure fallback, OV3:B) — UNVERIFIED
+
+AUQ-failure prose fallback 新增了一个 defensive PostToolUse hook（`hosts/claude/hooks/auq-error-fallback-hook.ts`）。当 AskUserQuestion call 返回 error / missing result 时，它会注入 `additionalContext`，提醒 model 按 `SESSION_KIND` 运行 prose fallback。它使用上文记录的同一套 `additionalContext` 机制。
+
+**我们无法在 harness 中确认的 open question：**当 MCP tool call 返回 transport/missing-result error 时，Claude Code 是否会调用 PostToolUse hooks（Conductor bug 会浮出 `[Tool result missing due to internal error]`）？上方 docs 覆盖的是 *success* 上的 PostToolUse。我们无法按需强制 Conductor internal MCP failure 来观察它。
+
+**Decision (OV3:B = A)：**仍然 defensive 地构建该 hook。
+- 它在 **success 时 inert**（只有 `isErrorResponse(tool_response)` 为 true 时 fire），并且如果 platform 在 error path 上从不调用它，它也 **inert**。
+- `generate-ask-user-format.ts` 中的 prompt-level fallback 无论如何都覆盖该 case；hook 是 reliability *layer*，不是 mechanism。
+- 它的 decision logic 由 deterministic unit test 覆盖（`test/auq-error-fallback-hook.test.ts`）：给定 synthetic error `tool_response` 加每个 `SESSION_KIND` 时，它会 emit 正确 directive；给定真实 answer 时它会 defer。
+
+**Recommended manual / partial spike（之后关闭 gap）：**注册一个 throwaway PostToolUse hook，让它在 fire 时 log；然后 (a) 触发普通 tool error（例如失败的 `Bash` call）确认 PostToolUse 至少会在 tool errors 上 fire，(b) 复现 Conductor MCP AUQ failure 并检查 log。如果 (b) 确认 fire，就把 hook 从 "defensive/inert" 提升为 "verified"。在此之前，把 runtime layer 视为 best-effort，把 prompt-level fallback 视为 guaranteed path。
+
 ## Settings.json snippet for T8 hook installer（T8 hook installer 的 settings.json 片段）
 
 ```json

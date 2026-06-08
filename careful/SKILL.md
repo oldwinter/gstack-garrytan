@@ -14,7 +14,7 @@ hooks:
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "bash ${CLAUDE_SKILL_DIR}/bin/check-careful.sh"
+          command: "bash $HOME/.claude/skills/gstack/careful/bin/check-careful.sh"
           statusMessage: "Checking for destructive commands..."
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
@@ -22,6 +22,8 @@ hooks:
 
 
 ## When to invoke this skill（何时调用此 skill）
+
+Use when this request matches the routing prose below. Proactively suggest this skill when the user intent fits, unless proactive routing is disabled.（当请求匹配下方 routing prose 时使用；除非禁用主动路由，否则在用户意图匹配时主动建议此 skill。）
 
 在 rm -rf、DROP TABLE、force-push、git reset --hard、
 kubectl delete 以及类似破坏性操作前发出警告。用户可以覆盖每条警告。适用于接触 prod、

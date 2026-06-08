@@ -297,7 +297,10 @@ SPEC_BODY_EOF
 ISSUE_URL=$(gh issue create --title "<title>" --body-file "$REDACT_FILE")
 ISSUE_NUMBER=$(echo "$ISSUE_URL" | sed -E 's|.*/issues/([0-9]+)$|\1|')
 echo "Filed: $ISSUE_URL"
+~/.claude/skills/gstack/bin/gstack-decision-log '{"decision":"Spec filed #ISSUE_NUMBER: TITLE","rationale":"APPROACH","scope":"issue","issue":"ISSUE_NUMBER","source":"skill","confidence":7}' 2>/dev/null || true
 ```
+
+最后一行会把 spec 记录为 durable、issue-scoped cross-session decision，让未来 session（或 closing issue 的 `/ship`）继承 core approach 和 why，而不只是 issue link。Non-interactive、best-effort（`|| true`）。把 `ISSUE_NUMBER`（来自 filed issue）、`TITLE`（issue title）和 `APPROACH`（spec settled 的那个 core approach/decision）替换进去。只有 issue 实际创建后才运行。
 
 如果 `gh` 不可用，打印："`gh` not authenticated — title and body below
 for paste into https://github.com/{owner}/{repo}/issues/new with zero

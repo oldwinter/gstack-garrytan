@@ -16,6 +16,8 @@ allowed-tools:
 
 ## When to invoke this skill（何时调用此 skill）
 
+Use when this request matches the routing prose below. Proactively suggest this skill when the user intent fits, unless proactive routing is disabled.（当请求匹配下方 routing prose 时使用；除非禁用主动路由，否则在用户意图匹配时主动建议此 skill。）
+
 重新允许编辑所有目录。适用于想在不结束 session
 的情况下扩大编辑范围。用户要求 "unfreeze"、"unlock edits"、"remove freeze"
 或 "allow all edits" 时使用。

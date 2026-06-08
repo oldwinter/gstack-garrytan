@@ -62,7 +62,7 @@ const DESTRUCTIVE_PATTERNS: RegExp[] = [
   // Credentials / auth — 允许 verb 和 noun 之间有 filler words（"the"、"my"）
   /\brevoke\s+[\w\s]*\b(api key|token|credential|access key|password)\b/i,
   /\breset\s+[\w\s]*\b(api key|token|password|credential)\b/i,
-  /\brotate\s+[\w\s]*\b(api key|token|secret|credential|access key)\b/i,
+  /\brotate\s+[\w\s]*\b(api key|token|secret|credential|access key|password)\b/i,
 
   // Scope / architecture forks（可努力回退，但仍值得确认）
   /\barchitectur(e|al)\s+(change|fork|shift|decision)\b/i,

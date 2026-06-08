@@ -15,7 +15,7 @@ import type { TemplateContext } from '../types';
  */
 export function generateWritingStyle(ctx: TemplateContext): string {
   if (ctx.explainLevel === 'terse') {
-    return `## Writing Style（写作风格）\n\nTerse mode（build-time）：跳过 jargon glossing、outcome-framing layer 和 decision-impact closers。直接先给答案。\n`;
+    return `## Writing Style（写作风格）\n\nTerse mode (build-time)：跳过 jargon glossing、outcome-framing layer 和 decision-impact closers。直接先给答案。\n`;
   }
 
   const jargonPath = `${ctx.paths.skillRoot}/scripts/jargon-list.json`;

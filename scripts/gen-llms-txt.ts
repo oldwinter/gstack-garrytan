@@ -157,8 +157,8 @@ export async function generateLlmsTxt(opts: GenerateOptions = {}): Promise<Gener
   lines.push("> gstack 是 Garry's Stack：AI coding skills + 快速 headless browser binary + design CLI。本文件索引每项能力，让 agents 无需逐个爬取 SKILL.md files 就能 discover 和 invoke。");
   lines.push('');
   lines.push('Conventions（约定）：');
-  lines.push('- Skills 通过名称调用（例如 `/ship`、`/plan-ceo-review`）。');
-  lines.push('- Browse commands 以 `browse <command> [args]` 运行（或使用 `$B` shorthand）。');
+  lines.push('- Skills are invoked by name（Skills 通过名称调用，例如 `/ship`、`/plan-ceo-review`）。');
+  lines.push('- Browse commands run as `browse <command> [args]`（或使用 `$B` shorthand）。');
   lines.push('- Design commands 以 `design <command> [args]` 运行（或使用 `$D`）。');
   lines.push('- Project-specific config 位于 `CLAUDE.md`。始终先阅读它。');
   lines.push('');

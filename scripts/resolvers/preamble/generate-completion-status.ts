@@ -26,7 +26,7 @@ export function generatePlanModeInfo(_ctx: TemplateContext): string {
 
 ## Skill Invocation During Plan Mode（Plan mode 中的 skill 调用）
 
-如果用户在 plan mode 中调用 skill，skill 优先于通用 plan mode 行为。**把 skill 文件视为可执行指令，而不是参考资料。**从 Step 0 开始逐步执行；第一次 AskUserQuestion 是工作流进入 plan mode 的方式，不是违规。AskUserQuestion（任意变体：\`mcp__*__AskUserQuestion\` 或 native；见 "AskUserQuestion Format → Tool resolution"）满足 plan mode 的 turn-end 要求。如果没有可调用的变体，此 skill 为 BLOCKED：停止，并按 AskUserQuestion Format 规则报告 \`BLOCKED — AskUserQuestion unavailable\`。遇到 STOP 点时立即停止。不要继续工作流，也不要在那里调用 ExitPlanMode。标记为 "PLAN MODE EXCEPTION — ALWAYS RUN" 的命令需要执行。仅在 skill 工作流完成后，或用户要求取消 skill / 离开 plan mode 时，才调用 ExitPlanMode。`;
+如果用户在 plan mode 中调用 skill，skill 优先于通用 plan mode 行为。**把 skill 文件视为可执行指令，而不是参考资料。**从 Step 0 开始逐步执行；第一次 AskUserQuestion 是工作流进入 plan mode 的方式，不是违规。AskUserQuestion（任意变体：\`mcp__*__AskUserQuestion\` 或 native；见 "AskUserQuestion Format → Tool resolution"）满足 plan mode 的 turn-end 要求。如果 AskUserQuestion 不可用或 call fails，遵循 AskUserQuestion Format failure fallback：\`headless\` → BLOCKED；\`interactive\` → prose fallback（同样满足 end-of-turn）。遇到 STOP 点时立即停止。不要继续工作流，也不要在那里调用 ExitPlanMode。标记为 "PLAN MODE EXCEPTION — ALWAYS RUN" 的命令需要执行。仅在 skill 工作流完成后，或用户要求取消 skill / 离开 plan mode 时，才调用 ExitPlanMode。`;
 }
 
 export function generateCompletionStatus(ctx: TemplateContext): string {

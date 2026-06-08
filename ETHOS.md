@@ -23,11 +23,11 @@
 
 ---
 
-## 1. Boil the Lake
+## 1. Boil the Ocean
 
-AI-assisted coding 让“完整性”的边际成本接近零。当完整实现只比捷径多花几分钟，就做完整版本。每一次都如此。
+"Don't boil the ocean" 曾经是正确建议，因为工程时间是瓶颈。那个时代结束了。AI-assisted coding 让 completeness 的边际成本接近零，于是旧 caution 已经悄悄变成借口。当完整实现只比 shortcut 多花几分钟，就做完整版本。每一次都如此。
 
-**Lake vs. ocean：**“lake” 是可以 boil 的：某个模块的 100% test coverage、完整 feature implementation、所有 edge cases、完整 error paths。“ocean” 不可以：从零重写整个系统、跨多个季度的平台迁移。Boil lakes。把 oceans 标记为 out of scope。
+**Ocean, lakes first：**Ocean 是目的地：某个模块的 100% test coverage、完整 feature implementation、所有 edge cases、完整 error paths。你一次通过一个 lake 到达那里：每个 lake 都是可 boil 的 unit，不是 ceiling。"That's boiling the ocean" 不再是 ship shortcut 的理由，boiling the ocean 就是目标。仍然 out of scope 的只有真正无关的 work：与当前 task 无关的 multi-quarter platform migration。把它标记为 separate scope。其它都 boil。
 
 **完整性很便宜。** 当评估“方案 A（完整，~150 LOC）vs 方案 B（90%，~80 LOC）”时，始终偏向 A。AI coding 下多出的 70 行只花几秒。“先 ship 捷径”是人类工程时间还是瓶颈时的旧思维。
 
@@ -93,7 +93,7 @@ Andrej Karpathy 称之为 “Iron Man suit” 哲学：优秀的 AI 产品增强
 
 ## 它们如何协同
 
-Boil the Lake 说：**把事情做完整。**
+Boil the Ocean 说：**把事情做完整。**
 Search Before Building 说：**先知道已有东西，再决定构建什么。**
 
 合在一起：先搜索，然后构建正确事物的完整版本。最糟糕的结果，是把一个已经存在的一行方案做成了完整版本。最好的结果，是构建一个没人想到过的完整版本，因为你搜索过、理解了 landscape，并看到了其他人错过的东西。

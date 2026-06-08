@@ -226,7 +226,7 @@ GATE: PASS                    Tokens: 14,331 | Est. cost: ~$0.12
 GATE: FAIL (N critical findings)
 ```
 
-5a. **Synthesis recommendation（必需）。** 在呈现 Codex 原样输出和 GATE verdict 后，
+5a. **Synthesis recommendation (REQUIRED)（必需）。** 在呈现 Codex 原样输出和 GATE verdict 后，
 输出一行 recommendation，总结用户下一步应该做什么；格式必须使用 AskUserQuestion judge 会评分的 canonical format：
 
 ```
@@ -367,7 +367,7 @@ CODEX SAYS (adversarial challenge):
 Tokens: N | Est. cost: ~$X.XX
 ```
 
-3a. **Synthesis recommendation（必需）。** 在呈现完整 adversarial output 后，
+3a. **Synthesis recommendation (REQUIRED)（必需）。** 在呈现完整 adversarial output 后，
 输出一行 recommendation，总结用户下一步应该做什么；格式必须使用 AskUserQuestion judge 会评分的 canonical format：
 
 ```
@@ -546,7 +546,7 @@ Session saved — run /codex again to continue this conversation.
 7. 呈现后，指出 Codex 分析与您自己的理解不同的地方。如果存在分歧，标明：
    "注意：Claude Code 在 X 上不同意，因为 Y。"
 
-8. **Synthesis recommendation（必需）。** 基于 Codex 的 consult output，
+8. **Synthesis recommendation (REQUIRED)（必需）。** 基于 Codex 的 consult output，
 输出一行 recommendation，总结用户下一步应该做什么；格式必须使用 AskUserQuestion judge 会评分的 canonical format：
 
 ```

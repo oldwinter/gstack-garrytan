@@ -18,6 +18,8 @@ allowed-tools:
 
 ## When to invoke this skill（何时调用此 skill）
 
+Use when this request matches the routing prose below. Proactively suggest this skill when the user intent fits, unless proactive routing is disabled.（当请求匹配下方 routing prose 时使用；除非禁用主动路由，否则在用户意图匹配时主动建议此 skill。）
+
 Voice triggers (speech-to-text aliases): "upgrade the tools", "update the tools", "gee stack upgrade", "g stack upgrade".
 
 # /gstack-upgrade

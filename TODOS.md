@@ -1,5 +1,25 @@
 # TODOS（待办）
 
+## NEXT PRIORITY（下一优先级）
+
+### P1: #1882 — portable skill-install prefix (non-`gstack` install dirs break silently)
+
+**What（内容）：**每个 generated SKILL.md 都为 `bin/`/asset calls hardcode literal `~/.claude/skills/gstack/...`（per-invocation telemetry/config preamble 加约 9 个 resolvers）。`setup` 可以为任意 directory name wire top-level skill symlinks，所以安装到 `~/.claude/skills/<other>` 时，每个 internal `bin` reference 仍指向不存在的 `~/.claude/skills/gstack/` path，并在 **skill-invocation time 静默失败**。让 emitted references portable：runtime resolve install root（preamble 已在 `scripts/resolvers/preamble/generate-preamble-bash.ts` 中定义 `GSTACK_ROOT`/`GSTACK_BIN`，但 literals 还没使用它们），并 emit `$GSTACK_BIN`-relative paths，而不是 hardcoded prefix。
+
+**Why（原因）：**已作为 #1882 提交。实现显示它是 host-config/design change，不是 fix-wave patch 后，从 2026 年 6 月 fix wave（decision A）拆出。紧急的另一半，即 CC 2.1.162 上 guard/freeze/careful frontmatter hooks broken，已在该 wave 中用 literal `$HOME`-anchored path 修复（#1871），因为 frontmatter hooks 在任何 runtime variable 存在前运行，不能使用 `$GSTACK_BIN`。所以 #1882 现在纯粹是 body-preamble portability work。
+
+**Pros（优点）：**解除任意 directory name 安装的阻塞；移除一整类 silent invocation-time failures。
+**Cons（缺点）：**触碰 repo 中最 load-bearing 的 bash（每个 skill 的 preamble）；一个 silent mistake 会破坏全部 52 个 skills。Blast radius 高，需要单独 focused PR。
+
+**Context / where to start（上下文 / 从哪里开始）：**
+- Rewire `ctx.paths.binDir`（以及 browse/design dir paths）和约 9 个 emit literal 的 resolvers（`testing.ts`、`review.ts`、`design.ts`、`browse.ts`、`redact-doc.ts`、`tasks-section.ts`、`preamble/generate-*.ts`），改用 preamble-defined `$GSTACK_ROOT`/`$GSTACK_BIN`。
+- 确保 `GSTACK_ROOT`/`GSTACK_BIN` 在每个 skill preamble 第一次使用前已定义（验证 telemetry preamble 的第一个 bin call 在 definition 之后）。
+- **Test conflict（已验证）：**`test/gen-skill-docs.test.ts:1942` 和 sibling ship assertion 当前 *assert* generated Claude output `.toContain('~/.claude/skills/gstack')`，作为 Codex-host paths 不泄漏的 guardrail。这些必须改写为匹配新的 portable scheme。
+- Regenerate all 52 SKILL.md（`bun run scripts/gen-skill-docs.ts --host all`）；绝不要 hand-edit generated files。Bisect：resolver/host-config change commit，然后 52-file regen commit。
+- 从非 `gstack` install dir smoke-test 一次 skill invocation，以证明 fix。
+- Sibling of #349 (the `$CLAUDE_CONFIG_DIR` / `~/.claude` path issue).
+
+## Test infrastructure
 ## Test infrastructure（测试基础设施）
 
 ### ✅ DONE (v1.53.1.0): Rebaseline parity-suite（v1.44.1 → v1.53.0.0）
@@ -2148,3 +2168,54 @@ into `test/helpers/fake-gbrain.ts` when the second consumer arrives
 runs).
 
 **Depends on:** None.
+
+### P2: Real-session carve canary (E3, deferred from carve-guard plan)
+
+**What:** Wire a real-session section-Read-miss canary on top of the
+carved skills. When a real user session drives a carved skill and the
+agent does NOT Read a section the skeleton's STOP directive pointed it
+at, log it (salted, content-free) to
+`~/.gstack/analytics/section-reads.jsonl` and surface drift via
+`bun run eval:summary`. Non-blocking alert, never a merge gate
+(real-session data is non-deterministic).
+
+**Why:** The static (E2) + behavioral (T2) guards prove carves are
+structurally sound and that a real agent Reads sections in a controlled
+eval. They do NOT see production drift — a prompt-context change that
+makes live agents start skipping a section. The canary is the only
+mechanism that catches that, from real usage.
+
+**Context:** Deferred from the carve-guard-hardening plan (D5→T2, codex
+outside-voice #7). `test/helpers/transcript-section-logger.ts` exists but
+is built for deterministic test transcripts + ship action fingerprints,
+NOT real-session drift — it needs rework before it can back this. Ship
+the deterministic guards first; add this once they've proven useful. The
+carved-skill set + each skill's `requiredReads` are already declared in
+`test/helpers/carve-guards.ts`, so the canary reads its expectations
+from there.
+
+**Effort:** M (human ~2d, CC ~4h).
+
+**Depends on:** `transcript-section-logger.ts` real-session-drift rework.
+
+### P2: Harden behavioral section-loading test hermeticity
+
+**What:** `captureSectionReads` in `test/helpers/auq-sdk-capture.ts` accepts ANY
+Read whose path matches `sections/<file>.md`. The skeleton's STOP-Read directive
+points at the gstack-root install path (`scripts/resolvers/sections.ts` builds it
+from `ctx.paths.skillRoot`), not the planted fixture copy. So a run can satisfy
+the section-read assertion by reading the GLOBAL install's section instead of the
+hermetic fixture.
+
+**Why:** A behavioral test that passes by reading the global install doesn't prove
+THIS branch's carved section loads. If the fixture's section were broken but the
+global install's weren't, the test would still pass.
+
+**Context:** Codex outside-voice finding on the carve-guard ship (v1.57.0.0).
+Pre-existing in `auq-sdk-capture.ts` — affects `skill-e2e-ship-section-loading`,
+`skill-e2e-plan-ceo-review-section-loading`, and the new
+`carve-section-loading.test.ts`. Fix: match the fixture's ABSOLUTE sections path
+(the `planDir` copy), not a bare `sections/<file>.md` regex; or rewrite the STOP
+path to the fixture during the run.
+
+**Effort:** S (human ~3h, CC ~30min). **Depends on:** None.

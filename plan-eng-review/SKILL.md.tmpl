@@ -117,9 +117,9 @@ Review 任何内容前，回答这些问题：
    如果 plan 在 built-in 存在时 roll custom solution，把它 flag 为 scope reduction opportunity。用 **[Layer 1]**、**[Layer 2]**、**[Layer 3]** 或 **[EUREKA]** 标注 recommendations（见 preamble 的 Search Before Building section）。如果找到 eureka moment，也就是标准 approach 不适合此 case 的原因，将其作为 architectural insight 呈现。
 5. **TODOS cross-reference:** 如果 `TODOS.md` 存在，读取它。是否有 deferred items 阻塞此 plan？是否有 deferred items 可在不扩 scope 的情况下 bundled into this PR？此 plan 是否创造了应 capture 为 TODO 的新工作？
 
-5. **Completeness check:** Plan 做的是 complete version 还是 shortcut？在 AI-assisted coding 下，completeness（100% test coverage、full edge case handling、complete error paths）的成本比 human team 低 10-100 倍。如果 plan 提出的 shortcut 省 human-hours 但只省 CC+gstack 几分钟，推荐 complete version。Boil the lake。
+6. **Completeness check:** Plan 做的是 complete version 还是 shortcut？在 AI-assisted coding 下，completeness（100% test coverage、full edge case handling、complete error paths）的成本比 human team 低 10-100 倍。如果 plan 提出的 shortcut 省 human-hours 但只省 CC+gstack 几分钟，推荐 complete version。Boil the ocean。
 
-6. **Distribution check:** 如果 plan 引入新 artifact type（CLI binary、library package、container image、mobile app），是否包含 build/publish pipeline？没有 distribution 的 code 是没人能用的 code。检查：
+7. **Distribution check:** 如果 plan 引入新 artifact type（CLI binary、library package、container image、mobile app），是否包含 build/publish pipeline？没有 distribution 的 code 是没人能用的 code。检查：
    - 是否有 CI/CD workflow 用于 build 和 publish artifact？
    - Target platforms 是否定义（linux/darwin/windows, amd64/arm64）？
    - 用户如何 download 或 install（GitHub Releases、package manager、container registry）？

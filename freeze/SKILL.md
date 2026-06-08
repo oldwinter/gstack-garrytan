@@ -15,12 +15,12 @@ hooks:
     - matcher: "Edit"
       hooks:
         - type: command
-          command: "bash ${CLAUDE_SKILL_DIR}/bin/check-freeze.sh"
+          command: "bash $HOME/.claude/skills/gstack/freeze/bin/check-freeze.sh"
           statusMessage: "Checking freeze boundary..."
     - matcher: "Write"
       hooks:
         - type: command
-          command: "bash ${CLAUDE_SKILL_DIR}/bin/check-freeze.sh"
+          command: "bash $HOME/.claude/skills/gstack/freeze/bin/check-freeze.sh"
           statusMessage: "Checking freeze boundary..."
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
@@ -28,6 +28,8 @@ hooks:
 
 
 ## When to invoke this skill（何时调用此 skill）
+
+Use when this request matches the routing prose below. Proactively suggest this skill when the user intent fits, unless proactive routing is disabled.（当请求匹配下方 routing prose 时使用；除非禁用主动路由，否则在用户意图匹配时主动建议此 skill。）
 
 阻止允许路径之外的 Edit 和 Write。
 适用于调试时防止意外“修复”无关代码，或想把变更范围限定到一个模块内。

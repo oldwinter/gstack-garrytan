@@ -23,9 +23,16 @@ if [ -d "$_PROJ" ]; then
   fi
   _LATEST_CP=$(find "$_PROJ/checkpoints" -name "*.md" -type f 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
   [ -n "$_LATEST_CP" ] && echo "LATEST_CHECKPOINT: $_LATEST_CP"
+  if [ -f "$_PROJ/decisions.active.json" ]; then
+    echo "--- ACTIVE DECISIONS (recent, scope-relevant) ---"
+    ${binDir}/gstack-decision-search --recent 5 2>/dev/null
+    echo "--- END DECISIONS ---"
+  fi
   echo "--- END ARTIFACTS ---"
 fi
 \`\`\`
 
-如果列出了 artifacts，读取最新且有用的一个。如果出现 \`LAST_SESSION\` 或 \`LATEST_CHECKPOINT\`，给出 2 句 welcome back summary。如果 \`RECENT_PATTERN\` 明确指向下一个 skill，只建议一次。`;
+如果列出了 artifacts，读取最新且有用的一个。如果出现 \`LAST_SESSION\` 或 \`LATEST_CHECKPOINT\`，给出 2 句 welcome back summary。如果 \`RECENT_PATTERN\` 明确指向下一个 skill，只建议一次。
+
+**Cross-session decisions.** 如果列出了 \`ACTIVE DECISIONS\`，把它们视为带 rationale 的已定 prior calls，不要静默重新争论；如果你准备 reverse 某个 decision，要明确说明。任何问题触及 past decision（"what did we decide / why / did we try"）时，使用 \`${binDir}/gstack-decision-search\`。当你或用户做出 DURABLE decision（architecture、scope、tool/vendor choice，或 reversal）时记录它；turn-level 或 trivial choice 不记录。使用 \`${binDir}/gstack-decision-log\`（reversal 用 \`--supersede <id>\`）。这是 reliable local path，不需要 gbrain。`;
 }

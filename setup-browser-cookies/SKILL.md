@@ -18,6 +18,8 @@ allowed-tools:
 
 ## When to invoke this skill（何时调用此 skill）
 
+Use when this request matches the routing prose below. Proactively suggest this skill when the user intent fits, unless proactive routing is disabled.（当请求匹配下方 routing prose 时使用；除非禁用主动路由，否则在用户意图匹配时主动建议此 skill。）
+
 前使用。当用户要求 "import cookies"、
 "login to the site" 或 "authenticate the browser" 时使用。（gstack）
 
@@ -41,6 +43,9 @@ echo "SKILL_PREFIX: $_SKILL_PREFIX"
 source <(~/.claude/skills/gstack/bin/gstack-repo-mode 2>/dev/null) || true
 REPO_MODE=${REPO_MODE:-unknown}
 echo "REPO_MODE: $REPO_MODE"
+_SESSION_KIND=$(~/.claude/skills/gstack/bin/gstack-session-kind 2>/dev/null || echo "interactive")
+case "$_SESSION_KIND" in spawned|headless|interactive) ;; *) _SESSION_KIND="interactive" ;; esac
+echo "SESSION_KIND: $_SESSION_KIND"
 _LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
 echo "LAKE_INTRO: $_LAKE_SEEN"
 _TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || true)
@@ -120,7 +125,7 @@ echo "GSTACK_PLAN_MODE: $GSTACK_PLAN_MODE"
 
 ## Skill Invocation During Plan Mode（Plan mode 中的 skill 调用）
 
-如果用户在 plan mode 中调用 skill，skill 优先于通用 plan mode 行为。**把 skill 文件视为可执行指令，而不是参考资料。**从 Step 0 开始逐步执行；第一次 AskUserQuestion 是工作流进入 plan mode 的方式，不是违规。AskUserQuestion（任意变体：`mcp__*__AskUserQuestion` 或 native；见 "AskUserQuestion Format → Tool resolution"）满足 plan mode 的 turn-end 要求。如果没有可调用的变体，此 skill 为 BLOCKED：停止，并按 AskUserQuestion Format 规则报告 `BLOCKED — AskUserQuestion unavailable`。遇到 STOP 点时立即停止。不要继续工作流，也不要在那里调用 ExitPlanMode。标记为 "PLAN MODE EXCEPTION — ALWAYS RUN" 的命令需要执行。仅在 skill 工作流完成后，或用户要求取消 skill / 离开 plan mode 时，才调用 ExitPlanMode。
+如果用户在 plan mode 中调用 skill，skill 优先于通用 plan mode 行为。**把 skill 文件视为可执行指令，而不是参考资料。**从 Step 0 开始逐步执行；第一次 AskUserQuestion 是工作流进入 plan mode 的方式，不是违规。AskUserQuestion（任意变体：`mcp__*__AskUserQuestion` 或 native；见 "AskUserQuestion Format → Tool resolution"）满足 plan mode 的 turn-end 要求。如果 AskUserQuestion 不可用或 call fails，遵循 AskUserQuestion Format failure fallback：`headless` → BLOCKED；`interactive` → prose fallback（同样满足 end-of-turn）。遇到 STOP 点时立即停止。不要继续工作流，也不要在那里调用 ExitPlanMode。标记为 "PLAN MODE EXCEPTION — ALWAYS RUN" 的命令需要执行。仅在 skill 工作流完成后，或用户要求取消 skill / 离开 plan mode 时，才调用 ExitPlanMode。
 
 如果 `PROACTIVE` 是 `"false"`，不要 auto-invoke 或主动建议 skills。如果某个 skill 看起来有用，询问："I think /skillname might help here — want me to run it?"
 
@@ -155,7 +160,7 @@ touch ~/.gstack/.writing-style-prompted
 
 如果 `WRITING_STYLE_PENDING` 是 `no`，跳过。
 
-如果 `LAKE_INTRO` 是 `no`：说 "gstack 遵循 **Boil the Lake** principle：当 AI 让边际成本接近 0 时，就把完整的事做完。Read more: https://garryslist.org/posts/boil-the-ocean"。询问是否打开：
+如果 `LAKE_INTRO` 是 `no`：说 "gstack 遵循 **Boil the Ocean** principle：当 AI 让边际成本接近 0 时，就把完整的事做完。Read more: https://garryslist.org/posts/boil-the-ocean"。询问是否打开：
 
 ```bash
 open https://garryslist.org/posts/boil-the-ocean

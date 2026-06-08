@@ -117,7 +117,7 @@ gstack/
 ├── setup            # One-time setup：build binary + symlink skills
 ├── SKILL.md         # 从 SKILL.md.tmpl 生成（不要直接编辑）
 ├── SKILL.md.tmpl    # Template：编辑此文件，运行 gen:skill-docs
-├── ETHOS.md         # Builder philosophy（Boil the Lake、Search Before Building）
+├── ETHOS.md         # Builder philosophy（Boil the Ocean、Search Before Building）
 └── package.json     # browse 的 build scripts
 ```
 
@@ -446,7 +446,7 @@ Target length（目标长度）：summary 约 250-350 words。应渲染为一屏
 | Architecture / design | 2 days | 4 hours | ~5x |
 | Research / exploration | 1 day | 3 hours | ~3x |
 
-Completeness 很便宜。当 complete implementation 是一个 “lake”（可达成），而不是 “ocean”（multi-quarter migration）时，不要建议 shortcuts。完整 philosophy 见 skill preamble 中的 Completeness Principle。
+Completeness 很便宜。当 complete implementation 可达成时，不要建议 shortcuts。Boil the ocean：完整的事就是目标；只有真正无关的 multi-quarter migrations 才是 separate scope，绝不是 shortcut 的借口。完整 philosophy 见 skill preamble 中的 Completeness Principle。
 
 ## Search before building（构建前先搜索）
 
@@ -552,6 +552,14 @@ Key routing rules：
 - Ship/deploy/PR -> invoke /ship or /land-and-deploy
 - Save progress -> invoke /context-save
 - Resume context -> invoke /context-restore
+
+## Cross-session decision memory
+
+Durable decisions 及其 rationale 记录在 append-only、event-sourced store：`~/.gstack/projects/<slug>/decisions.jsonl`，这样你和用户都不会跨 session 重新争论已定决定，也不会丢掉 “why”。这是可靠的 file-only path：gbrain 关闭时也能工作。（gbrain semantic recall 是叠加在上面的可选增强，绝不是 dependency。）
+
+- **重新决定前先 resurface** active decisions：`bin/gstack-decision-search`（`--recent N`、`--scope repo|branch|issue`、`--query KW`、`--all`、`--json`）。gbrain 启动时可加 `--semantic`（配合 `--query`）追加来自 gbrain memory 的 related hits；gbrain 关闭时会静默退化到可靠的 file results。Session start 已经通过 Context Recovery 浮出 scope-relevant active decisions。如果列出某个 decision，就把它视为带 rationale 的已定结论；如果你准备 reverse，明确说明。
+- **当你或用户做出 DURABLE decision 时 capture**：`bin/gstack-decision-log '{"decision":"...","rationale":"...","scope":"repo|branch|issue","source":"user|skill|agent","confidence":1-10}'`。用 `--supersede <id>` reverse prior call；用 `--redact <id>` expunge accidental secret；用 `--compact` 把 log rewrite 到 active set。它 non-interactive（never prompts）、injection-sanitized，并在 write 时阻止 HIGH secrets。
+- **Durable means：**architecture choice、scope cut、tool/vendor choice，或 prior call 的 reversal。不包括 turn-level edit、phrasing tweak，或任何 trivially re-derivable 的事。Capture 在 source 处 curated：只记录 durable decisions，否则 store 会变成 noise。
 
 ## GBrain Search Guidance（由 /sync-gbrain 配置）
 <!-- gstack-gbrain-search-guidance:start -->

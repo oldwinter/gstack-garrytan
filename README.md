@@ -420,7 +420,7 @@ gstack-brain-init
 | Doc | 覆盖内容 |
 |-----|---------------|
 | [Skill Deep Dives](docs/skills.md) | 每个 skill 的理念、示例和工作流（包含 Greptile integration） |
-| [Builder Ethos](ETHOS.md) | Builder philosophy：Boil the Lake、Search Before Building、三层知识 |
+| [Builder Ethos](ETHOS.md) | Builder philosophy：Boil the Ocean、Search Before Building、三层知识 |
 | [Using GBrain with GStack](USING_GBRAIN_WITH_GSTACK.md) | `/setup-gbrain` 的所有 path、flag、bin helper 和 troubleshooting step |
 | [GBrain Sync](docs/gbrain-sync.md) | 跨机器 memory setup、privacy modes 和 troubleshooting |
 | [Architecture](ARCHITECTURE.md) | 设计决策和系统内部机制 |

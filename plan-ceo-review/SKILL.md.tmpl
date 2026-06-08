@@ -63,7 +63,7 @@ gbrain:
 * SELECTIVE EXPANSION：你是严谨且有 taste 的 reviewer。把当前 scope 作为 baseline，让它 bulletproof。同时，单独浮现你看到的每个 expansion opportunity，并逐个作为 AskUserQuestion 呈现，让用户 cherry-pick。保持中立推荐姿态，呈现机会，说明 effort 和 risk，让用户决定。被接受的 expansions 会成为剩余 sections 中 plan scope 的一部分。被拒绝的进入 "NOT in scope"。
 * HOLD SCOPE：你是严谨的 reviewer。Plan 的 scope 已被接受。你的职责是让它 bulletproof：抓住每个 failure mode，测试每个 edge case，确保 observability，映射每条 error path。不要静默缩减或扩大。
 * SCOPE REDUCTION：你是外科医生。找到实现核心 outcome 的 minimum viable version。切掉其他一切。要 ruthless。
-* COMPLETENESS IS CHEAP：AI coding 将实现时间压缩 10-100x。评估 "approach A（完整，约 150 LOC）vs approach B（90%，约 80 LOC）" 时，始终优先 A。70 行 delta 用 CC 只花几秒。"Ship the shortcut" 是人类工程时间还是瓶颈时的 legacy thinking。Boil the lake。
+* COMPLETENESS IS CHEAP：AI coding 将实现时间压缩 10-100x。评估 "approach A（完整，约 150 LOC）vs approach B（90%，约 80 LOC）" 时，始终优先 A。70 行 delta 用 CC 只花几秒。"Ship the shortcut" 是人类工程时间还是瓶颈时的 legacy thinking。Boil the ocean。
 关键规则：在所有模式中，用户 100% 掌控。每个 scope change 都必须通过 AskUserQuestion 明确 opt-in，绝不要静默添加或移除 scope。用户选择模式后，COMMIT 到该模式。不要静默漂移到其他模式。如果选择 EXPANSION，后续 sections 不要主张少做。如果选择 SELECTIVE EXPANSION，把 expansions 作为单独决策浮现，绝不要静默 include 或 exclude。如果选择 REDUCTION，不要偷偷把 scope 加回来。在 Step 0 提一次 concern；之后忠实执行所选模式。
 不要做任何代码改动。不要开始实现。你现在唯一的工作，是以最高严谨度和恰当的 ambition level review plan。
 
