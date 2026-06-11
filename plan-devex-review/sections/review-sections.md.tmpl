@@ -307,6 +307,17 @@ DX IMPLEMENTATION CHECKLIST
 ### Unresolved Decisions（未解决决策）
 如果任何 AskUserQuestion 未被回答，在这里记录。绝不要静默 default。
 
+## Review Log
+
+在 DX Scorecard 后持久化 review log：dashboard、GSTACK REVIEW REPORT，以及 EXIT
+PLAN MODE GATE 的 "review log was called" check 都依赖它。**PLAN MODE EXCEPTION — ALWAYS RUN**（写入 `~/.gstack/`，不是 project files）：
+
+```bash
+~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-devex-review","timestamp":"TIMESTAMP","status":"STATUS","initial_score":N,"overall_score":N,"product_type":"PRODUCT_TYPE","tthw_current":"TTHW_CURRENT","tthw_target":"TTHW_TARGET","mode":"MODE","persona":"PERSONA","competitive_tier":"COMPETITIVE_TIER","unresolved":N,"commit":"COMMIT"}'
+```
+
+TIMESTAMP = 当前 ISO 8601 datetime；STATUS = 如果 score 8+ 且 0 unresolved 则为 "clean"，否则为 "issues_open"；其他 fields 来自 DX Scorecard + Step 0；COMMIT = `git rev-parse --short HEAD`。
+
 {{REVIEW_DASHBOARD}}
 
 {{PLAN_FILE_REVIEW_REPORT}}

@@ -531,6 +531,17 @@ jq -nc \
 ### Unresolved Decisions（未解决决策）
 如果任何 AskUserQuestion 未被回答，在这里记录。绝不要静默 default。
 
+## Review Log
+
+在 DX Scorecard 后持久化 review log：dashboard、GSTACK REVIEW REPORT，以及 EXIT
+PLAN MODE GATE 的 "review log was called" check 都依赖它。**PLAN MODE EXCEPTION — ALWAYS RUN**（写入 `~/.gstack/`，不是 project files）：
+
+```bash
+~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-devex-review","timestamp":"TIMESTAMP","status":"STATUS","initial_score":N,"overall_score":N,"product_type":"PRODUCT_TYPE","tthw_current":"TTHW_CURRENT","tthw_target":"TTHW_TARGET","mode":"MODE","persona":"PERSONA","competitive_tier":"COMPETITIVE_TIER","unresolved":N,"commit":"COMMIT"}'
+```
+
+TIMESTAMP = 当前 ISO 8601 datetime；STATUS = 如果 score 8+ 且 0 unresolved 则为 "clean"，否则为 "issues_open"；其他 fields 来自 DX Scorecard + Step 0；COMMIT = `git rev-parse --short HEAD`。
+
 ## Review Readiness Dashboard
 
 完成 review 后，读取 review log 和 config，并展示 dashboard。
@@ -629,13 +640,15 @@ Completion Summary 中更丰富的细节。对 prior reviews，直接使用 JSON
 | DX Review | \`/plan-devex-review\` | Developer experience gaps | {runs} | {status} | {findings} |
 \`\`\`
 
-在 table 下方添加这些 lines（空值或不适用时省略）：
+在 table 下方添加这些 lines。**CODEX** 和 **CROSS-MODEL** 可选（为空时省略）；**VERDICT** 必须始终存在：
 
 - **CODEX:**（仅当 codex-review 运行过）codex fixes 的一行 summary
 - **CROSS-MODEL:**（仅当 Claude 和 Codex reviews 都存在）overlap analysis
-- **UNRESOLVED:** 所有 reviews 的 unresolved decisions 总数
-- **VERDICT：** 列出 CLEAR 的 reviews（例如 "CEO + ENG CLEARED — ready to implement"）。
+- **VERDICT:** 列出 CLEAR 的 reviews（例如 "CEO + ENG CLEARED — ready to implement"）。
   如果 Eng Review 不是 CLEAR 且没有 global skip，追加 "eng review required"。
+
+**Unresolved-decisions status（强制 — 永不省略；必须是 report 的 final non-whitespace line）。**
+在 VERDICT 后，用且只用以下一种形式结束 report（位于 \`## GSTACK REVIEW REPORT\` heading 下的内容；这是 bold label，绝不是新的 \`## \` heading；不受 "空值省略" 规则约束）：exact unbolded line \`NO UNRESOLVED DECISIONS\`（bolded 不算），或 \`**UNRESOLVED DECISIONS:**\` header + 每个 open item 一个 bullet（最后一个 bullet 必须是 final line；仅当 N > 0 时添加 \`+ N unresolved from prior reviews\`）。这避免 double-counting：从 context 列出 THIS review 的 open items；prior reviews 则在 dashboard 7-day window 内，先 DROP current skill's row，再按每个 skill 的 latest fresh row 汇总 \`unresolved\`。只有两者都为 zero 时，才输出 sentinel。
 
 ### Write to the plan file（写入 plan file）
 

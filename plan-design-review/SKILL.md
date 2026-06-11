@@ -1388,11 +1388,14 @@ $D generate --brief "<description of what 10/10 looks like for this dimension>" 
 2. 确认文件中的 LAST `## ` heading 是 `## GSTACK REVIEW REPORT`。
    Body prose 中提到 "outside voice"、"codex findings" 或类似内容不算：只有 structured
    `## GSTACK REVIEW REPORT` section 满足此检查。
-3. 确认 report 包含：Runs / Status / Findings table、VERDICT line，并在适用时吸收
-   CODEX / CROSS-MODEL / UNRESOLVED lines。
-4. 如果此 skill invocation 的 context 中有 plan file：确认已调用 `gstack-review-log`，
+3. 确认 report 包含 Runs / Status / Findings table 和 VERDICT line（适用时吸收 CODEX / CROSS-MODEL）。
+4. 确认 report 的 FINAL non-whitespace line 是 unresolved-decisions status：exact unbolded
+   `NO UNRESOLVED DECISIONS`，或 final `**UNRESOLVED DECISIONS:**` block 的某个 bullet。
+   BLOCKING，没有 "if applicable" 例外：bolded sentinel、后面跟着 CODEX/CROSS-MODEL/VERDICT/prose，
+   或 missing status 都会 FAIL gate。
+5. 如果此 skill invocation 的 context 中有 plan file：确认已调用 `gstack-review-log`，
    且至少运行过一次 `gstack-review-read`。如果 context 中没有 plan file（例如针对无 plan diff 的
-   `/codex consult`），此 check short-circuit：当不存在 plan file 时，checks 1-3 也已 short-circuit。
+   `/codex consult`），此 check short-circuit：当不存在 plan file 时，checks 1-4 也已 short-circuit。
 
 未通过此 gate 却调用 ExitPlanMode 是 contract violation。用户会看到一个 review report missing 或 stale 的 plan，
 并会（正确地）拒绝它。需要警惕的 self-deception failure mode：把 review prose 写进 plan body 后就觉得

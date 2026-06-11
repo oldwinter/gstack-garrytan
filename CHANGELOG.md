@@ -1,5 +1,59 @@
 # Changelog（变更日志）
 
+## [1.57.7.0] - 2026-06-08
+
+## **每次 plan review 结束时，都会用一行告诉你是否仍有未解决事项。**
+## **在你批准前，GSTACK REVIEW REPORT 会把开放决策列在最后；若没有，就醒目打印 "NO UNRESOLVED DECISIONS"。**
+
+当 plan-review skill（/plan-ceo-review、/plan-eng-review、/plan-design-review、
+/plan-devex-review 和 /codex）完成并把 plan 交给你批准时，report 现在必须以 unresolved-decisions
+verdict 结束。如果仍有开放决策，它会逐条列出，并说明如果带着 deferred 状态发版会破坏什么。
+如果没有开放决策，它会打印精确行 `NO UNRESOLVED DECISIONS`。之前一次 token-reduction pass
+把这行变成了可选项，导致干净 plan 和藏着 open question 的 plan 看起来一样。现在这行永不省略：
+它总是 approval prompt 前你读到的最后内容，approval gate 也会拒绝任何缺少它的 plan。
+
+### 改动前后
+
+| Plan approval 时刻 | 之前 | 现在 |
+|---|---|---|
+| 干净 plan | 通常没有 unresolved 行 | 最后一行是 `NO UNRESOLVED DECISIONS` |
+| 有开放决策的 plan | unresolved 行可选，经常被省略 | `**UNRESOLVED DECISIONS:**` + 每个 open item 一条 bullet |
+| Approval gate (ExitPlanMode) | "if applicable" 时才检查这行 | 只有 unresolved status 是最后一行才放行 |
+| /plan-devex-review review log | 从不写入，gate 无法检查 | 会写入，因此 dashboard 和 report 都能看到它的数据 |
+
+跨 review 的 unresolved count 会避免重复计算刚刚运行的那次 review，并使用与 Review Readiness Dashboard
+相同的 7-day freshness window。
+
+### 这对你意味着什么
+
+每次 approve-plan 时刻都会明确给出 open questions verdict，因此漏掉的 ambiguity 不会伪装成干净 plan
+溜过去。如果你运行 plan-review skills 或 /autoplan，每份 report 的最后一行都会显示 unresolved status。
+无需配置；升级后下一次 plan review 就会显示。
+
+### 逐项变更
+
+#### 新增
+- **GSTACK REVIEW REPORT 中强制 unresolved-decisions status。** 由 `scripts/resolvers/review.ts`
+  生成到全部六个 report consumers（/plan-ceo-review、/plan-eng-review、/plan-design-review、
+  /plan-devex-review、/codex、/devex-review）。Report 总是以精确、非加粗 sentinel
+  `NO UNRESOLVED DECISIONS` 结束，或以 `**UNRESOLVED DECISIONS:**` bullet block
+  列出每个 open item；永不省略，且始终是最后一行。
+- **阻塞式 approval gate。** EXIT PLAN MODE GATE 现在会拒绝 ExitPlanMode，除非 report 的 final
+  non-whitespace line 是 unresolved status（没有 "if applicable" 逃生口）。
+- 静态和 E2E tests 固定每个 report consumer 与带 gate 的 skill 都必须输出该 status，避免未来 compression
+  pass 再次静默删掉它。
+
+#### 修复
+- **/plan-devex-review 以前从不记录 review entry。** 它带着 approval gate，却没有调用
+  `gstack-review-log`，所以 gate 的 "review log was called" check 在结构上永远无法满足，
+  它的数据也不会出现在 Review Readiness Dashboard 和 report 中。现在它会用正确 timestamp 和 DX fields
+  写入日志。
+
+#### 贡献者说明
+- 将 parity-suite size baseline 从 v1.53.0.0 rebase 到 v1.57.7.0（捕获当前 union sizes；保留
+  per-skill 1.05 ratio，未来膨胀仍会被捕获）。重新生成 #1909 遗留过期的三个 ship golden fixtures。
+  frozen v1.44.1 integrity anchor 和 v1.47 size-budget baseline 未改动。
+
 ## [1.57.6.0] - 2026-06-07
 
 ## **Eight community-filed bugs fixed in one wave, four of them security guards that were quietly failing open.**
