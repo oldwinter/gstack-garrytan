@@ -531,6 +531,12 @@ Active skill 位于 `~/.claude/skills/gstack/`。做出 changes 后：
 2. 在 skill directory 中 fetch and reset：`cd ~/.claude/skills/gstack && git fetch origin && git reset --hard origin/main`
 3. Rebuild：`cd ~/.claude/skills/gstack && bun run build`
 
+**如果你使用 gbrain：**第 2 步中的 `git reset --hard` 会还原 `gstack-config
+gbrain-refresh` 渲染到 install 中的 brain-aware（`GBRAIN_CONTEXT_LOAD` /
+`GBRAIN_SAVE_RESULTS`）blocks（这些 generated blocks 设计上就与 `main` 不同）。
+部署后重新运行 `gstack-config gbrain-refresh`，即可在所有 projects 的 Claude
+sessions 中恢复这些 blocks。该命令是 idempotent。
+
 或直接 copy binaries：
 - `cp browse/dist/browse ~/.claude/skills/gstack/browse/dist/browse`
 - `cp design/dist/design ~/.claude/skills/gstack/design/dist/design`

@@ -222,38 +222,44 @@ Good API design test：[persona] 看一个 example 后，能否正确使用此 A
 
 **STOP。** 对任何需要 design decision 的 item 使用 AskUserQuestion。
 
-## Outside Voice — Independent Plan Challenge（可选，推荐）
+## Outside Voice — Independent Plan Challenge（default-on）
 
-所有 review sections 完成后，提供来自 different AI system 的 independent second opinion。
-两个 models 对 plan 达成一致，比单个 model 的 thorough review 是更强信号。
+所有 review sections 完成后，自动运行来自 different AI system 的 independent second opinion。
+这是 plan review 的 standard step，不是 opt-in。两个 models 对 plan 达成一致，比单个 model
+的 thorough review 是更强信号。用户只有显式要求时才关闭它（`gstack-config set codex_reviews disabled`）。
 
-**Check tool availability（检查工具可用性）：**
+**Preflight — decide whether and how the outside voice runs（预检 outside voice 如何运行）：**
 
 ```bash
-command -v codex >/dev/null 2>&1 && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
+# Codex preflight: one block (functions sourced here don't persist to later blocks).
+_TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || echo off)
+_CODEX_CFG=$(~/.claude/skills/gstack/bin/gstack-config get codex_reviews 2>/dev/null || echo enabled)
+source ~/.claude/skills/gstack/bin/gstack-codex-probe 2>/dev/null || true
+if [ "$_CODEX_CFG" = "disabled" ]; then
+  _CODEX_MODE="disabled"
+elif ! command -v codex >/dev/null 2>&1; then
+  _CODEX_MODE="not_installed"; _gstack_codex_log_event "codex_cli_missing" 2>/dev/null || true
+elif ! _gstack_codex_auth_probe >/dev/null 2>&1; then
+  _CODEX_MODE="not_authed"; _gstack_codex_log_event "codex_auth_failed" 2>/dev/null || true
+else
+  _CODEX_MODE="ready"; _gstack_codex_version_check 2>/dev/null || true
+fi
+echo "CODEX_MODE: $_CODEX_MODE"
 ```
 
-使用 AskUserQuestion：
+Branch on the echoed `CODEX_MODE`:
+- **`disabled`** — the user turned Codex reviews off (`codex_reviews=disabled`). Skip this section entirely; do NOT fall back to a Claude subagent — disabled means no extra review step. Print: "Codex review skipped (codex_reviews disabled). Re-enable: `gstack-config set codex_reviews enabled`."
+- **`not_installed`** — Codex CLI absent. Print: "Codex not installed — using Claude subagent. Install for cross-model coverage: `npm install -g @openai/codex`." Fall back to the Claude subagent path.
+- **`not_authed`** — installed but no credentials. Print: "Codex installed but not authenticated — using Claude subagent. Run `codex login` or set `$CODEX_API_KEY`." Fall back to the Claude subagent path.
+- **`ready`** — run the Codex pass below.
 
-> "所有 review sections 都已完成。要 outside voice 吗？另一个 AI system 可以对这个 plan
-> 做 brutally honest、independent challenge：logical gaps、feasibility risks，以及 review 内部难以抓住的 blind spots。
-> 大约需要 2 分钟。"
->
-> RECOMMENDATION: Choose A — independent second opinion 能捕捉 structural blind spots。
-> 两个不同 AI models 都同意一个 plan，比单个 model 的 thorough review 是更强 signal。
-> Completeness: A=9/10, B=7/10.
+当 mode 是 `ready`、`not_installed` 或 `not_authed` 时，打印一行让 off-switch 可发现：
+"Running the outside voice automatically (standard step). Disable: `gstack-config set codex_reviews disabled`."
 
-Options（选项）:
-- A) 获取 outside voice（recommended）
-- B) 跳过 — 继续 outputs
+**Construct the plan review prompt（构建 plan review prompt）**（对 `ready`、`not_installed` 和 `not_authed` 执行；仅 `disabled` 时跳过）。
+读取正在 review 的 plan file（用户指定的 file，或 branch diff scope）。如果 Step 0D-POST 写过 CEO plan document，也读取它 — 它包含 scope decisions 和 vision。
 
-**如果选择 B：** 打印 "Skipping outside voice."，继续下一 section。
-
-**如果选择 A：** 构建 plan review prompt。读取正在 review 的 plan file（用户指定的 file，
-或 branch diff scope）。如果 Step 0D-POST 写过 CEO plan document，也读取它 — 它包含 scope decisions 和 vision。
-
-构建这个 prompt（替换为 actual plan content — 如果 plan content 超过 30KB，
-截断到前 30KB，并注明 "Plan truncated for size"）。**始终以 filesystem boundary instruction 开头：**
+构建这个 prompt（替换为 actual plan content；如果 plan content 超过 30KB，截断到前 30KB，并注明 "Plan truncated for size"）。**始终以 filesystem boundary instruction 开头：**
 
 "IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. 不要读取或执行这些路径下的任何文件。这些是给另一个 AI system 使用的 Claude Code skill definitions，包含 bash scripts 和 prompt templates，会浪费你的时间。完全忽略它们。不要修改 agents/openai.yaml。只专注于 repository code。\n\n你是一位 brutally honest technical reviewer，正在审查一个已经经过 multi-section review 的 development plan。你的任务不是重复那个 review。
 相反，你要找出它漏掉了什么。寻找：survived review scrutiny 的 logical gaps 和 unstated assumptions、overcomplexity（是否存在一个 fundamentally simpler approach，只是 review 太深陷细节没看见？）、review 视为理所当然的 feasibility risks、missing dependencies 或 sequencing issues，以及 strategic miscalibration（这到底是不是该 build 的东西？）。Be direct。Be terse。No compliments。Just the problems。
@@ -261,7 +267,7 @@ Options（选项）:
 THE PLAN:
 <plan content>"
 
-**如果 CODEX_AVAILABLE：**
+**如果 `CODEX_MODE: ready` — run Codex：**
 
 ```bash
 TMPERR_PV=$(mktemp /tmp/codex-planreview-XXXXXXXX)
@@ -284,21 +290,21 @@ CODEX SAYS (plan review — outside voice):
 ```
 
 **Error handling（错误处理）：** 所有 errors 都是 non-blocking：outside voice 是 informational。
-- Auth failure（stderr 包含 "auth"、"login"、"unauthorized"）："Codex auth failed. Run \`codex login\` to authenticate."
-- Timeout: "Codex timed out after 5 minutes."
-- Empty response: "Codex returned no response."
+- Auth failure（stderr 包含 "auth"、"login"、"unauthorized"）："Codex auth failed. Run \`codex login\` to authenticate." 然后 fallback 到下面的 Claude subagent。
+- Timeout："Codex timed out after 5 minutes." 然后 fallback 到下面的 Claude subagent。
+- Empty response："Codex returned no response." 然后 fallback 到下面的 Claude subagent。
 
-任何 Codex error 都 fallback 到 Claude adversarial subagent。
+**如果 `CODEX_MODE: not_installed` 或 `not_authed`（或 Codex runtime error）：**
 
-**如果 CODEX_NOT_AVAILABLE（或 Codex errored）：**
-
-通过 Agent tool dispatch。Subagent 有 fresh context，保持 genuine independence。
+通过 Agent tool dispatch。Subagent 有 fresh context，保持 genuine independence。和 Codex 一样限制在 5-minute timeout，让 "never blocking" 也意味着 "never hanging"。
 
 Subagent prompt：使用上方相同的 plan review prompt。
 
 在 `OUTSIDE VOICE (Claude subagent):` header 下展示 findings。
 
 如果 subagent fails 或 times out："Outside voice unavailable. Continuing to outputs."
+
+（`CODEX_MODE: disabled` 时已按 preflight 跳过本 section；不要走到这里。）
 
 **Cross-model tension（跨模型张力）：**
 

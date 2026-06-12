@@ -1051,11 +1051,17 @@ helper functions 会在 workflow 余下部分保持 in scope。
 
 ```bash
 _TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || echo off)
+_CODEX_CFG=$(~/.claude/skills/gstack/bin/gstack-config get codex_reviews 2>/dev/null || echo enabled)
 source ~/.claude/skills/gstack/bin/gstack-codex-probe
 
+# 先检查 master switch：codex_reviews=disabled 会全局关闭所有 Codex work，
+# 包括 autoplan 自己的 dual-voice orchestration。probe 前先尊重它。
+if [ "$_CODEX_CFG" = "disabled" ]; then
+  echo "[codex disabled by config — Claude-only voices] Re-enable: gstack-config set codex_reviews enabled"
+  _CODEX_AVAILABLE=false
 # 检查 Codex binary。如果缺失，标记 degradation matrix，并只用 Claude subagent 继续
 # （autoplan 现有 degradation fallback）。
-if ! command -v codex >/dev/null 2>&1; then
+elif ! command -v codex >/dev/null 2>&1; then
   _gstack_codex_log_event "codex_cli_missing"
   echo "[codex-unavailable: binary not found] — proceeding with Claude subagent only"
   _CODEX_AVAILABLE=false

@@ -640,6 +640,48 @@ $B screenshot /tmp/out.png --selector .tweet-card
 Scale 必须是 1-3（gstack policy cap）。改变 `--scale` 会重建 browser context；来自 `snapshot`
 的 refs 会失效（重新运行 `snapshot`），但 `load-html` content 会自动 replay。Headed mode 不支持。
 
+### 14. Offline render mode（rasterize 自己的 HTML/JSON，zero network）
+
+这是“我只是想把自己的本地 HTML 或 JSON 转成 disk 上的 PNG/PDF/bytes”的推荐路径：
+Excalidraw diagrams、tweet/quote cards、og-images、report rasterization。它是
+**plain headless、shared Chromium、无 proxy、无 Xvfb、无 anti-bot stealth**。
+默认 `$B` 已经正是这种模式；不要传 `--headed` 或 `--proxy`。每台机器共享一个
+Chromium，所有 skills 共用；**不要 `npm i puppeteer` 再带一份第二 browser**（见
+cheatsheet 下方说明）。
+
+按你手里的内容选择两种输出形态之一：
+
+**A) Visual output -> `screenshot --selector`（优先）。** 如果你想要的是 page 上
+某个东西的图片，直接截图。PNG 从 browser process 直接写到 disk，image bytes 不会
+穿过 CDP wire。
+
+```bash
+echo '<div id="card" style="width:400px;height:200px;background:#1da1f2;color:#fff;padding:20px">hi</div>' > /tmp/card.html
+$B viewport 480x600 --scale 2
+$B load-html /tmp/card.html
+$B screenshot /tmp/card.png --selector '#card'   # disk path — no megabytes over CDP
+```
+使用 disk path，不要用 `screenshot --base64`；base64 会把 bytes 经 command channel
+序列化回来，而这正是你要避免的成本。
+
+**B) Function 返回 bytes -> `js --out` / `eval --out`。** 当 library 把结果作为
+return value 给你（base64 data URL、blob、computed JSON），而不是绘制稳定 element
+时，例如 Excalidraw export function 返回 PNG data URL，就把 evaluate result 直接
+写到 disk。`--out` 会自动把 `data:*;base64,...` 解码成 raw bytes（传 `--raw` 可写入
+literal string）。Payload 由 daemon 写入，绝不会再序列化回 CLI/stdout。
+
+```bash
+# Load the render bundle, signal readiness, then render-to-file.
+$B load-html /tmp/excalidraw-export.html        # bundle sets window.__render + a #done flag
+$B wait '#done'                                  # deterministic ready handshake
+$B js "window.__render(SCENE_JSON)" --out /tmp/diagram.png   # data URL → decoded PNG on disk
+```
+
+`--out` 是 WRITE：它需要 `write` scope，且绝不允许通过 pair-agent tunnel 使用
+（remote agent 不能写你的 disk）。Parent directories 会自动创建；malformed base64 会报错，
+不会写入损坏 bytes。能用 A 就用 A（完全没有 CDP transfer）；只有 bytes 以 return value
+形式返回时才用 B。
+
 ## Puppeteer -> browse cheatsheet
 
 从 Puppeteer 迁移？这里是 core workflow 的 1:1 mapping：
@@ -653,6 +695,8 @@ Scale 必须是 1-3（gstack policy cap）。改变 `--scale` 会重建 browser 
 | `await (await page.$('.x')).screenshot({path})` | `$B screenshot <path> --selector .x` |
 | `await page.screenshot({fullPage: true, path})` | `$B screenshot <path>` (full page default) |
 | `await page.screenshot({clip: {x, y, w, h}, path})` | `$B screenshot <path> --clip x,y,w,h` |
+| `const r = await page.evaluate(fn)` | `$B js "<expr>"` (result to stdout) |
+| `fs.writeFileSync(out, Buffer.from(dataUrl.split(',')[1],'base64'))` | `$B js "<expr>" --out <file>` (data URL auto-decoded) |
 
 Worked example（tweet-renderer flow：Puppeteer -> browse）：
 
@@ -667,6 +711,12 @@ $B screenshot /tmp/out.png --selector .tweet-card
 
 Aliases：输入 `setcontent` 或 `set-content` 会自动路由到 `load-html`。输入 typo（`load-htm`）
 会返回 `Did you mean 'load-html'?`。
+
+**不要捆绑自己的 puppeteer/Chromium。** `browse` 是每台机器上共享的唯一
+Chromium。需要 rasterize 本地 HTML/JSON（diagrams、cards、og-images）的 skills
+应通过 `browse`：visual output 用 `screenshot --selector`，function 返回 bytes 时
+用 `load-html` + `js --out`。不要 `npm i puppeteer` 再下载第二份可能版本漂移的
+Chromium。只需要 pin 一个 install、管理一个 daemon lifecycle。
 
 ## User Handoff（用户接管）
 
@@ -886,10 +936,10 @@ $B prettyscreenshot --cleanup --scroll-to ".pricing" --width 1440 ~/Desktop/hero
 | `cookies` | All cookies as JSON |
 | `css <sel> <prop>` | Computed CSS value |
 | `dialog [--clear]` | Dialog messages |
-| `eval <file>` | 在 page context 中从 file 运行 JavaScript，并以 string 返回结果。Path 必须 resolve 到 /tmp 或 cwd 下（禁止 traversal）。multi-line scripts 用 eval；one-liners 用 js。 |
+| `eval <file> [--out <file>] [--raw]` | 在 page context 中从 file 运行 JavaScript，并以 string 返回结果。Path 必须 resolve 到 /tmp 或 cwd 下（禁止 traversal）。multi-line scripts 用 eval；one-liners 用 js。带 --out <file> 时，结果写入 disk（base64 data URL 会解码为 bytes，除非传 --raw）；--out 会让调用变成 WRITE（需要 write scope，且绝不允许通过 tunnel 使用）。 |
 | `inspect [selector] [--all] [--history]` | Deep CSS inspection via CDP — full rule cascade, box model, computed styles |
 | `is <prop> <sel|@ref>` | State check on element. Valid <prop> values: visible, hidden, enabled, disabled, checked, editable, focused (case-sensitive). <sel> accepts a CSS selector OR an @ref token from a prior snapshot (e.g. @e3, @c1) — refs are interchangeable with selectors anywhere a selector is expected. |
-| `js <expr>` | 在 page context 中运行 inline JavaScript expression，并以 string 返回结果。与 eval 使用相同 JS sandbox；区别只是 js 接收 inline expr，而 eval 从 file 读取。 |
+| `js <expr> [--out <file>] [--raw]` | 在 page context 中运行 inline JavaScript expression，并以 string 返回结果。与 eval 使用相同 JS sandbox；区别只是 js 接收 inline expr，而 eval 从 file 读取。带 --out <file> 时，结果写入 disk 而不是返回；base64 data URL 会自动解码为 raw bytes（除非传 --raw）。适合把本地 render rasterize 成 PNG，同时避免把大量 bytes 经 CLI 通道传回。--out 会让调用变成 WRITE（需要 write scope，且绝不允许通过 tunnel 使用）。 |
 | `network [--clear]` | Network requests |
 | `perf` | Page load timings |
 | `storage  |  storage set <key> <value>` | Read both localStorage and sessionStorage as JSON. With "set <key> <value>", write to localStorage only (sessionStorage is read-only via this command — set it with `js sessionStorage.setItem(...)`). |

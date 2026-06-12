@@ -1,5 +1,197 @@
 # Changelog（变更日志）
 
+## [1.57.10.0] - 2026-06-10
+
+## **Codex review 现在会在关键路径默认运行。**
+## **一个开关统一控制；Codex 缺失或未认证时会回退到 Claude。**
+
+以前 Codex cross-model review 的行为不一致。`/review` 和 `/ship` 会自动运行它，
+但 plan reviews 把它藏在 "Want an outside voice?" 问题后面，每次都要手动同意；
+`/document-release` 完全不会运行；每个入口只检查 `codex` binary 是否存在，
+不检查是否已登录。现在 `codex_reviews` 是唯一 master switch（默认 `enabled`），
+统一控制 `/review`、`/ship`、`/plan-ceo-review`、`/plan-eng-review`、
+`/plan-design-review`、`/plan-devex-review`、`/document-release` 和 `/autoplan`
+中的 Codex review。plan-review 的 outside voice 会自动运行。`/document-release`
+新增一个 Codex pass，用实际发布的 diff 核对文档。每个调用点现在都会分别检测 install
+和 auth，并在不可用时带着明确的一行原因降级到 Claude subagent，而不是静默跳过。
+可以用一条命令关闭整个能力：`gstack-config set codex_reviews disabled`。
+
+### 关键数字
+
+已由 gate-tier E2E evals 验证；这些 evals 覆盖了对应路径
+(`codex-offered-ceo-review`, `codex-offered-eng-review`, `document-release`,
+`codex-review-findings`)，本次全部通过。
+
+| 指标 | 之前 | 现在 | Δ |
+|--------|--------|-------|---|
+| 默认运行 Codex review 的 skills | 2 | 8 | +6 |
+| 获得 plan-review outside voice 所需提示 | 1（每次 opt-in） | 0（自动） | -1 |
+| Codex readiness detection | 只看 install | install + auth | 更精确 |
+| 关闭全部 Codex review 的 master switch | 0（只能逐 skill 控制） | 1 (`codex_reviews`) | +1 |
+| `/document-release` Codex doc audit | 无 | doc-vs-diff pass | 新增 |
+
+当 Codex 已安装但未登录时，过去那些只检查 `command -v codex` 的路径什么都不会做。
+现在会给出具名原因（"Codex installed but not authenticated, using Claude subagent"），
+并且 review 仍会发生。开关拼错（例如 `gstack-config set codex_reviews disabledd`）
+会被拒绝，已有设置会被保留，因此手滑不会静默打开或关闭付费 Codex 调用。
+
+### 这对你意味着什么
+
+如果你日常使用 gstack，就不必再为每个 plan 和每次 release 决定是否需要第二个模型看一眼。
+它会默认存在，就像强 review 流程已经会检查 diff 一样。如果你没有设置 Codex，也不会坏：
+系统会改用 Claude outside voice，并用一行 note 告诉你如何添加 Codex 来获得真正的
+cross-model coverage。如果你不想要它，一条命令会同时关闭八个入口。
+
+### 逐项变更
+
+#### 新增
+- **`codex_reviews` 作为 master switch**，控制 `/review`、`/ship`、`/document-release`、
+  四个 plan reviews 和 `/autoplan` 中的 Codex review（`bin/gstack-config`）。
+  默认 `enabled`。`set` 时传入无效值会被拒绝并保留现有值，因此 typo 不会切换付费 Codex 调用。
+- **`/document-release` Codex doc audit**（`generateCodexDocReview`）：用 release diff
+  审查你改过的 docs，找 stale claims、未记录的新 surface，以及 CHANGELOG 中过度或不足的描述。
+  该检查只提供信息，并有明确的 apply-fixes 决策点；永远不会自动编辑 docs。
+- **`codexPreflight()` shared helper**（`scripts/resolvers/constants.ts`）：一个自包含 bash block，
+  读取开关、source probe、检查 install 和 auth，并输出单一 canonical mode
+  (`ready` / `not_installed` / `not_authed` / `disabled`)。
+
+#### 变更
+- **Plan-review outside voice 默认开启**，不再 opt-in。"Want an outside voice?" 问题已移除；
+  它会自动运行，并在 Codex 不可用时回退到 Claude subagent。是否采纳 findings 仍然需要你明确批准
+  （cross-model tension 会被呈现，但不会自动应用）。
+- **Adversarial review 会检测 auth，而不只是 install**（`generateAdversarialStep`）：
+  区分 "not installed" 和 "not authenticated" 指引。触发更重的结构化 `codex review` 的
+  200-line threshold 不变。
+- **`/autoplan` 在 Phase 0.5 preflight 中遵守 `codex_reviews=disabled`**，因此这个开关真正全局生效。
+
+#### 修复
+- 三个 `gstack-config` tests 原本断言 unset keys 的 `get`/`list` 会打印空值；实际工具会回退到文档化的
+  defaults table。现在断言与真实行为一致。
+
+#### 给 contributors
+- 为默认开启 outside-voice prose 放宽了 size-budget guards，并逐处添加 rationale comment
+  （`test/helpers/carve-guards.ts`、`test/helpers/parity-harness.ts`）。
+- 新增 static guards：plan reviews 不得带 opt-in question，必须渲染 default-on voice；
+  `/document-release` 必须带 doc review；codex host 必须剥离这些内容
+  （`test/skill-validation.test.ts`）。
+
+## [1.57.9.0] - 2026-06-09
+
+## **安装 gbrain 后，你的 gstack checkout 会保持干净。**
+## **Brain-aware skill blocks 渲染到未跟踪位置，永不写进 tracked source。**
+
+在此之前，当安装了 gbrain 的 Conductor 或 dev-workspace setup 完成时，它会就地重写
+16 个 planning 和 review SKILL.md files，把 326 行 brain-aware blocks 直接写入 tracked source。
+工作树会变脏，只要一次误用 `git add`，就可能为所有未运行 gbrain 的用户提交 token regression。
+现在 `gen-skill-docs --out-dir` 会把 brain-aware variant 渲染到每个 workspace 的 untracked directory，
+`bin/dev-setup` 会把该 workspace 的 skill symlinks 指向那里。dev workspace 获得完整 gbrain 体验
+（context-load 和 save-to-brain blocks 在 runtime 存在），而 tracked SKILL.md files 保持逐字节 canonical。
+如果要在你所有项目的 Claude sessions 中开启这些 blocks，`gstack-config gbrain-refresh` 现在会把它们
+渲染进 global install，并带有 guard，确保绝不会改动 symlinked 或 non-gstack directory。
+
+### 关键数字
+
+这些是结构性事实，可从 diff、`bun run gen:skill-docs`（zero drift）以及新的 behavioral test
+（`test/gen-skill-docs-out-dir.test.ts`）验证。
+
+| 安装 gbrain 时 | 之前 | 现在 |
+|---|---|---|
+| dev-setup 弄脏的 tracked SKILL.md files | 16（+326 行） | 0 |
+| dev workspace 中 brain-aware blocks 的渲染位置 | 就地写入 tracked source | `.claude/gstack-rendered/`，untracked |
+| 其他项目中的 brain-aware blocks | 重新运行 `./setup` 或手动编辑 | `gstack-config gbrain-refresh`（idempotent） |
+| "Is gbrain usable" 检查 | 每个 caller 自己 JSON grep，可能读到 stale state | `gstack-gbrain-detect --is-ok`（一个 live gate） |
+
+section-path rewrite 是外科式的：只有 `~/.claude/skills/gstack/<skill>/sections/` references
+移动到 render dir，因此 `bin/` 和 `docs/` references 仍然解析到 install。
+
+### 这对你意味着什么
+
+如果你在开启 gbrain 的情况下开发 gstack，setup 之后 `git status` 会重新保持干净，
+你不再需要从 commits 里清理 brain-block drift。对 install 做 `git reset --hard` deploy 后，
+重新运行 `gstack-config gbrain-refresh` 即可恢复 machine-wide blocks（它是 idempotent，
+CLAUDE.md 中的 deploy note 也说明了这一点）。
+
+### 逐项变更
+
+#### 新增
+- `gen-skill-docs --out-dir <dir>`：把 Claude SKILL.md + sections 渲染到单独目录，而不是就地写入；
+  只重写 section-base path，让 section reads 解析到 render。默认输出（不传 flag）不变。
+- `gstack-gbrain-detect --is-ok`：live-detection exit-code gate（只有 gbrain 可用时返回 0），
+  让 setup、dev-setup 和 gstack-config 共享同一检查。
+- `gstack-config gbrain-refresh` 现在会把 brain-aware blocks 渲染到 global install
+  (`~/.claude/skills/gstack`)，并防止写入 symlinked 或 non-gstack targets，同时自说明
+  `reset --hard` 后需要重新运行的周期。
+
+#### 变更
+- `bin/dev-setup` 会把 brain-aware variant 渲染到 `.claude/gstack-rendered`（gitignored），
+  并把 workspace skill symlinks 指向那里；worktree 保持 canonical。
+  `GSTACK_SKIP_GBRAIN_REGEN` 只以内联方式传给 nested setup，永不 export。
+- `setup` 遵守 `GSTACK_SKIP_GBRAIN_REGEN`（在 dev trees 上跳过 in-place brain regen），
+  并把 detection state 写到 PID-unique tmp，避免并发 workspaces 互相覆盖。
+- `scripts/dev-skill.ts` 在 template change 时刷新 workspace render，但只在 render dir 已存在时执行。
+- `bin/dev-teardown` 会移除 untracked render。
+
+#### 给 contributors
+- 新测试：`test/gen-skill-docs-out-dir.test.ts`（behavioral：worktree 不变、blocks 已渲染、section paths 已重写），
+  `test/dev-setup-render-isolation.test.ts` 和 `test/gbrain-refresh-install-render.test.ts`
+  （static tripwires），以及 `test/gbrain-detect-shape.test.ts` 中的 `--is-ok` coverage。
+
+## [1.57.8.0] - 2026-06-09
+
+## **`browse` 现在也是离线渲染时机器上的唯一 Chromium。**
+## **`js`/`eval --out <file>` 会把渲染结果直接写到磁盘，skills 不再需要自带 puppeteer。**
+
+现在你可以通过已经运行的同一个 headless `browse` Chromium，把本地 HTML 或 JSON 转成磁盘上的 PNG
+（或任意 bytes），无需第二套 browser install。`js "<expr>" --out out.png` 和
+`eval script.js --out out.png` 会把 evaluate result 写入文件，而不是返回结果。当结果是 base64 data URL
+（Excalidraw exports、og-image generators 和 card renderers 常用的形态）时，`--out` 会为你解码成 raw bytes；
+传 `--raw` 则写入 literal string。畸形 base64 会明确报错，而不是写出损坏文件；缺失的 parent directories
+会自动创建。这补上了过去 local-render skills 各自 `npm i puppeteer`、下载第二套会漂移的 Chromium 的缺口。
+
+### 关键数字
+
+没有 synthetic benchmark；这些是结构性事实，可通过 diff 和一行 smoke
+（`browse load-html` → `screenshot --selector` / `js --out`）验证。
+
+| 对于 rasterize 本地 HTML/JSON 的 skill | 之前 | 现在 |
+|---|---|---|
+| 每台机器的 Chromium installs | 2+（browse + 每个 skill 自己的 puppeteer） | 1（共享 `browse`） |
+| 从 render function 得到 PNG | `evaluate` → 多 MB data URL 走 CLI channel → 手动 decode base64 → write | `js --out` 在 server-side 解码并写入；channel 只传短状态 |
+| Render-to-file primitive | 无 | `js`/`eval --out [--raw]` |
+
+browse skill 中记录了推荐的 offline path：视觉输出走 `screenshot --selector`
+（图片不会跨 CDP wire 传输），function 返回的 bytes 走 `js --out`。
+
+### 这对你意味着什么
+
+如果你写的 skills 会绘制 diagrams、cards 或 og-images，把它们指向 `browse`，删除 bundled Chromium。
+一个版本要 pin，一个 daemon 要管理。`--out` 在所有关键位置都被视为 write：它需要 `write` scope，
+会在 pair-agent tunnel 上被阻止，并受 watch mode gate 约束，因此 remote agent 永远不能用它写你的磁盘。
+
+### 逐项变更
+
+#### 新增
+- **`js` / `eval --out <file>` render-to-file**（`browse/src/read-commands.ts`）。
+  将 evaluate result 写入磁盘，并返回简短的 `... result written: <path> (<N> bytes)` 状态。
+  `data:<type>;base64,...` 结果会解码成 raw bytes（header parse 大小写不敏感、按第一个逗号切分、
+  decode 前校验 base64 charset）；`--raw` 强制 literal write。parent directories 会被创建。
+- **`--raw` flag**，跳过 data-URL decoding，写入 literal result string。
+- **browse skill 中的 offline render mode docs**：明确的 headless、no-proxy、no-Xvfb path；
+  带 worked example，展示 visual（`screenshot --selector`）与 bytes（`js --out`）的区别；
+  还包含 puppeteer→browse cheatsheet 行，以及 "don't bundle your own Chromium" note
+  （也写入 CONTRIBUTING.md）。
+
+#### 变更
+- **`--out` 是 per-invocation WRITE capability**（`browse/src/server.ts`）。
+  `js`/`eval` 仍是 read commands，但带 `--out` 的调用需要 `write` scope，绝不会通过 tunnel surface dispatch
+  （`canDispatchOverTunnel` 现在会查看 args），并且在 watch-mode 和 tab-ownership gates 中算作 mutation。
+
+#### 给 contributors
+- 新测试：`parseOutArgs`/`hasOutArg` unit coverage（`--out`/`--out=`、`--raw`、重复参数、缺失值、顺序），
+  `--out` render-to-file integration（large string、data-URL→PNG、`--raw`、malformed-base64、
+  outside-safe-dir、mkdir、eval parity、byte-for-byte null/undefined），以及 tunnel-gate guards，
+  证明 `--out` 永远不能 tunnel-dispatch。
+
 ## [1.57.7.0] - 2026-06-08
 
 ## **每次 plan review 结束时，都会用一行告诉你是否仍有未解决事项。**

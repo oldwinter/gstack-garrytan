@@ -8,7 +8,8 @@
  *   3. sha8($(git config user.email))
  *   4. anonymous-<sha8(hostname)>
  *
- * Result is persisted under user_slug_at_<endpoint-hash> for stability.
+ * Result is persisted under user_slug_at_<endpoint-hash> or user_slug_at_local
+ * for stability.
  * Test isolation via GSTACK_HOME and HOME env overrides.
  *
  * Gate-tier, free, ~50ms.
@@ -87,12 +88,12 @@ describe('resolve-user-slug fallback chain', () => {
     expect(slug).toMatch(/^(email-|anonymous-)[a-f0-9]+$|^[a-zA-Z0-9-]+$/);
   });
 
-  test('persists resolution to user_slug_at_<hash> on first call', () => {
+  test('persists resolution to user_slug_at_<hash-or-local> on first call', () => {
     runConfig(['resolve-user-slug'], { GSTACK_HOME: TMP_HOME, USER: 'persisttest' });
     const configFile = join(TMP_HOME, 'config.yaml');
     expect(existsSync(configFile)).toBe(true);
     const content = readFileSync(configFile, 'utf-8');
-    expect(content).toMatch(/^user_slug_at_[a-f0-9]+:\s+persisttest/m);
+    expect(content).toMatch(/^user_slug_at_(?:local|[a-f0-9]+):\s+persisttest/m);
   });
 
   test('subsequent calls return same slug (stable across sessions)', () => {

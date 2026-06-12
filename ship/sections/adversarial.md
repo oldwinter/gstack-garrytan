@@ -4,23 +4,46 @@
 
 每个 diff 都会获得来自 Claude 和 Codex 的 adversarial review。LOC 不是 risk proxy：5 行 auth change 也可能 critical。
 
-**Detect diff size and tool availability（检测 diff size 和 tool availability）：**
+**Detect diff size（检测 diff size）：**
 
 ```bash
 DIFF_BASE=$(git merge-base origin/<base> HEAD)
 DIFF_INS=$(git diff "$DIFF_BASE" --stat | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
 DIFF_DEL=$(git diff "$DIFF_BASE" --stat | tail -1 | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
 DIFF_TOTAL=$((DIFF_INS + DIFF_DEL))
-command -v codex >/dev/null 2>&1 && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
-# Legacy opt-out — 只 gate Codex passes，Claude always runs
-OLD_CFG=$(~/.claude/skills/gstack/bin/gstack-config get codex_reviews 2>/dev/null || true)
 echo "DIFF_SIZE: $DIFF_TOTAL"
-echo "OLD_CFG: ${OLD_CFG:-not_set}"
 ```
 
-如果 `OLD_CFG` 是 `disabled`：只 skip Codex passes。Claude adversarial subagent 仍然运行（free and fast）。跳到 "Claude adversarial subagent" section。
+**Detect Codex master switch + tool availability（检测 Codex 总开关和工具可用性）：**
 
-**User override（用户覆盖）：** 如果用户明确要求 "full review"、"structured review" 或 "P1 gate"，无论 diff size 如何也要运行 Codex structured review。
+```bash
+# Codex preflight: one block (functions sourced here don't persist to later blocks).
+_TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || echo off)
+_CODEX_CFG=$(~/.claude/skills/gstack/bin/gstack-config get codex_reviews 2>/dev/null || echo enabled)
+source ~/.claude/skills/gstack/bin/gstack-codex-probe 2>/dev/null || true
+if [ "$_CODEX_CFG" = "disabled" ]; then
+  _CODEX_MODE="disabled"
+elif ! command -v codex >/dev/null 2>&1; then
+  _CODEX_MODE="not_installed"; _gstack_codex_log_event "codex_cli_missing" 2>/dev/null || true
+elif ! _gstack_codex_auth_probe >/dev/null 2>&1; then
+  _CODEX_MODE="not_authed"; _gstack_codex_log_event "codex_auth_failed" 2>/dev/null || true
+else
+  _CODEX_MODE="ready"; _gstack_codex_version_check 2>/dev/null || true
+fi
+echo "CODEX_MODE: $_CODEX_MODE"
+```
+
+Branch on the echoed `CODEX_MODE`:
+- **`disabled`** — the user turned Codex reviews off (`codex_reviews=disabled`). Skip the Codex passes only; the Claude adversarial subagent below STILL runs (it is free and fast). Print: "Codex passes skipped (codex_reviews disabled) — running Claude adversarial only."
+- **`not_installed`** — Codex CLI absent. Print: "Codex not installed — using Claude subagent. Install for cross-model coverage: `npm install -g @openai/codex`." Fall back to the Claude subagent path.
+- **`not_authed`** — installed but no credentials. Print: "Codex installed but not authenticated — using Claude subagent. Run `codex login` or set `$CODEX_API_KEY`." Fall back to the Claude subagent path.
+- **`ready`** — run the Codex pass below.
+
+对这个 diff-review path，`CODEX_MODE: disabled` 只表示 skip Codex passes；下面的
+Claude adversarial subagent 仍然运行（free and fast）。`ready` 时运行 Codex passes；
+`not_installed` / `not_authed` 时输出上方原因并继续 Claude-only。
+
+**User override（用户覆盖）：** 如果用户明确要求 "full review"、"structured review" 或 "P1 gate"，无论 diff size 如何也要运行 Codex structured review（仍要求 `CODEX_MODE: ready`）。
 
 ---
 
@@ -41,9 +64,9 @@ Subagent prompt:
 
 ---
 
-### Codex adversarial challenge（available 时 always runs）
+### Codex adversarial challenge（`CODEX_MODE: ready` 时运行）
 
-如果 Codex 可用且 `OLD_CFG` 不是 `disabled`：
+如果 `CODEX_MODE` 为 `ready`：
 
 ```bash
 TMPERR_ADV=$(mktemp /tmp/codex-adv-XXXXXXXX)
@@ -65,13 +88,13 @@ cat "$TMPERR_ADV"
 
 **Cleanup（清理）：** processing 后运行 `rm -f "$TMPERR_ADV"`。
 
-如果 Codex 不可用："Codex CLI not found — running Claude adversarial only. Install Codex for cross-model coverage: `npm install -g @openai/codex`"
+如果 `CODEX_MODE` 是 `not_installed` / `not_authed` / `disabled`：preflight 已经打印原因；只运行 Claude adversarial。
 
 ---
 
 ### Codex structured review（仅 large diffs，200+ lines）
 
-如果 `DIFF_TOTAL >= 200`，且 Codex 可用、`OLD_CFG` 不是 `disabled`：
+如果 `DIFF_TOTAL >= 200` 且 `CODEX_MODE` 是 `ready`：
 
 ```bash
 TMPERR=$(mktemp /tmp/codex-review-XXXXXXXX)
@@ -81,7 +104,7 @@ codex review "IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.a
 ```
 
 将 Bash tool 的 `timeout` parameter 设为 `300000`（5 minutes）。不要使用 `timeout` shell command — macOS 上不存在。在 `CODEX SAYS (code review):` header 下展示 output。
-检查 `[P1]` markers：found → `GATE: FAIL`，not found → `GATE: PASS`。
+检查 `[P1]` markers：found -> `GATE: FAIL`，not found -> `GATE: PASS`。
 
 如果 GATE 是 FAIL，使用 AskUserQuestion：
 ```

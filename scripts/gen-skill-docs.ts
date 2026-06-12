@@ -134,6 +134,38 @@ const EXPLAIN_LEVEL: 'default' | 'terse' = (() => {
   return val;
 })();
 
+// ─── Out-dir（dev workspace render isolation）───────────────
+// --out-dir <abs-dir> 会把 Claude SKILL.md + section output 重定向到单独的
+// untracked 目录，而不是原地写入；同时会把 generated content 中的 literal
+// section-base path（`~/.claude/skills/gstack/<skill>/sections/`）改指向 out-dir，
+// 让 section Reads 读取 rendered copy，而不是 global install。bin/dev-setup 用它
+// 为 Conductor workspace 渲染 gbrain `:user` variant，同时不 dirty tracked source。
+// 默认（未设置）= 原地写入，行为不变。仅 Claude host。
+const OUT_DIR_ARG = process.argv.find(a => a.startsWith('--out-dir'));
+const OUT_DIR: string | null = (() => {
+  if (!OUT_DIR_ARG) return null;
+  const val = OUT_DIR_ARG.includes('=')
+    ? OUT_DIR_ARG.split('=')[1]
+    : process.argv[process.argv.indexOf(OUT_DIR_ARG) + 1];
+  if (!val) throw new Error('--out-dir requires a directory path');
+  return path.resolve(val);
+})();
+
+/**
+ * 渲染到 out-dir 时，把 literal section-base path 指向 out-dir，让 section Reads
+ * resolve 到 rendered copy，而不是 global install。
+ * 这是精准 rewrite：只改包含 `/sections/` 的 paths；bin/、browse/、docs/
+ * references 继续指向 `~/.claude/skills/gstack`（仍可工作的 global install）。
+ * --out-dir 未设置时为 no-op。
+ */
+function rewriteSectionBase(content: string): string {
+  if (!OUT_DIR) return content;
+  return content.replace(
+    /~\/\.claude\/skills\/gstack\/([^\s)`"'*]+\/sections\/)/g,
+    `${OUT_DIR}/$1`,
+  );
+}
+
 // HostPaths、HOST_PATHS 和 TemplateContext 从 ./resolvers/types import（line 7-8）。
 // Design constants（AI_SLOP_BLACKLIST、OPENAI_HARD_REJECTIONS、OPENAI_LITMUS_CHECKS）
 // 位于 ./resolvers/constants，并由 resolvers 直接消费。
@@ -762,6 +794,12 @@ function processTemplate(tmplPath: string, host: Host = 'claude'): { outputPath:
   // Determine skill directory relative to ROOT
   const skillDir = path.relative(ROOT, path.dirname(tmplPath));
 
+  // --out-dir (Claude only): mirror the skill tree into the out-dir instead of
+  // writing in place. External hosts compute their own paths below.
+  if (OUT_DIR && host === 'claude') {
+    outputPath = path.join(OUT_DIR, skillDir, path.basename(tmplPath).replace(/\.tmpl$/, ''));
+  }
+
   // Extract name/description: name drives external skill naming + setup symlinks
   // (and TemplateContext.skillName via buildContext); description feeds external
   // host metadata. When frontmatter name: differs from directory name (e.g.
@@ -816,6 +854,9 @@ function processTemplate(tmplPath: string, host: Host = 'claude'): { outputPath:
     }
   }
 
+  // --out-dir: repoint section-base paths to the out-dir (no-op otherwise).
+  if (host === 'claude') content = rewriteSectionBase(content);
+
   return { outputPath, content, symlinkLoop, catalogParts };
 }
 
@@ -854,6 +895,10 @@ function processSectionTemplate(
   // External hosts: rewrite cross-reference paths/tools (no frontmatter to transform).
   if (host !== 'claude') {
     content = applyHostRewrites(content, hostConfig);
+  } else {
+    // --out-dir: a section may cross-reference another section by absolute path;
+    // repoint those to the out-dir too (no-op when --out-dir is unset).
+    content = rewriteSectionBase(content);
   }
 
   // Plain generated header (no frontmatter to insert after).
@@ -862,7 +907,7 @@ function processSectionTemplate(
   const fileName = path.basename(sectionTmplPath).replace(/\.tmpl$/, '');
   let outputPath: string;
   if (host === 'claude') {
-    outputPath = path.join(ROOT, skillDir, 'sections', fileName);
+    outputPath = path.join(OUT_DIR || ROOT, skillDir, 'sections', fileName);
   } else {
     const externalName = externalSkillName(skillDir, parentName);
     outputPath = path.join(ROOT, hostConfig.hostSubdir, 'skills', externalName, 'sections', fileName);
@@ -927,7 +972,7 @@ for (const currentHost of hostsToRun) {
           voice_line: catalogParts.voiceLine,
         };
       }
-      const relOutput = path.relative(ROOT, outputPath);
+      const relOutput = path.relative(OUT_DIR || ROOT, outputPath);
 
       if (symlinkLoop) {
         console.log(`SKIPPED (symlink loop): ${relOutput}`);
@@ -940,6 +985,9 @@ for (const currentHost of hostsToRun) {
           console.log(`FRESH: ${relOutput}`);
         }
       } else {
+        // In-place writes land in existing dirs; --out-dir needs the mirrored
+        // skill dir created first.
+        if (OUT_DIR) fs.mkdirSync(path.dirname(outputPath), { recursive: true });
         fs.writeFileSync(outputPath, content);
         console.log(`GENERATED: ${relOutput}`);
       }
@@ -976,7 +1024,7 @@ for (const currentHost of hostsToRun) {
           currentHostConfig.generation.skipSkills.includes(sec.skillDir)) continue;
 
       const { outputPath, content } = processSectionTemplate(path.join(ROOT, sec.tmpl), sec.skillDir, currentHost);
-      const relOutput = path.relative(ROOT, outputPath);
+      const relOutput = path.relative(OUT_DIR || ROOT, outputPath);
 
       if (DRY_RUN) {
         const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf-8') : '';
@@ -1072,7 +1120,9 @@ The orchestrator will persist the plan link to its own memory/knowledge store.
     // No timestamp field — keeps the file content-deterministic across runs so
     // CI dry-run freshness checks don't flap on regen. If a per-run timestamp
     // is ever needed for debugging, write it to a separate `.gen-stamp` file.
-    if (currentHost === 'claude' && CATALOG_MODE === 'trim' && Object.keys(proactiveAggregate).length > 0 && !DRY_RUN) {
+    // Skip the global proactive-suggestions.json in --out-dir mode: it lives at
+    // a repo path (scripts/) and the dev workspace render doesn't need it.
+    if (currentHost === 'claude' && CATALOG_MODE === 'trim' && Object.keys(proactiveAggregate).length > 0 && !DRY_RUN && !OUT_DIR) {
       const proactivePath = path.join(ROOT, 'scripts', 'proactive-suggestions.json');
       // Sort keys alphabetically so the serialized JSON is identical across
       // machines regardless of filesystem-iteration order. Without this, CI

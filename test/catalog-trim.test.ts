@@ -185,7 +185,7 @@ describe('buildWhenToInvokeSection', () => {
     expect(out).toContain('Voice triggers');
   });
 
-  test('omits routing block when routingProse is empty', () => {
+  test('emits default routing guidance when routingProse is empty', () => {
     const out = buildWhenToInvokeSection({
       lead: 'Lead.',
       routingProse: '',
@@ -193,7 +193,7 @@ describe('buildWhenToInvokeSection', () => {
       hasGstackTag: true,
     });
     expect(out).toContain('## When to invoke this skill（何时调用此 skill）');
-    expect(out).not.toContain('Use when');
+    expect(out).toContain('Use when this request matches the routing prose below.');
   });
 
   test('emits even when only voice line is present', () => {

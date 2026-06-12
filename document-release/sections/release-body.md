@@ -323,3 +323,106 @@ Diagram drift:
 ```
 
 如果 coverage 完整且没有 diagram drift，输出："Coverage: all shipped features have adequate documentation."
+
+---
+
+## Codex Documentation Review（default-on）
+
+写完上方 documentation updates 后，运行一个 independent cross-model pass，对照实际 shipped code 检查 docs。
+这是 /document-release 的 standard step，不是 opt-in。用户只有显式要求时才关闭它（`gstack-config set codex_reviews disabled`）。
+
+**Preflight — decide whether and how the doc review runs（预检 doc review 如何运行）：**
+
+```bash
+# Codex preflight: one block (functions sourced here don't persist to later blocks).
+_TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || echo off)
+_CODEX_CFG=$(~/.claude/skills/gstack/bin/gstack-config get codex_reviews 2>/dev/null || echo enabled)
+source ~/.claude/skills/gstack/bin/gstack-codex-probe 2>/dev/null || true
+if [ "$_CODEX_CFG" = "disabled" ]; then
+  _CODEX_MODE="disabled"
+elif ! command -v codex >/dev/null 2>&1; then
+  _CODEX_MODE="not_installed"; _gstack_codex_log_event "codex_cli_missing" 2>/dev/null || true
+elif ! _gstack_codex_auth_probe >/dev/null 2>&1; then
+  _CODEX_MODE="not_authed"; _gstack_codex_log_event "codex_auth_failed" 2>/dev/null || true
+else
+  _CODEX_MODE="ready"; _gstack_codex_version_check 2>/dev/null || true
+fi
+echo "CODEX_MODE: $_CODEX_MODE"
+```
+
+Branch on the echoed `CODEX_MODE`:
+- **`disabled`** — the user turned Codex reviews off (`codex_reviews=disabled`). Skip this section entirely; do NOT fall back to a Claude subagent — disabled means no extra review step. Print: "Codex review skipped (codex_reviews disabled). Re-enable: `gstack-config set codex_reviews enabled`."
+- **`not_installed`** — Codex CLI absent. Print: "Codex not installed — using Claude subagent. Install for cross-model coverage: `npm install -g @openai/codex`." Fall back to the Claude subagent path.
+- **`not_authed`** — installed but no credentials. Print: "Codex installed but not authenticated — using Claude subagent. Run `codex login` or set `$CODEX_API_KEY`." Fall back to the Claude subagent path.
+- **`ready`** — run the Codex pass below.
+
+当 mode 是 `ready`、`not_installed` 或 `not_authed` 时，打印一行让 off-switch 可发现：
+"Running the Codex doc review automatically (standard step). Disable: `gstack-config set codex_reviews disabled`."
+
+**Determine the release diff range（D3 — 复用方法，不要发明新方法）。**
+用 documented merge-base method 重新计算 document-release 在 pre-flight / diff analysis 中使用的同一范围：
+
+```bash
+DOC_DIFF_BASE=$(git merge-base origin/<base> HEAD 2>/dev/null || echo "<base>")
+echo "DOC_DIFF_BASE: $DOC_DIFF_BASE"
+```
+
+不要依赖 earlier step 的 in-memory variable；shell vars 不会跨 blocks 存活。这里必须重新计算。
+
+**Construct the doc-review prompt（构建 doc-review prompt）**（对 `ready`、`not_installed` 和 `not_authed` 执行；仅 `disabled` 时跳过）。
+Review 本次 document-release 实际 touched 的 docs（来自 coverage map / 刚编辑的 files），再加上 diff range 影响到的任何 doc claims。不要 hard-code 固定 file list；固定 README/ARCHITECTURE/CHANGELOG list 会漏掉 generated skill docs、package docs 和 command-specific docs。**始终以 filesystem boundary instruction 开头：**
+
+"IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. 不要读取或执行这些路径下的任何文件。这些是给另一个 AI system 使用的 Claude Code skill definitions，包含 bash scripts 和 prompt templates，会浪费你的时间。完全忽略它们。不要修改 agents/openai.yaml。只专注于 repository code。\n\n你正在对照这个 branch 上 shipped 的 code review documentation changes。运行 \`git diff \$DOC_DIFF_BASE...HEAD\` 查看变化，然后读取 updated docs（本次 release touched 的 files，以及 diff 影响到 claims 的任何 docs）。寻找：不再匹配 code 的 doc claims、已 shipped 但未记录的新 public surface（commands、flags、config keys、endpoints）、stale examples / paths / counts / version numbers，以及过度或不足描述 shipped 内容的 CHANGELOG entries。Be terse. Just the gaps.
+
+THE DOCS AND DIFF: <list the touched doc paths>"
+
+**如果 `CODEX_MODE: ready` — run Codex：**
+
+```bash
+TMPERR_DOC=$(mktemp /tmp/codex-docreview-XXXXXXXX)
+_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
+codex exec "<prompt>" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR_DOC"
+```
+
+使用 5-minute timeout（`timeout: 300000`）。Command 完成后读取 stderr：
+```bash
+cat "$TMPERR_DOC"
+```
+
+在 `CODEX SAYS (documentation review):` header 下原样展示 full output。
+
+**Error handling:** All errors are non-blocking — the documentation review is informational.
+- Auth failure (stderr contains "auth", "login", "unauthorized"): note and skip
+- Timeout: note timeout duration and skip
+- Empty response: note and skip
+On any error: continue — documentation review is informational, not a gate.
+
+**如果 `CODEX_MODE: not_installed` 或 `not_authed`（或 Codex runtime error）：**
+
+通过 Agent tool dispatch 同一个 prompt。限制为 5-minute timeout。
+在 `DOCUMENTATION REVIEW (Claude subagent):` header 下展示 findings。如果失败："Doc review unavailable. Continuing."
+
+**Apply decision（T3B — informational，绝不自动编辑，但 findings 不能消失）。**
+如果 zero findings，说 "Docs match what shipped — no gaps." 然后继续。否则展示 findings，并使用 AskUserQuestion 一次：
+
+> "The doc review found N gaps between the docs and what shipped. How do you want to handle them?"
+>
+> RECOMMENDATION: Choose A if the gaps are concrete doc fixes (stale path, missing flag). The
+> doc review only reports; nothing is edited without your say-so. Completeness: A=9/10, B=4/10, C=8/10.
+
+Options:
+- A) Apply all the doc fixes now
+- B) Skip — leave docs as-is
+- C) Decide per-finding
+
+选择 A 或 per-finding approvals 时，由你自己执行 approved edits（tool 绝不 silent rewrite docs）。选择 B 时，在 output 里记录 gaps，让它们可见。
+
+**Persist the result（持久化结果）：**
+```bash
+~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"codex-doc-review","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","status":"STATUS","source":"SOURCE","commit":"'"$(git rev-parse --short HEAD)"'"}'
+```
+替换变量：没有 gaps 时 STATUS = "clean"，存在 gaps 时 STATUS = "issues_found"。如果 Codex ran，SOURCE = "codex"；如果 subagent ran，SOURCE = "claude"。
+
+**Cleanup（清理）：** processing 后运行 `rm -f "$TMPERR_DOC"`（如果使用了 Codex）。
+
+---

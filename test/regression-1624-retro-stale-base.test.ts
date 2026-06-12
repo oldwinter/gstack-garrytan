@@ -36,13 +36,13 @@ function readMd(): string {
 describe("#1624 retro stale-base guard — Step 0.5 exists and is ordered before Step 1", () => {
   test("Step 0.5 header is present in template", () => {
     const body = readTmpl();
-    expect(body).toMatch(/### Step 0\.5: Stale-base \+ bad-today-anchor pre-flight guard/);
+    expect(body).toMatch(/### Step 0\.5[：:]Stale-base \+ bad-today-anchor pre-flight guard/);
   });
 
   test("Step 0.5 appears before Step 1: Gather Raw Data", () => {
     const body = readTmpl();
-    const step05 = body.indexOf("### Step 0.5:");
-    const step1 = body.indexOf("### Step 1: Gather Raw Data");
+    const step05 = body.search(/### Step 0\.5[：:]/);
+    const step1 = body.search(/### Step 1[：:]Gather Raw Data/);
     expect(step05).toBeGreaterThan(-1);
     expect(step1).toBeGreaterThan(-1);
     expect(step05).toBeLessThan(step1);
@@ -50,7 +50,7 @@ describe("#1624 retro stale-base guard — Step 0.5 exists and is ordered before
 
   test("regenerated SKILL.md carries the Step 0.5 guard", () => {
     const md = readMd();
-    expect(md).toMatch(/Step 0\.5: Stale-base \+ bad-today-anchor pre-flight guard/);
+    expect(md).toMatch(/Step 0\.5[：:]Stale-base \+ bad-today-anchor pre-flight guard/);
   });
 });
 
@@ -98,7 +98,7 @@ describe("#1624 retro guard — branch C: fetch-fail warn", () => {
 
   test("fetch-fail warn is gated by prior verdict check (ordering)", () => {
     const body = readTmpl();
-    const branchCStart = body.indexOf("# Pre-check C: fetch origin");
+    const branchCStart = body.indexOf("# Pre-check C");
     expect(branchCStart).toBeGreaterThan(-1);
     const branchCSlice = body.slice(branchCStart, branchCStart + 500);
     expect(branchCSlice).toMatch(/if \[ -z "\$_RETRO_GUARD_VERDICT" \]/);
@@ -117,14 +117,14 @@ describe("#1624 retro guard — branch D: stale-base BLOCK", () => {
     const body = readTmpl();
     // The BLOCK message must cite the date AND tell the user how to recover.
     // "Retro window is stale" is the canonical first line.
-    expect(body).toMatch(/Retro window is stale/);
+    expect(body).toMatch(/Retro window 已过期/);
     expect(body).toMatch(/git fetch origin <default>/);
-    expect(body).toMatch(/Confirm today's date/);
+    expect(body).toMatch(/确认 today/);
   });
 
   test("BLOCK branch is gated by prior verdict checks (ordering)", () => {
     const body = readTmpl();
-    const branchDStart = body.indexOf("# Pre-check D:");
+    const branchDStart = body.indexOf("# Pre-check D");
     expect(branchDStart).toBeGreaterThan(-1);
     const branchDSlice = body.slice(branchDStart, branchDStart + 800);
     expect(branchDSlice).toMatch(/if \[ -z "\$_RETRO_GUARD_VERDICT" \]/);

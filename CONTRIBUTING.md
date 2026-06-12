@@ -94,6 +94,21 @@ bun run build
 bin/dev-teardown
 ```
 
+### Dev workspace 中的 brain-aware blocks（已安装 gbrain）
+
+如果 gbrain 已安装且可用（`bin/gstack-gbrain-detect --is-ok` exit 0），
+`bin/dev-setup` 会保持 tracked `SKILL.md` files 为 canonical，同时把
+brain-aware variant（`GBRAIN_CONTEXT_LOAD` / `GBRAIN_SAVE_RESULTS` blocks）
+渲染到 `.claude/gstack-rendered/`（gitignored，per-workspace）。随后它会把
+workspace 的 `SKILL.md` symlinks 指向该 render，让 Claude sessions 获得完整
+gbrain experience，同时保持 `git status` 干净。底层实现是：dev-setup 给嵌套
+`./setup` inline 传入 `GSTACK_SKIP_GBRAIN_REGEN=1`（避免 dirty tracked source），
+并运行 `gen:skill-docs:user --out-dir .claude/gstack-rendered`，只把 section-base
+paths 改指向该 render。`bin/dev-teardown` 会移除 render。要让这些 blocks 在其他
+projects 的 Claude sessions 中生效，运行 `gstack-config gbrain-refresh`；它会把它们
+渲染进 global install（`~/.claude/skills/gstack`），并通过 guard 确保不会碰
+symlinked 或 non-gstack directory。
+
 ## Testing & evals（测试与 evals）
 
 ### Setup（设置）
@@ -220,6 +235,13 @@ Template authoring best practices（自然语言优先于 bash-isms、动态 bra
 
 新增 browse command 时，把它加到 `browse/src/commands.ts`。新增 snapshot flag 时，把它加到 `SNAPSHOT_FLAGS`（`browse/src/snapshot.ts`）。然后重新构建。
 
+**不要在 skill 中捆绑自己的 puppeteer/Chromium。** `browse` 是每台机器上共享的
+Chromium，也覆盖 offline local-render workloads。需要 rasterize 自己的 HTML/JSON
+（diagrams、cards、og-images）的 skill 应通过 `browse`：visual output 用
+`screenshot --selector`，render function 返回 bytes 时用 `load-html` + `js --out`。
+不要 `npm i puppeteer` 再下载第二份可能版本漂移的 Chromium。只需要 pin 一个 install、
+管理一个 daemon。
+
 ## Jargon list（V1 writing style）
 
 gstack 的 Writing Style section（注入到每个 tier-≥2 skill 的 preamble）会在每次 skill invocation 中首次出现时解释技术术语。需要解释的术语列表位于 `scripts/jargon-list.json`，约 50 个精选高频术语（idempotent、race condition、N+1、backpressure 等）。不在列表中的术语会被认为足够 plain-English。
@@ -302,8 +324,8 @@ bun run skill:check
 
 | Hook | Script | 作用 |
 |------|--------|------|
-| `setup` | `bin/dev-setup` | 从 main worktree 复制 `.env`、安装 deps、symlink skills、非交互运行 `./setup` |
-| `archive` | `bin/dev-teardown` | 移除 skill symlinks，清理 `.claude/` 目录 |
+| `setup` | `bin/dev-setup` | 从 main worktree 复制 `.env`、安装 deps、symlink skills、非交互运行 `./setup`，并在已安装 gbrain 时把 brain-aware blocks 渲染到 `.claude/gstack-rendered/`，不 dirty tracked source |
+| `archive` | `bin/dev-teardown` | 移除 skill symlinks、`.claude/gstack-rendered/` render，并清理 `.claude/` 目录 |
 
 Conductor 创建新 workspace 时，`bin/dev-setup` 会自动运行。它会检测 main worktree（通过 `git worktree list`），复制 `.env` 以带上 API keys，并设置 dev mode，不需要手动步骤。
 
